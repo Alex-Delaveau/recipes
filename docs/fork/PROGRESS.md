@@ -48,3 +48,23 @@ baseline est l'objet de M0) ; `setup.sh` OK (seed `demo/demo`, 17 aliments, 4 re
   changement visible, compléments ajoutés à l'audit § 4).
 - Porte finale : `verify.sh --ui m1 --publish` → `VERIFY: OK`.
 - Prochain jalon : M1, après validation des propositions M0.
+
+## M1 — plan
+Branche : `claude/busy-heisenberg-yf2zw3` (branche imposée par la session cloud, comme en M0), base `origin/main`
+(M0 fusionné). Environnement : `verify.sh --quick` → `VERIFY: OK` avant tout changement (650 erreurs vue-tsc).
+
+1. [ ] Captures fiables (`screenshots.mjs`) : capture « écran visible » en plus de la pleine page ; `Math.random`
+   à graine fixe et attente de la fin des chargements ; capture sombre (mobile, `prefers-color-scheme: dark`) ;
+   publication des captures `small`. Vérif : deux passes `--ui wip` donnent les mêmes images d'accueil.
+2. [ ] Thème Vuetify clair/sombre depuis les tokens de DESIGN.md (couleurs, police système, rayons, élévation 0/1 avec
+   contours, espacements) ; thème par défaut = système. Vérif : `verify.sh --quick --ui wip`, captures clair et sombre.
+3. [ ] Fondu entre les vues (≤ 200 ms), coupé avec `prefers-reduced-motion`. Vérif : build + lecture du CSS appliqué.
+4. [ ] Coquille : barre du bas à 4 entrées avec libellés (Recettes, Courses, Ajouter, Plus), feuilles « Ajouter » et
+   « Plus », hauteur réservée dans `v-main`, en-tête compact, tiroir dès `mdAndUp`. Vérif : captures « écran visible »
+   mobile et desktop, zones tactiles ≥ 44 px dans la barre.
+5. [ ] Erreurs upstream : `POST /api/view-log/` en 403 et `TypeError` dans `AccountSettings`, corrigées au plus près.
+   Vérif : rapport UI sans erreur JS sur `recipe-view`, `mealplan`, `settings`.
+6. [ ] Page de connexion alignée sur les tokens (CSS du fork, sans toucher au template upstream si possible).
+   Vérif : captures `login`.
+7. [ ] Toutes les routes de `routes.json` en `"strict": true`, aucun débordement à 360 px. Vérif : `verify.sh --ui wip`.
+8. [ ] Porte finale `verify.sh --ui m1 --publish`, `reviewer` + `ui-auditor`, corrections, PR.
