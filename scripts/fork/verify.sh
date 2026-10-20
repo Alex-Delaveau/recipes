@@ -85,8 +85,10 @@ if [ -n "$UI_LABEL" ]; then
       ok "UI checks (report: .fork/screens/$UI_LABEL/report.md)"
     else ko "ui-checks"; grep -E 'FAIL|ERROR|\| yes \|' .fork/ui.txt | grep -v '| OK |' | head -15 | sed 's/^/         /'; fi
     # journey flows (click-through checks of the acceptance criteria); they restore the data they change
+    rm -rf .fork/screens/flows
     if node scripts/fork/ui/flows.mjs > .fork/flows.txt 2>&1; then
       ok "journey flows: $(tail -1 .fork/flows.txt)"
+      if [ -n "$PUBLISH" ] && [ -d .fork/screens/flows ]; then cp .fork/screens/flows/*.jpg "docs/fork/screens/$UI_LABEL/"; fi
     else ko "journey-flows"; grep -E '\[FAIL\]|FLOWS' .fork/flows.txt | head -15 | sed 's/^/         /'; fi
   else ko "dev-server"; tail -10 .fork/serve.txt | sed 's/^/         /'; fi
 fi

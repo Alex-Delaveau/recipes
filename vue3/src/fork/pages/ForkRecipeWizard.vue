@@ -31,14 +31,13 @@
             <section v-else-if="draft.screen == 0">
                 <v-text-field v-model="draft.name" :label="$t('Fork_Recipe_Name')" variant="outlined" autocomplete="off" autofocus class="mb-4"
                               :rules="[v => !!v?.trim() || $t('Fork_Required')]" @keydown.enter.prevent="next()"></v-text-field>
-                <div class="fork-wizard__label">{{ $t('Servings') }}</div>
                 <fork-servings-stepper v-model="draft.servings" :label="$t('Servings')"></fork-servings-stepper>
             </section>
 
             <!-- 2. ingredients -->
             <section v-else-if="draft.screen == 1">
                 <v-textarea v-model="pasteText" :label="$t('Fork_Ingredients_Input')" :placeholder="$t('Fork_Ingredients_Placeholder')"
-                            variant="outlined" auto-grow rows="3" hide-details autocomplete="off" class="mb-2"></v-textarea>
+                            variant="outlined" auto-grow rows="3" hide-details autocomplete="off" persistent-placeholder class="mb-2"></v-textarea>
                 <div v-if="preview.length" class="fork-wizard__preview" aria-live="polite">
                     <div class="text-caption text-medium-emphasis mb-1">{{ $t('Fork_Recognised') }}</div>
                     <div v-for="(p, i) in preview" :key="i" class="fork-wizard__preview-row">

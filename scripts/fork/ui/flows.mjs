@@ -7,7 +7,7 @@
 // Exit code 1 if a check fails. Run by `verify.sh --ui` after the screenshots.
 
 import { execFileSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium as pw } from 'playwright-core'
@@ -75,6 +75,14 @@ async function api(page, method, path, body) {
 }
 
 const texts = (page, selector) => page.locator(selector).allInnerTexts()
+
+// screens that only a click-through reaches (wizard screens 2-4...): published with the route captures
+const SHOTS = join(ROOT, '.fork/screens/flows')
+async function shot(page, name) {
+  mkdirSync(SHOTS, { recursive: true })
+  await page.waitForTimeout(400)
+  await page.screenshot({ path: join(SHOTS, `${name}-mobile-screen.jpg`), type: 'jpeg', quality: 80 }).catch(() => {})
+}
 
 // ---- flows ----
 const FLOWS = {
@@ -369,13 +377,16 @@ const FLOWS = {
     const preview = page.locator('.fork-wizard__preview-row')
     check(await eventually(async () => (await preview.count()) === 4), 'live recognition while typing')
     check((await preview.first().innerText()).includes('Courgette'), 'plural brought back to the existing food')
+    await shot(page, 'wizard-2-recognition')
     await page.getByRole('button', { name: 'Ajouter 4 ingrédients' }).click()
     const rows = page.locator('.fork-wizard__ingredient')
     check(await eventually(async () => (await rows.count()) === 4), 'pasted lines added')
     check((await rows.nth(0).innerText()).includes('coupées en dés'), 'precision kept as a note')
     check((await rows.nth(1).innerText()).includes('c. à soupe'), 'French unit recognised')
+    await shot(page, 'wizard-2-ingredients')
     await rows.nth(3).click()
     await page.locator('.fork-line-sheet').getByLabel('Quantité').fill('2')
+    await shot(page, 'wizard-2-line-sheet')
     await page.locator('.fork-line-sheet').getByRole('button', { name: 'Appliquer' }).click()
     check(await eventually(async () => (await rows.nth(3).innerText()).startsWith('2')), 'line corrected in a bottom sheet')
     await page.getByRole('button', { name: 'Précédent' }).click()
@@ -393,6 +404,7 @@ const FLOWS = {
     await page.getByRole('button', { name: "Monter l'étape 3" }).click()
     check(await steps.nth(1).inputValue() === 'Servir.', 'steps can be reordered')
     await page.getByRole('button', { name: "Descendre l'étape 2" }).click()
+    await shot(page, 'wizard-3-steps')
     await page.getByRole('button', { name: 'Suivant' }).click()
 
     await page.getByLabel('Préparation (min)').fill('10')
@@ -401,6 +413,8 @@ const FLOWS = {
     await page.keyboard.press('Enter')
     await page.locator('input[type=file]').setInputFiles(join(ROOT, 'mediafiles/recipes/seed_4.jpg'))
     check(await eventually(() => page.locator('.fork-wizard__photo').isVisible()), 'photo picked from the gallery')
+    await page.keyboard.press('Escape')
+    await shot(page, 'wizard-4-details')
     await page.waitForTimeout(600) // draft saved after 300 ms
     await page.reload({ waitUntil: 'networkidle' })
     check(await page.getByText('Votre brouillon a été restauré.').isVisible(), 'draft restored after leaving the page')
