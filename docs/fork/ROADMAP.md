@@ -6,11 +6,11 @@ Statut : `[ ]` à faire, `[x]` fait. Un jalon est terminé quand sa PR est fusio
 
 ## M0 — Socle et audit [ ]
 Aucun changement visible pour l'utilisateur.
-- [ ] `docs/fork/gitignore.append` est intégré à `.gitignore`.
-- [ ] `scripts/fork/setup.sh` fonctionne dans la session cloud ; baseline enregistrée (`verify.sh --update-baseline`) et commitée dans `docs/fork/baseline/`.
-- [ ] Captures de référence publiées : `verify.sh --ui m0-baseline --publish`.
-- [ ] App Django `kitchen/` créée (vide, un test pytest trivial, enregistrée dans `INSTALLED_APPS`) ; `verify.sh` reste OK.
-- [ ] `docs/fork/AUDIT.md` rédigé :
+- [x] `docs/fork/gitignore.append` est intégré à `.gitignore`.
+- [x] `scripts/fork/setup.sh` fonctionne dans la session cloud ; baseline enregistrée (`verify.sh --update-baseline`) et commitée dans `docs/fork/baseline/`.
+- [x] Captures de référence publiées : `verify.sh --ui m0-baseline --publish`.
+- [x] App Django `kitchen/` créée (vide, un test pytest trivial, enregistrée dans `INSTALLED_APPS`) ; `verify.sh` reste OK.
+- [x] `docs/fork/AUDIT.md` rédigé :
   - carte de l'UI (pages, composants partagés, thème Vuetify, navigation mobile/desktop, stores Pinia) ;
   - ce qui existe déjà pour les aliments (arbre `Food`, catégories de rayon, substituts, propriétés, pantry/inventaire, éditeur d'ingrédients, open data) et pour la création de recettes (éditeur, parseur d'ingrédients, import) ;
   - points de friction mobile vus sur les captures `m0-baseline` ;
@@ -20,9 +20,14 @@ Aucun changement visible pour l'utilisateur.
 ## M1 — Fondations visuelles [ ]
 - [ ] Thème Vuetify clair et sombre construit à partir des tokens de DESIGN.md (couleurs, typographie, rayons, élévations, espacements).
 - [ ] Transitions en fondu entre les vues (≤ 200 ms), désactivées si `prefers-reduced-motion`.
-- [ ] Coquille d'application : barre du bas sur mobile (4–5 entrées max), en-tête compact, tiroir sur desktop ; zones tactiles ≥ 44 px.
+- [ ] Coquille d'application : barre du bas sur mobile (4–5 entrées max, **avec libellés**, hauteur réservée dans `v-main`
+      pour ne pas recouvrir le contenu), en-tête compact, tiroir **dès 960 px** (`mdAndUp`) ; zones tactiles ≥ 44 px.
 - [ ] Aucune route de `routes.json` ne déborde horizontalement à 360 px ; toutes passent en `"strict": true`
       (exception justifiée dans DECISIONS.md si une erreur upstream ne peut pas être corrigée dans le fork).
+      Les deux erreurs JS upstream vues en M0 (`POST /api/view-log/` en 403, `TypeError` dans `AccountSettings`) sont
+      corrigées ou contournées dans le fork, au plus près du code concerné.
+- [ ] Captures fiables : capture « écran visible » en plus de la pleine page ; captures reproductibles (pas de contenu
+      aléatoire, attente du chargement) ; les captures 360 px (`small`) sont publiées avec `--publish`.
 - [ ] Aucune régression : `verify.sh --ui m1` OK, rapport `ui-auditor` sans problème bloquant.
 
 ## M2 — Parcours cuisine sur mobile [ ]
@@ -49,7 +54,8 @@ Découle de SPEC.md, parcours P1 à P4.
   - Ajout rapide en texte libre (« 2 citrons »).
   - Message de fin simple, sans animation.
 - [ ] Les modifications faites par l'autre membre du foyer apparaissent sans recharger la page, au plus tard au retour
-      sur l'écran.
+      sur l'écran. La synchro automatique existante de `ShoppingStore` (intervalle réglable, reprise au retour sur
+      l'écran) suffit : pas de temps réel.
 - [ ] Pages refaites en `strict`. `verify.sh --ui m2` OK.
 
 ## M3 — Organisation des aliments [ ]
@@ -107,10 +113,54 @@ Découle de SPEC.md, section « Création de recettes — attendu ».
 ## M5 — Livraison sur le homelab [ ]
 - [ ] Workflow GitHub Actions qui construit l'image Docker du fork et la publie sur GHCR (tag = version upstream + suffixe fork).
 - [ ] `docs/fork/DEPLOY.md` : stack compose pour Komodo, sauvegarde de la base avant bascule, test sur une copie, retour arrière vers l'image upstream.
+- [ ] CI GitHub Actions : `verify.sh` complet sur chaque PR vers `main`, la porte reste `VERIFY: OK`.
 - [ ] Vérification que les migrations de `kitchen/` s'appliquent sur une base Postgres créée par l'image upstream (service Postgres de la session).
 
 ## Récurrent — synchronisation upstream
 À chaque release Tandoor : `/upstream-sync` (branche `sync/upstream-<tag>`, PR dédiée).
 
 ## Propositions M0
-(rempli par la session M0)
+Rédigées par la session M0 à partir de `docs/fork/AUDIT.md`. **Toutes validées par Alex le 2026-10-20.**
+Celles qui changent un critère sont intégrées aux jalons ci-dessus : M1 (coquille, erreurs upstream, captures),
+M2 (synchro) et M5 (CI). Les autres restent ici comme notes d'implémentation, à suivre par les sessions des jalons.
+
+**M1 — Fondations visuelles**
+- Ajouter à `screenshots.mjs` une capture « écran visible » (viewport seul) en plus de la pleine page. Elle permet de
+  juger le recouvrement par la barre du bas, que la capture pleine page ne montre pas.
+- Corriger ou contourner dans le fork les deux erreurs JS upstream vues en `m0-baseline` :
+  - `POST /api/view-log/` en 403 sur la vue recette ;
+  - `TypeError` dans `AccountSettings`.
+
+  Sinon, ces pages ne pourront pas passer en `strict`. Le critère « toutes en strict » prévoit déjà l'exception.
+- Rendre les captures reproductibles : graine fixe (ou bloc masqué) pour « Recettes aléatoires », attente de la fin du
+  chargement utilisateur avant la capture des réglages. Publier aussi les captures 360 px (`small`), largeur de référence
+  des règles du fork.
+- Passer le seuil mobile de la coquille de `lgAndUp` (1280 px) à `mdAndUp` (960 px), pour que les tablettes en paysage
+  aient le tiroir. C'est un réglage de `Tandoor.vue`.
+- Réserver la hauteur de la barre du bas dans `v-main` et ajouter des libellés aux entrées.
+
+**M2 — Parcours cuisine**
+- P4 : s'appuyer sur `ShoppingStore`, qui fait déjà le regroupement, la synchro automatique et la pile d'annulation.
+  Refaire l'affichage plutôt que le store.
+- P1 : le filtre « ingrédients sous la main » existe en partie dans la recherche avancée (`food_availability_helper.py`),
+  mais repose sur le stock (`onhand`). Prévoir un endpoint `kitchen/` de classement par nombre d'ingrédients
+  correspondants, sans stock.
+- Mettre le critère « modifications de l'autre membre du foyer » au niveau de ce que fait déjà la synchro automatique
+  des courses (intervalle réglable), plutôt que du temps réel.
+
+**M3 — Organisation des aliments**
+- Ordre de rayons générique : réutiliser un `Supermarket` unique (« Ordre générique ») et
+  `SupermarketCategoryRelation.order`, sélectionné par défaut, plutôt qu'un nouveau modèle. Le groupement existant de
+  la liste de courses en profite sans changement.
+- Héritage du rayon : activer `supermarket_category` dans `Space.food_inherit` (mécanisme upstream) plutôt que de le
+  recoder.
+- Ajouter au critère des doublons : réutiliser `ModelMergeDialog` / `MergeMixin`, qui créent déjà l'alias.
+
+**M4 — Création de recettes**
+- Le collage multi-ligne (`StepEditor.parseAndInsertIngredients`) et l'import URL passent tous deux par
+  `IngredientParser`. Le prétraitement français doit donc être branché aux deux endroits (endpoint `kitchen/`
+  équivalent à `/api/ingredient-parser/`, et relecture d'import côté front), sans toucher au parseur.
+- Le jeu de 30 lignes peut partir des cas mesurés dans AUDIT.md § 3, qui échouent tous sauf les fractions.
+
+**Outillage**
+- Lancer `verify.sh` complet en CI GitHub Actions sur chaque PR, avec la même porte `VERIFY: OK` (à rattacher à M5).
