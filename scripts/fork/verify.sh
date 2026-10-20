@@ -63,9 +63,11 @@ if (cd vue3 && $YARN build) > .fork/build.txt 2>&1; then ok "vite build"; else k
 if [ "$QUICK" = 0 ]; then
   echo "== backend tests (pytest, ~2 min)"
   PT_OUT=.fork/pytest.txt
-  .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts="" -n 4 cookbook/tests -rfE > "$PT_OUT" 2>&1
+  # --ds: the exported DJANGO_SETTINGS_MODULE would otherwise win over pytest.ini and start the
+  # external connectors (non-daemon thread, pytest never exits); test_settings is what upstream uses.
+  .venv/bin/python -m pytest -q -p no:cacheprovider -o addopts="" --ds recipes.test_settings -n 4 cookbook/tests kitchen/tests -rfE > "$PT_OUT" 2>&1
   SUMMARY=$(grep -E '^(=+ )?[0-9]+ (passed|failed)|passed|no tests ran' "$PT_OUT" | tail -1)
-  grep -E '^(FAILED|ERROR) cookbook/' "$PT_OUT" | sed -E 's/ - .*//' | sort -u > .fork/pytest-failures.txt
+  grep -E '^(FAILED|ERROR) (cookbook|kitchen)/' "$PT_OUT" | sed -E 's/ - .*//' | sort -u > .fork/pytest-failures.txt
   if ! grep -qE '[0-9]+ passed' "$PT_OUT"; then
     ko "pytest-did-not-run"; tail -15 "$PT_OUT" | sed 's/^/         /'
   elif [ "$UPDATE" = 1 ]; then
