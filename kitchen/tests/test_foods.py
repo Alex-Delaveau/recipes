@@ -253,3 +253,23 @@ def test_match_proposes_closest_existing_food(setup_space, u1_s1):
     assert results['Tomates']['exists']  # plural name
     assert results['ognon']['exists']  # an alias already maps it
     assert results['Pomme de terre']['closest'] is None
+
+
+def test_dictionary_finds_the_food_inside_a_longer_name():
+    from kitchen.aisles import suggest_aisle_key
+    assert suggest_aisle_key('Gros oignons rouges') == 'fruits_legumes'
+    assert suggest_aisle_key('Tomates cerises bio') == 'fruits_legumes'
+    assert suggest_aisle_key('Crème fraîche épaisse') == 'frais'
+    assert suggest_aisle_key('Truc inconnu') is None
+
+
+def test_upstream_merge_still_works_with_fork_food_state(setup_space, u1_s1):
+    with scopes_disabled():
+        keep = Food.objects.create(name='Poireau', space=setup_space)
+        drop = Food.objects.create(name='poireaux', space=setup_space)
+        assert KitchenFood.objects.filter(food__in=[keep, drop]).count() == 2
+    response = u1_s1.put(reverse('api:food-merge', args=[drop.id, keep.id]), {}, content_type='application/json')
+    assert response.status_code == 200, response.content
+    with scopes_disabled():
+        assert not Food.objects.filter(id=drop.id).exists()
+        assert KitchenFood.objects.filter(food=keep).exists()

@@ -111,16 +111,14 @@ FOOD_AISLES = _build()
 
 
 def suggest_aisle_key(food_name):
-    """Aisle key from the dictionary for a food name, or None. Tries the whole name, then without the last words
-    ("tomate cerise bio" -> "tomate cerise" -> "tomate"), then the first word alone."""
-    key = normalize(food_name)
-    if not key:
-        return None
-    parts = key.split()
-    for n in range(len(parts), 0, -1):
-        candidate = ' '.join(parts[:n])
-        if candidate in FOOD_AISLES:
-            return FOOD_AISLES[candidate]
+    """Aisle key from the dictionary for a food name, or None. Tries the whole name, then shorter and shorter runs of
+    consecutive words, left to right ("gros oignon rouge" -> "oignon", "tomate cerise bio" -> "tomate cerise")."""
+    parts = normalize(food_name).split()
+    for size in range(len(parts), 0, -1):
+        for start in range(0, len(parts) - size + 1):
+            candidate = ' '.join(parts[start:start + size])
+            if candidate in FOOD_AISLES:
+                return FOOD_AISLES[candidate]
     return None
 
 

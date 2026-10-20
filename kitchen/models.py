@@ -25,7 +25,9 @@ class KitchenFood(models.Model):
     SOURCES = ((SOURCE_PARENT, 'parent'), (SOURCE_DICTIONARY, 'dictionary'), (SOURCE_SIMILAR, 'similar'), (SOURCE_NONE, 'none'),
                (SOURCE_USER, 'user'))
 
-    food = models.OneToOneField(Food, on_delete=models.CASCADE, related_name='kitchen')
+    # hidden reverse relation: the upstream generic merge (MergeMixin) walks Food's visible reverse relations and
+    # cannot handle a one-to-one; lookups still work through related_query_name
+    food = models.OneToOneField(Food, on_delete=models.CASCADE, related_name='+', related_query_name='kitchen')
     is_family = models.BooleanField(default=False)
     aisle_source = models.CharField(max_length=16, choices=SOURCES, default=SOURCE_NONE)
     aisle_confirmed = models.BooleanField(default=False)
