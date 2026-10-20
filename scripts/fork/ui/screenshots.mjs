@@ -199,6 +199,27 @@ async function main() {
       await context.close()
     }
   }
+  // In-app navigation: leaving a page must render the next one (fade transitions can leave a blank view).
+  if (!only) {
+    const vp = config.viewports.mobile
+    const { width, height, ...rest } = vp
+    const context = await browser.newContext({ viewport: { width, height }, ...rest, locale: 'fr-FR' })
+    const warm = await context.newPage()
+    await warm.goto(base + '/accounts/login/', { waitUntil: 'domcontentloaded' }).catch(() => {})
+    await warm.close()
+    await context.addCookies([{ name: 'sessionid', value: sid, domain: host, path: '/' }])
+    const page = await context.newPage()
+    const problems = []
+    for (const [from, tab] of [['/recipe/import', 'Courses'], ['/shopping', 'Recettes'], [`/recipe/${ids.recipe}`, 'Courses']]) {
+      await page.goto(base + from, { waitUntil: 'networkidle', timeout: 45000 }).catch(() => {})
+      await page.locator('.fork-bottom-nav .v-btn', { hasText: tab }).first().click().catch((e) => problems.push(`no "${tab}" tab on ${from}`))
+      await page.waitForTimeout(1500)
+      const text = await page.evaluate(() => (document.querySelector('.v-main')?.innerText || '').trim().length)
+      if (text === 0) problems.push(`blank view after ${from} -> ${tab}`)
+    }
+    await context.close()
+    results.push({ route: 'in-app-navigation', path: '-', viewport: 'mobile', strict: true, problems })
+  }
   await browser.close()
 
   const strictFailures = results.filter((r) => r.strict && r.problems.length)
@@ -213,6 +234,7 @@ async function main() {
     const pubDir = join(ROOT, 'docs/fork/screens', label)
     mkdirSync(pubDir, { recursive: true })
     for (const r of results) {
+      if (!r.file) continue
       copyFileSync(r.file, join(pubDir, `${r.route}-${r.viewport}.jpg`))
       copyFileSync(r.screenFile, join(pubDir, `${r.route}-${r.viewport}-screen.jpg`))
     }

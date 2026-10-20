@@ -64,9 +64,12 @@
 
         <v-main>
             <!-- fork: fade between views, cut by prefers-reduced-motion (src/fork/fork.css) -->
-            <router-view v-slot="{ Component }">
+            <!-- single keyed root: pages with several root nodes would otherwise never finish leaving (blank view) -->
+            <router-view v-slot="{ Component, route }">
                 <transition name="fork-fade" mode="out-in">
-                    <component :is="Component"></component>
+                    <div class="fork-view" :key="route.matched[0]?.path ?? route.path">
+                        <component :is="Component"></component>
+                    </div>
                 </transition>
             </router-view>
         </v-main>
