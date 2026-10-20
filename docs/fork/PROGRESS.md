@@ -103,3 +103,27 @@ Branche : `claude/busy-heisenberg-yf2zw3` (branche imposée par la session cloud
 - Erreurs upstream (`view-log` en 403, `AccountSettings`) corrigées ; les 9 routes passent en `strict`.
 - Captures : « écran visible », sombre, 360 px publiées, reproductibles, contrôle de navigation interne.
 - Prochain jalon : M2.
+
+## M2 — plan
+Branche : `fork/m2-cuisine`, base `origin/main` (M1 fusionné). L'objectif de session demande une branche par jalon :
+`fork/m<N>-<slug>` est utilisé (le push de cette branche est accepté). Environnement : `verify.sh --quick` →
+`VERIFY: OK` avant tout changement (649 erreurs vue-tsc).
+
+1. [ ] Jeu de démo enrichi : photos générées (Pillow, sans service externe), gabarits de quantités dans les étapes
+   (`{{ ingredients[0] }}`), historique de consultation et de cuisine, quelques articles de courses ; route
+   `cook-mode` ajoutée à `routes.json`. Vérif : `dev_seed.py` deux fois sans doublon, captures.
+2. [ ] Endpoint `kitchen/` `GET /api/kitchen/recipes/` : recherche upstream (`RecipeSearch`) + classement par nombre
+   d'ingrédients sous la main (sans stock, descendants compris), temps total maximal, modes `recent`, `forgotten`,
+   `random`. Vérif : tests pytest dans `kitchen/tests`.
+3. [ ] P1 Accueil Recettes (`vue3/src/fork/pages/ForkRecipesHome.vue`) : recherche visible, raccourcis, feuille de
+   filtres (ingrédients, temps, mots-clés), grandes cartes photo, états vide/chargement/erreur, filtres dans l'URL.
+   Vérif : captures `start` mobile, 360 px, sombre, desktop.
+4. [ ] P2 Vue recette (`ForkRecipeView.vue`) : photo, temps total, portions ajustables (± 44 px), liste d'ingrédients
+   (groupée par étape si la recette est découpée), étapes avec quantités recalculées. Vérif : captures `recipe-view`.
+5. [ ] P2 Mode cuisine (`/recipe/:id/cook`) : une étape par écran, plein écran, 24/20 px, balayage + deux boutons,
+   ingrédients de l'étape, Wake Lock. Vérif : captures `cook-mode`.
+6. [ ] P3 Feuille « Ajouter aux courses » : ingrédients aux portions choisies, tous cochés, décochage, validation vers
+   la liste du foyer. Vérif : test manuel headless (script Playwright ponctuel) + capture.
+7. [ ] P4 Courses (`ForkShoppingList.vue`) : groupé par rayon, un tap coche, « Dans le panier », annuler, ajout
+   rapide en texte libre, message de fin, synchro automatique et au retour sur l'écran. Vérif : captures `shopping`.
+8. [ ] Routes refaites en `strict`, porte `verify.sh --ui m2 --publish`, `reviewer` + `ui-auditor`, PR.
