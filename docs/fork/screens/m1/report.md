@@ -4,38 +4,41 @@ Base: http://127.0.0.1:8000
 
 | route | viewport | strict | problems | small tap targets |
 |---|---|---|---|---|
-| login | mobile |  | OK | 4 |
-| start | mobile |  | OK | 3 |
-| recipe-view | mobile |  | 1 JS error(s): ResponseError: Response returned an error code; 1 console error(s): Failed to load resource: the server responded with a status of 403 (Forbidden) | 15 |
-| recipe-edit | mobile |  | OK | 11 |
-| food-list | mobile |  | OK | 7 |
-| shopping | mobile |  | OK | 3 |
-| mealplan | mobile |  | OK | 5 |
-| pantry | mobile |  | OK | 10 |
-| settings | mobile |  | 1 console error(s): TypeError: Cannot read properties of undefined (reading 'id')
-    at http://127.0.0.1:8000/static/vue3/assets/AccountSettings-D6GtDIl8.js:1:2185
-    at http://127.0.0.1:8000/static/vue3/assets/vue.esm-bundler-CqD-zRSx.js:3:46119
-    at $n (http://127.0.0.1:8000/static/vue3/assets/vue.esm-bundler-CqD | 10 |
-| login | small |  | OK | 4 |
-| start | small |  | OK | 3 |
-| recipe-view | small |  | 1 JS error(s): ResponseError: Response returned an error code; 1 console error(s): Failed to load resource: the server responded with a status of 403 (Forbidden) | 15 |
-| recipe-edit | small |  | OK | 11 |
-| food-list | small |  | OK | 7 |
-| shopping | small |  | OK | 3 |
-| mealplan | small |  | OK | 5 |
-| pantry | small |  | OK | 10 |
-| settings | small |  | 1 console error(s): TypeError: Cannot read properties of undefined (reading 'id')
-    at http://127.0.0.1:8000/static/vue3/assets/AccountSettings-D6GtDIl8.js:1:2185
-    at http://127.0.0.1:8000/static/vue3/assets/vue.esm-bundler-CqD-zRSx.js:3:46119
-    at $n (http://127.0.0.1:8000/static/vue3/assets/vue.esm-bundler-CqD | 10 |
-| login | desktop |  | OK | 0 |
-| start | desktop |  | OK | 0 |
-| recipe-view | desktop |  | 1 JS error(s): ResponseError: Response returned an error code; 1 console error(s): Failed to load resource: the server responded with a status of 403 (Forbidden) | 0 |
-| recipe-edit | desktop |  | OK | 0 |
-| food-list | desktop |  | OK | 0 |
-| shopping | desktop |  | OK | 0 |
-| mealplan | desktop |  | 1 JS error(s): ResponseError: Response returned an error code; 1 console error(s): Failed to load resource: the server responded with a status of 403 (Forbidden) | 0 |
-| pantry | desktop |  | OK | 0 |
-| settings | desktop |  | OK | 0 |
+| login | mobile | yes | OK | 2 |
+| start | mobile | yes | OK | 3 |
+| recipe-view | mobile | yes | OK | 15 |
+| recipe-edit | mobile | yes | OK | 11 |
+| food-list | mobile | yes | OK | 7 |
+| shopping | mobile | yes | OK | 3 |
+| mealplan | mobile | yes | OK | 5 |
+| pantry | mobile | yes | OK | 10 |
+| settings | mobile | yes | OK | 10 |
+| login | small | yes | OK | 2 |
+| start | small | yes | OK | 3 |
+| recipe-view | small | yes | OK | 15 |
+| recipe-edit | small | yes | OK | 11 |
+| food-list | small | yes | OK | 7 |
+| shopping | small | yes | OK | 3 |
+| mealplan | small | yes | OK | 5 |
+| pantry | small | yes | OK | 10 |
+| settings | small | yes | OK | 10 |
+| login | desktop | yes | OK | 0 |
+| start | desktop | yes | OK | 0 |
+| recipe-view | desktop | yes | OK | 0 |
+| recipe-edit | desktop | yes | OK | 0 |
+| food-list | desktop | yes | OK | 0 |
+| shopping | desktop | yes | OK | 0 |
+| mealplan | desktop | yes | OK | 0 |
+| pantry | desktop | yes | OK | 0 |
+| settings | desktop | yes | OK | 0 |
+| login | dark | yes | OK | 2 |
+| start | dark | yes | OK | 3 |
+| recipe-view | dark | yes | OK | 15 |
+| recipe-edit | dark | yes | OK | 11 |
+| food-list | dark | yes | OK | 7 |
+| shopping | dark | yes | OK | 3 |
+| mealplan | dark | yes | OK | 5 |
+| pantry | dark | yes | OK | 10 |
+| settings | dark | yes | OK | 10 |
 
 RESULT: OK
