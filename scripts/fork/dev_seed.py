@@ -6,8 +6,12 @@ Usage (from repo root):
 Idempotent: running it twice does not duplicate data.
 Creates user `demo` / password `demo` (superuser) with an active, fully set-up space.
 """
+import io
+import math
 import os
+import random
 import sys
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -20,10 +24,13 @@ import django  # noqa: E402
 django.setup()
 
 from django.contrib.auth import get_user_model  # noqa: E402
+from django.core.files.base import ContentFile  # noqa: E402
+from django.utils import timezone  # noqa: E402
 from django_scopes import scopes_disabled  # noqa: E402
 
 from cookbook.helper.permission_helper import create_space_for_user  # noqa: E402
-from cookbook.models import Food, Household, Ingredient, Keyword, Recipe, Step, SupermarketCategory, Unit, UserSpace  # noqa: E402
+from cookbook.models import (CookLog, Food, Household, Ingredient, Keyword, Recipe, ShoppingListEntry, Step,  # noqa: E402
+                             SupermarketCategory, Unit, UserSpace, ViewLog)
 
 USERNAME = "demo"
 PASSWORD = "demo"
@@ -55,6 +62,44 @@ FOODS = {
 
 UNITS = ["g", "ml", "c. à soupe", "c. à café", "pièce"]
 
+# warm palettes for the generated placeholder photos (no external image service)
+PHOTO_COLORS = {
+    "Pâtes carbonara": ((236, 205, 140), (196, 140, 70)),
+    "Curry de pois chiches": ((230, 160, 60), (170, 90, 30)),
+    "Poulet citron à l'air fryer": ((240, 220, 120), (190, 120, 60)),
+    "Poêlée de courgettes et poivrons": ((140, 180, 90), (200, 70, 50)),
+}
+
+# (food, amount, unit, checked) shopping entries of the household list
+SHOPPING = [("Courgette", 3, "pièce", False), ("Citron", 2, "pièce", False), ("Riz basmati", 500, "g", False),
+            ("Crème fraîche", 20, "ml", False), ("Parmesan", 100, "g", True), ("Pâtes", 500, "g", False)]
+
+
+def placeholder_photo(name):
+    """A deterministic 'plate seen from above' JPEG, so recipe cards have a photo in screenshots."""
+    from PIL import Image, ImageDraw, ImageFilter
+    rnd = random.Random(name)
+    base, accent = PHOTO_COLORS.get(name, ((220, 200, 170), (170, 110, 70)))
+    w, h = 1200, 800
+    img = Image.new("RGB", (w, h), (92, 70, 55))
+    draw = ImageDraw.Draw(img)
+    for y in range(0, h, 40):  # wooden table
+        shade = 80 + rnd.randint(0, 25)
+        draw.rectangle([0, y, w, y + 38], fill=(shade + 20, shade, shade - 20))
+    cx, cy, r = w // 2 + rnd.randint(-60, 60), h // 2, 330
+    draw.ellipse([cx - r - 30, cy - r - 30, cx + r + 30, cy + r + 30], fill=(245, 242, 236))
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=base)
+    for _ in range(60):
+        a, d = rnd.uniform(0, 6.28), rnd.uniform(0, r - 50)
+        x, y = cx + d * math.cos(a), cy + d * math.sin(a)
+        s = rnd.randint(12, 34)
+        color = accent if rnd.random() < 0.6 else tuple(min(255, c + 40) for c in base)
+        draw.ellipse([x - s, y - s * 0.7, x + s, y + s * 0.7], fill=color)
+    img = img.filter(ImageFilter.GaussianBlur(2))
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=82)
+    return buf.getvalue()
+
 RECIPES = [
     {
         "name": "Pâtes carbonara",
@@ -62,7 +107,7 @@ RECIPES = [
         "servings": 2, "working_time": 10, "waiting_time": 10,
         "keywords": ["Rapide", "Pâtes"],
         "steps": [
-            ("Cuire les pâtes", "Cuire les pâtes dans une grande casserole d'eau salée.", [("Pâtes", 200, "g")]),
+            ("Cuire les pâtes", "Cuire {{ ingredients[0] }} dans une grande casserole d'eau salée.", [("Pâtes", 200, "g")]),
             ("Préparer la sauce", "Faire revenir les lardons. Mélanger œufs et parmesan, puis hors du feu enrober les pâtes.",
              [("Lardons", 150, "g"), ("Œuf", 2, "pièce"), ("Parmesan", 40, "g")]),
         ],
@@ -75,7 +120,7 @@ RECIPES = [
         "steps": [
             ("Base", "Faire suer l'oignon et l'ail dans l'huile, ajouter le curry.",
              [("Oignon", 1, "pièce"), ("Ail", 2, "pièce"), ("Huile d'olive", 1, "c. à soupe"), ("Curry en poudre", 2, "c. à café")]),
-            ("Mijoter", "Ajouter pois chiches et lait de coco, laisser mijoter 15 min.",
+            ("Mijoter", "Ajouter {{ ingredients[0] }} de pois chiches et {{ ingredients[1] }} de lait de coco, laisser mijoter 15 min.",
              [("Pois chiches", 400, "g"), ("Lait de coco", 400, "ml")]),
             ("Servir", "Servir avec le riz et un trait de citron.", [("Riz basmati", 150, "g"), ("Citron", 1, "pièce")]),
         ],
@@ -139,7 +184,10 @@ def main():
             foods[name] = food
 
         for data in RECIPES:
-            if Recipe.objects.filter(name=data["name"], space=space).exists():
+            existing = Recipe.objects.filter(name=data["name"], space=space).first()
+            if existing is not None:
+                for order, (_, text, _) in enumerate(data["steps"]):  # keep older dev databases in sync with the texts
+                    existing.steps.filter(order=order).exclude(instruction=text).update(instruction=text)
                 continue
             recipe = Recipe.objects.create(
                 name=data["name"], description=data["description"], servings=data["servings"],
@@ -156,6 +204,24 @@ def main():
                                                     order=i_order, space=space)
                     step.ingredients.add(ing)
                 recipe.steps.add(step)
+
+        now = timezone.now()
+        for i, recipe in enumerate(Recipe.objects.filter(space=space).order_by("id")):
+            if not recipe.image:
+                recipe.image.save(f"seed_{recipe.id}.jpg", ContentFile(placeholder_photo(recipe.name)), save=True)
+            # history for the "recent" and "not cooked for a long time" shortcuts: fixed, relative dates
+            if not ViewLog.objects.filter(recipe=recipe, created_by=user).exists() and i < 2:
+                log = ViewLog.objects.create(recipe=recipe, created_by=user, space=space)
+                ViewLog.objects.filter(pk=log.pk).update(created_at=now - timedelta(days=i + 1))
+            if not CookLog.objects.filter(recipe=recipe, created_by=user).exists() and i % 2 == 0:
+                CookLog.objects.create(recipe=recipe, created_by=user, space=space, servings=recipe.servings,
+                                       created_at=now - timedelta(days=5 + 30 * i))
+
+        if not ShoppingListEntry.objects.filter(space=space).exists():
+            for food_name, amount, unit_name, checked in SHOPPING:
+                ShoppingListEntry.objects.create(food=foods[food_name], unit=units[unit_name], amount=Decimal(amount),
+                                                 checked=checked, completed_at=now if checked else None,
+                                                 created_by=user, space=space)
 
         print(f"seed ok: user={USERNAME}/{PASSWORD} space='{space.name}' "
               f"foods={Food.objects.filter(space=space).count()} recipes={Recipe.objects.filter(space=space).count()}")
