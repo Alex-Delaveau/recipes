@@ -155,3 +155,25 @@ export function dismissDuplicate(a: number, b: number) {
 export async function matchFoods(names: string[]): Promise<Record<string, KitchenFoodMatch>> {
     return (await kitchenFetch('foods/match/', {method: 'POST', body: JSON.stringify({names})})).results
 }
+
+// ---------------------------------------------------------------- recipe wizard (M4)
+
+export interface ParsedLine {
+    original: string
+    amount: number
+    unit: string | null
+    food: string | null
+    note: string
+    foodId: number | null
+    unitId: number | null
+    error: boolean
+}
+
+/** live recognition of ingredient lines (French rules), nothing is created */
+export async function parseLines(lines: string[]): Promise<ParsedLine[]> {
+    const data = await kitchenFetch('parse/', {method: 'POST', body: JSON.stringify({lines})})
+    return data.results.map((r: any) => ({
+        original: r.original, amount: r.amount, unit: r.unit, food: r.food, note: r.note,
+        foodId: r.food_id, unitId: r.unit_id, error: r.error,
+    }))
+}

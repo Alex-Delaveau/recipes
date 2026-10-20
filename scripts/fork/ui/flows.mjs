@@ -321,10 +321,10 @@ const FLOWS = {
     for (const f of [a, b]) await api(page, 'DELETE', `/api/food/${f.id}/`)
   },
 
-  // M3: URL import review proposes the closest existing food; choosing it creates a FOOD_ALIAS
+  // M3 + M4: URL import review: French recognition, closest existing food proposed; choosing it creates a FOOD_ALIAS
   async importreview(page) {
     const jsonld = JSON.stringify({ '@context': 'https://schema.org', '@type': 'Recipe', name: 'Flow import test',
-      recipeIngredient: ['1 Citrons', '100 g Gingembre'], recipeInstructions: [{ '@type': 'HowToStep', text: 'Mélanger.' }] })
+      recipeIngredient: ['3 citrons', '1 oignon rouge émincé', "2 c. à soupe d'huile d'olive"], recipeInstructions: [{ '@type': 'HowToStep', text: 'Mélanger.' }] })
     await page.goto(base + '/recipe/import', { waitUntil: 'networkidle' })
     await page.locator('.v-card', { hasText: 'JSON/HTML' }).first().click()
     await page.getByRole('button', { name: 'Suivant' }).first().click()
@@ -338,16 +338,118 @@ const FLOWS = {
       await page.locator('button:visible', { hasText: /^\s*Suivant\s*$/ }).last().click().catch(() => {})
     }
     check(await eventually(() => card.isVisible(), 10000), 'unknown foods listed in the import review')
-    const text = await card.innerText()
-    check(/Citrons\s*\S*\s*Citron/.test(text.replace(/\n/g, ' ')), 'closest existing food proposed (Citrons -> Citron)')
-    await card.locator('.fork-matches__row', { hasText: 'Citrons' }).getByRole('button', { name: "Utiliser l'existant" }).click()
-    check(await eventually(async () => !(await card.locator('.fork-matches__row', { hasText: 'Citrons' }).count())), 'choice applied')
     const chips = await texts(page, '.v-stepper-window .v-chip')
-    check(chips.some((c) => c.trim() === 'Citron') && !chips.some((c) => c.trim() === 'Citrons'), 'ingredient now uses the existing food')
+    check(chips.some((c) => c.trim() === 'Citron'), 'French plural brought back to the existing food at import')
+    check(chips.some((c) => c.trim() === 'c. à soupe') && chips.some((c) => c.trim().toLowerCase() === "huile d'olive"), 'French unit and article handled at import')
+    const row = card.locator('.fork-matches__row', { hasText: 'oignon rouge' })
+    check(await row.isVisible() && /Oignon/.test(await row.innerText()), 'closest existing food proposed (oignon rouge -> Oignon)')
+    const proposed = (await row.locator('strong').innerText()).trim()
+    await row.getByRole('button', { name: "Utiliser l'existant" }).click()
+    check(await eventually(async () => !(await card.locator('.fork-matches__row', { hasText: 'oignon rouge' }).count())), 'choice applied')
+    const after = await texts(page, '.v-stepper-window .v-chip')
+    check(after.some((c) => c.trim() === proposed) && !after.some((c) => c.trim() === 'oignon rouge'), 'ingredient now uses the existing food')
     const autos = (await api(page, 'GET', '/api/automation/?page_size=100')).data
-    const alias = (autos.results ?? autos).find((x) => x.type === 'FOOD_ALIAS' && x.param_1 === 'Citrons')
-    check(alias && alias.param_2 === 'Citron', 'FOOD_ALIAS Citrons -> Citron created')
+    const alias = (autos.results ?? autos).find((x) => x.type === 'FOOD_ALIAS' && x.param_1 === 'oignon rouge')
+    check(alias && alias.param_2 === proposed, `FOOD_ALIAS oignon rouge -> ${proposed} created`)
     if (alias) await api(page, 'DELETE', `/api/automation/${alias.id}/`)
+  },
+
+  // M4: recipe wizard in 4 screens, live French recognition, draft kept, single ingredient list; edit with the same screens
+  async wizard(page) {
+    await page.goto(base + '/recipe/new', { waitUntil: 'networkidle' })
+    await page.evaluate(() => localStorage.removeItem('fork-recipe-draft-new'))
+    await page.reload({ waitUntil: 'networkidle' })
+    check(!(await page.locator('.fork-bottom-nav').count()), 'wizard is full screen')
+    await page.getByLabel('Nom de la recette').fill('Flow poêlée test')
+    await page.getByRole('button', { name: 'Une portion de plus' }).click()
+    await page.getByRole('button', { name: 'Suivant' }).click()
+    check(await page.getByText('2 sur 4').isVisible(), 'screen 2: ingredients')
+
+    await page.getByLabel('Ingrédients, un par ligne').fill("2 courgettes coupées en dés\n1 c. à soupe d'huile d'olive\n1 gousse d'ail\n1 citron")
+    const preview = page.locator('.fork-wizard__preview-row')
+    check(await eventually(async () => (await preview.count()) === 4), 'live recognition while typing')
+    check((await preview.first().innerText()).includes('Courgette'), 'plural brought back to the existing food')
+    await page.getByRole('button', { name: 'Ajouter 4 ingrédients' }).click()
+    const rows = page.locator('.fork-wizard__ingredient')
+    check(await eventually(async () => (await rows.count()) === 4), 'pasted lines added')
+    check((await rows.nth(0).innerText()).includes('coupées en dés'), 'precision kept as a note')
+    check((await rows.nth(1).innerText()).includes('c. à soupe'), 'French unit recognised')
+    await rows.nth(3).click()
+    await page.locator('.fork-line-sheet').getByLabel('Quantité').fill('2')
+    await page.locator('.fork-line-sheet').getByRole('button', { name: 'Appliquer' }).click()
+    check(await eventually(async () => (await rows.nth(3).innerText()).startsWith('2')), 'line corrected in a bottom sheet')
+    await page.getByRole('button', { name: 'Précédent' }).click()
+    check(await page.getByLabel('Nom de la recette').inputValue() === 'Flow poêlée test', 'going back keeps what was typed')
+    await page.getByRole('button', { name: 'Suivant' }).click()
+    check((await rows.count()) === 4, 'forward again keeps the ingredients')
+    await page.getByRole('button', { name: 'Suivant' }).click()
+
+    const steps = page.locator('.fork-wizard__step textarea:not(.v-textarea__sizer)')
+    await steps.nth(0).fill('Couper les légumes.')
+    await page.getByRole('button', { name: 'Ajouter une étape' }).click()
+    await steps.nth(1).fill("Faire revenir dans l'huile.")
+    await page.getByRole('button', { name: 'Ajouter une étape' }).click()
+    await steps.nth(2).fill('Servir.')
+    await page.getByRole('button', { name: "Monter l'étape 3" }).click()
+    check(await steps.nth(1).inputValue() === 'Servir.', 'steps can be reordered')
+    await page.getByRole('button', { name: "Descendre l'étape 2" }).click()
+    await page.getByRole('button', { name: 'Suivant' }).click()
+
+    await page.getByLabel('Préparation (min)').fill('10')
+    await page.getByLabel('Cuisson (min)').fill('15')
+    await page.locator('.v-combobox input').fill('Flowtest')
+    await page.keyboard.press('Enter')
+    await page.locator('input[type=file]').setInputFiles(join(ROOT, 'mediafiles/recipes/seed_4.jpg'))
+    check(await eventually(() => page.locator('.fork-wizard__photo').isVisible()), 'photo picked from the gallery')
+    await page.waitForTimeout(600) // draft saved after 300 ms
+    await page.reload({ waitUntil: 'networkidle' })
+    check(await page.getByText('Votre brouillon a été restauré.').isVisible(), 'draft restored after leaving the page')
+    check(await page.getByLabel('Préparation (min)').inputValue() === '10', 'draft keeps the screen and the values')
+    await page.locator('input[type=file]').setInputFiles(join(ROOT, 'mediafiles/recipes/seed_4.jpg')) // a file cannot be kept in a draft
+    await page.getByRole('button', { name: 'Sauvegarder' }).click()
+    await page.waitForURL(/\/recipe\/\d+$/, { timeout: 15000 })
+    const id = Number(page.url().split('/').pop())
+    const recipe = (await api(page, 'GET', `/api/recipe/${id}/`)).data
+    check(recipe.name === 'Flow poêlée test' && recipe.servings === 3, 'saved with name and servings')
+    check(recipe.steps.length === 3 && recipe.steps[0].ingredients.length === 4 && recipe.steps.slice(1).every((s) => s.ingredients.length === 0),
+      'single ingredient list stored in the first step')
+    check(recipe.steps.map((s) => s.instruction).join('|') === "Couper les légumes.|Faire revenir dans l'huile.|Servir.", 'steps in order')
+    const foods = recipe.steps[0].ingredients.map((i) => i.food.name)
+    check(foods.includes('Courgette') && foods.includes("Huile d'olive") && foods.includes('Ail') && foods.includes('Citron'), `existing foods used (${foods.join(', ')})`)
+    check(recipe.working_time === 10 && recipe.waiting_time === 15 && recipe.keywords.some((k) => k.name === 'Flowtest'), 'details saved')
+    check(!!recipe.image, 'photo uploaded')
+    check(await eventually(() => page.locator('.fork-ingredients__row').first().isVisible()) && !(await page.locator('.fork-recipe__group').count()),
+      'recipe view shows one list')
+
+    // edit with the same screens
+    await page.goto(`${base}/recipe/${id}/edit`, { waitUntil: 'networkidle' })
+    await eventually(async () => (await page.getByLabel('Nom de la recette').inputValue()) === 'Flow poêlée test')
+    await page.getByLabel('Nom de la recette').fill('Flow poêlée modifiée')
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Suivant' }).click()
+    await page.getByRole('button', { name: 'Sauvegarder' }).click()
+    await page.waitForURL(new RegExp(`/recipe/${id}$`), { timeout: 15000 })
+    const edited = (await api(page, 'GET', `/api/recipe/${id}/`)).data
+    check(edited.name === 'Flow poêlée modifiée', 'existing recipe edited')
+    check(edited.steps[0].ingredients.map((i) => i.id).join() === recipe.steps[0].ingredients.map((i) => i.id).join(), 'ingredients updated in place, not duplicated')
+
+    // a recipe split by step keeps its split
+    const curry = (await api(page, 'GET', '/api/recipe/?query=curry&page_size=1')).data.results[0]
+    const before = (await api(page, 'GET', `/api/recipe/${curry.id}/`)).data
+    await page.goto(`${base}/recipe/${curry.id}/edit`, { waitUntil: 'networkidle' })
+    await page.evaluate((cid) => localStorage.removeItem(`fork-recipe-draft-${cid}`), curry.id)
+    await page.reload({ waitUntil: 'networkidle' })
+    await eventually(async () => (await page.getByLabel('Nom de la recette').inputValue()).length > 0)
+    await page.getByRole('button', { name: 'Suivant' }).click()
+    check(await eventually(async () => (await page.locator('.fork-wizard__group').count()) === 3), 'split recipe shows its ingredients by step')
+    for (let i = 0; i < 2; i++) await page.getByRole('button', { name: 'Suivant' }).click()
+    await page.getByRole('button', { name: 'Sauvegarder' }).click()
+    await page.waitForURL(new RegExp(`/recipe/${curry.id}$`), { timeout: 15000 })
+    const after = (await api(page, 'GET', `/api/recipe/${curry.id}/`)).data
+    check(after.steps.map((s) => s.ingredients.length).join() === before.steps.map((s) => s.ingredients.length).join(), 'split kept after saving')
+
+    await api(page, 'DELETE', `/api/recipe/${id}/`)
+    const kw = (await api(page, 'GET', '/api/keyword/?query=Flowtest')).data
+    for (const k of kw.results ?? []) await api(page, 'DELETE', `/api/keyword/${k.id}/`)
   },
 }
 
