@@ -320,6 +320,35 @@ const FLOWS = {
     if (alias) await api(page, 'DELETE', `/api/automation/${alias.id}/`)
     for (const f of [a, b]) await api(page, 'DELETE', `/api/food/${f.id}/`)
   },
+
+  // M3: URL import review proposes the closest existing food; choosing it creates a FOOD_ALIAS
+  async importreview(page) {
+    const jsonld = JSON.stringify({ '@context': 'https://schema.org', '@type': 'Recipe', name: 'Flow import test',
+      recipeIngredient: ['1 Citrons', '100 g Gingembre'], recipeInstructions: [{ '@type': 'HowToStep', text: 'Mélanger.' }] })
+    await page.goto(base + '/recipe/import', { waitUntil: 'networkidle' })
+    await page.locator('.v-card', { hasText: 'JSON/HTML' }).first().click()
+    await page.getByRole('button', { name: 'Suivant' }).first().click()
+    await page.locator('textarea').first().fill(`<script type="application/ld+json">${jsonld}</` + 'script>')
+    await page.getByRole('button', { name: 'Chargement' }).click()
+    const card = page.locator('.fork-matches')
+    // walk the wizard (image, keywords...) up to the step editor
+    for (let i = 0; i < 5 && !(await card.isVisible()); i++) {
+      await page.waitForTimeout(800)
+      if (await card.isVisible()) break
+      await page.locator('button:visible', { hasText: /^\s*Suivant\s*$/ }).last().click().catch(() => {})
+    }
+    check(await eventually(() => card.isVisible(), 10000), 'unknown foods listed in the import review')
+    const text = await card.innerText()
+    check(/Citrons\s*\S*\s*Citron/.test(text.replace(/\n/g, ' ')), 'closest existing food proposed (Citrons -> Citron)')
+    await card.locator('.fork-matches__row', { hasText: 'Citrons' }).getByRole('button', { name: "Utiliser l'existant" }).click()
+    check(await eventually(async () => !(await card.locator('.fork-matches__row', { hasText: 'Citrons' }).count())), 'choice applied')
+    const chips = await texts(page, '.v-stepper-window .v-chip')
+    check(chips.some((c) => c.trim() === 'Citron') && !chips.some((c) => c.trim() === 'Citrons'), 'ingredient now uses the existing food')
+    const autos = (await api(page, 'GET', '/api/automation/?page_size=100')).data
+    const alias = (autos.results ?? autos).find((x) => x.type === 'FOOD_ALIAS' && x.param_1 === 'Citrons')
+    check(alias && alias.param_2 === 'Citron', 'FOOD_ALIAS Citrons -> Citron created')
+    if (alias) await api(page, 'DELETE', `/api/automation/${alias.id}/`)
+  },
 }
 
 async function main() {
@@ -352,6 +381,8 @@ async function main() {
       await flow(page, ctx)
     } catch (e) {
       check(false, `flow crashed: ${String(e).split('\n')[0]}`)
+      await page.screenshot({ path: join(ROOT, `.fork/flow-${name}.png`) }).catch(() => {})
+      console.log(`    [info] screenshot: .fork/flow-${name}.png; ${String(e).split('\n').slice(1, 4).join(' ')}`)
     }
   }
   if (errors.length) {
