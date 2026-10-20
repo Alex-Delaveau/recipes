@@ -73,7 +73,8 @@ function refreshData(recipeId: string) {
         }, 500)
 
         if (useUserPreferenceStore().isAuthenticated) {
-            api.apiViewLogCreate({viewLog: {recipe: Number(recipeId)} as ViewLog})
+            // fork: the view log is best effort, a failure (e.g. missing CSRF cookie) must not surface as an uncaught error
+            api.apiViewLogCreate({viewLog: {recipe: Number(recipeId)} as ViewLog}).catch(() => {})
         }
     }).catch(err => {
         if (err.response.status == 403) {

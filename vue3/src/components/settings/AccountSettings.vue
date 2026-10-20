@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 
-import {onMounted, ref} from "vue";
+import {ref, watch} from "vue";
 import {ApiApi, User} from "@/openapi";
 import {ErrorMessageType, PreparedMessage, useMessageStore} from "@/stores/MessageStore";
 import {useUserPreferenceStore} from "@/stores/UserPreferenceStore";
@@ -55,15 +55,17 @@ const {getDjangoUrl} = useDjangoUrls()
 
 const user = ref({} as User)
 
-onMounted(() => {
+// fork: user settings may still be loading on a direct page load, wait for the user id instead of reading it on mount
+watch(() => useUserPreferenceStore().userSettings.user?.id, (userId) => {
+    if (userId == undefined) return
     let api = new ApiApi()
 
-    api.apiUserRetrieve({id: useUserPreferenceStore().userSettings.user.id}).then(r => {
+    api.apiUserRetrieve({id: userId}).then(r => {
         user.value = r
     }).catch(err => {
         useMessageStore().addError(ErrorMessageType.FETCH_ERROR, err)
     })
-})
+}, {immediate: true})
 
 function save() {
     let api = new ApiApi()
