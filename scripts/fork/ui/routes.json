@@ -2,7 +2,8 @@
   "viewports": {
     "mobile": { "width": 390, "height": 844, "deviceScaleFactor": 2, "isMobile": true, "hasTouch": true },
     "small": { "width": 360, "height": 740, "deviceScaleFactor": 2, "isMobile": true, "hasTouch": true },
-    "desktop": { "width": 1280, "height": 800, "deviceScaleFactor": 1, "isMobile": false, "hasTouch": false }
+    "desktop": { "width": 1280, "height": 800, "deviceScaleFactor": 1, "isMobile": false, "hasTouch": false },
+    "dark": { "width": 390, "height": 844, "deviceScaleFactor": 2, "isMobile": true, "hasTouch": true, "colorScheme": "dark" }
   },
   "routes": [
     { "name": "login", "path": "/accounts/login/", "auth": false, "strict": false },
