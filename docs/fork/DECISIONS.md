@@ -20,7 +20,7 @@ sont identiques à `m0-baseline`, et M1 les écrasera.
 
 ## 2026-10-20 — M0 — pytest avec `recipes.test_settings`
 **Contexte** : avec `DJANGO_SETTINGS_MODULE=recipes.settings` exporté, pytest-django ignore `pytest.ini`. Les
-connecteurs externes démarrent alors un thread qui bloque la sortie de pytest, et une vingtaine de tests échouent.
+connecteurs externes démarrent alors un thread qui bloque la sortie de pytest, et une quinzaine de tests échouent.
 **Choix** : `verify.sh` passe `--ds recipes.test_settings`, ce qui reprend la configuration de test d'upstream.
 **Alternative écartée** : modifier `pytest.ini` ou `recipes/settings.py` (fichiers upstream).
 **Réversible ?** Oui.
