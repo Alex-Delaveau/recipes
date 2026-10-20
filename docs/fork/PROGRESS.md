@@ -217,3 +217,24 @@ Branche : `fork/m3-aliments`, partie de `fork/m2-cuisine` (PR M2 ouverte, non fu
   Proposition de l'aliment existant le plus proche pendant la relecture d'import.
 - Tout le nouveau stockage est dans `kitchen/` (une migration). 52 tests `kitchen` au total.
 - Prochain jalon : M4 (branche `fork/m4-recettes`, partie de `fork/m3-aliments`).
+
+## M4 — plan
+Branche : `fork/m4-recettes`, partie de `fork/m3-aliments` (PR M3 ouverte, non fusionnée). Environnement : porte M3
+`VERIFY: OK` juste avant (649 erreurs vue-tsc).
+
+1. [x] Reconnaissance française dans `kitchen/french.py`, branchée sur `IngredientParser.parse` au démarrage de l'app
+   (le fichier du parseur n'est pas modifié), active quand la langue est le français. Elle couvre les unités,
+   « de/d' », les précisions en note, les pluriels vers l'aliment existant et les fractions. Vérif : 40 lignes réelles
+   en pytest, plus l'API du parseur, l'import URL et le texte libre des courses.
+2. [ ] Endpoint `kitchen/` d'analyse **sans création** (reconnaissance en direct dans l'assistant) : `POST
+   /api/kitchen/parse/`. Vérif : pytest (aucun aliment créé).
+3. [ ] Assistant de saisie en 4 écrans (`/recipe/new`) : nom et portions, ingrédients (collage multi-ligne ou ligne à
+   ligne, reconnaissance en direct, correction en feuille du bas), étapes (réordonnables), détails (temps, mots-clés,
+   photo de la galerie). Brouillon conservé (appareil), navigation sans perte. Enregistrement en liste unique (tous les
+   ingrédients dans la première étape). Vérif : flow de bout en bout + contrôle API.
+4. [ ] Modification d'une recette existante avec les mêmes écrans (`/recipe/:id/edit`). Les recettes découpées par étape
+   gardent leur découpage. Vérif : flow (modification puis contrôle du découpage).
+5. [ ] Bouton « Ajouter » : « Saisir une recette » ouvre l'assistant ; « Modifier » de la vue recette aussi (éditeur
+   complet upstream accessible). Import URL : vérifier la reconnaissance française et la proposition d'aliment proche.
+   Vérif : flow d'import.
+6. [ ] Routes `strict`, porte `verify.sh --ui m4 --publish`, relectures, PR.
