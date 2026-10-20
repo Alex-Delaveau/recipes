@@ -107,7 +107,7 @@ RECIPES = [
         "servings": 2, "working_time": 10, "waiting_time": 10,
         "keywords": ["Rapide", "Pâtes"],
         "steps": [
-            ("Cuire les pâtes", "Cuire {{ ingredients[0] }} dans une grande casserole d'eau salée.", [("Pâtes", 200, "g")]),
+            ("Cuire les pâtes", "Cuire {{ scale(200) }} g de pâtes dans une grande casserole d'eau salée.", [("Pâtes", 200, "g")]),
             ("Préparer la sauce", "Faire revenir les lardons. Mélanger œufs et parmesan, puis hors du feu enrober les pâtes.",
              [("Lardons", 150, "g"), ("Œuf", 2, "pièce"), ("Parmesan", 40, "g")]),
         ],
@@ -120,7 +120,7 @@ RECIPES = [
         "steps": [
             ("Base", "Faire suer l'oignon et l'ail dans l'huile, ajouter le curry.",
              [("Oignon", 1, "pièce"), ("Ail", 2, "pièce"), ("Huile d'olive", 1, "c. à soupe"), ("Curry en poudre", 2, "c. à café")]),
-            ("Mijoter", "Ajouter {{ ingredients[0] }} de pois chiches et {{ ingredients[1] }} de lait de coco, laisser mijoter 15 min.",
+            ("Mijoter", "Ajouter {{ scale(400) }} g de pois chiches et {{ scale(400) }} ml de lait de coco, laisser mijoter 15 min.",
              [("Pois chiches", 400, "g"), ("Lait de coco", 400, "ml")]),
             ("Servir", "Servir avec le riz et un trait de citron.", [("Riz basmati", 150, "g"), ("Citron", 1, "pièce")]),
         ],
@@ -174,6 +174,7 @@ def main():
 
         cats = {name: SupermarketCategory.objects.get_or_create(name=name, space=space)[0] for name in CATEGORIES}
         units = {name: Unit.objects.get_or_create(name=name, space=space)[0] for name in UNITS}
+        Unit.objects.filter(space=space, name="pièce", plural_name__isnull=True).update(plural_name="pièces")
 
         foods = {}
         for name, (cat, parent) in FOODS.items():  # parents are declared before children

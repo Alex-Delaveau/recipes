@@ -6,7 +6,7 @@
             </a>
         </v-app-bar>
         <v-app-bar :color="forkNavColor(useUserPreferenceStore().activeSpace.navBgColor ? useUserPreferenceStore().activeSpace.navBgColor : useUserPreferenceStore().userSettings.navBgColor)"
-                   flat density="compact" class="fork-app-bar" v-if="useUserPreferenceStore().isAuthenticated && !useUserPreferenceStore().isPrintMode"
+                   flat density="compact" class="fork-app-bar" v-if="useUserPreferenceStore().isAuthenticated && !useUserPreferenceStore().isPrintMode && !forkFullscreen"
                    :absolute="!useUserPreferenceStore().userSettings.navSticky"
                    :scroll-behavior="useUserPreferenceStore().userSettings.navSticky ? 'elevate' : ''">
             <router-link :to="{ name: 'StartPage', params: {} }">
@@ -75,7 +75,7 @@
         </v-main>
 
         <!-- completely hide in print mode because setting d-print-node keeps layout -->
-        <v-navigation-drawer v-if="mdAndUp && useUserPreferenceStore().isAuthenticated && !useUserPreferenceStore().isPrintMode">
+        <v-navigation-drawer v-if="mdAndUp && useUserPreferenceStore().isAuthenticated && !useUserPreferenceStore().isPrintMode && !forkFullscreen">
             <v-list>
                 <menu-user-info></menu-user-info>
                 <v-divider></v-divider>
@@ -96,7 +96,7 @@
 
         </v-navigation-drawer>
 
-        <fork-bottom-nav v-if="useUserPreferenceStore().isAuthenticated && !mdAndUp && !useUserPreferenceStore().isPrintMode"></fork-bottom-nav>
+        <fork-bottom-nav v-if="useUserPreferenceStore().isAuthenticated && !mdAndUp && !useUserPreferenceStore().isPrintMode && !forkFullscreen"></fork-bottom-nav>
 
         <v-snackbar-queued
             :vertical="true"
@@ -115,7 +115,7 @@ import {toVuetifyLocale} from "@/vuetify"
 import VSnackbarQueued from "@/components/display/VSnackbarQueued.vue";
 import {useUserPreferenceStore} from "@/stores/UserPreferenceStore";
 import NavigationDrawerContextMenu from "@/components/display/NavigationDrawerContextMenu.vue";
-import {nextTick, onMounted, ref} from "vue";
+import {computed, nextTick, onMounted, ref} from "vue";
 import {isSpaceAboveLimit} from "@/utils/logic_utils";
 import {useTitle} from "@vueuse/core";
 import HelpDialog from "@/components/dialogs/HelpDialog.vue";
@@ -135,6 +135,8 @@ const {t} = useI18n()
 
 const title = useTitle()
 const router = useRouter()
+// fork: full screen pages (cook mode) hide the header, drawer and bottom bar
+const forkFullscreen = computed(() => router.currentRoute.value.meta.forkFullscreen === true)
 
 onMounted(() => {
     useUserPreferenceStore().init().then(() => {
