@@ -24,7 +24,7 @@ let routes = [
 
     //{path: '/settings/:page', component: SettingsPage, name: 'view_settings_page', props: true},
     {path: '/advanced-search', component: () => import("@/pages/SearchPage.vue"), name: 'SearchPage', meta: {title: 'Search'}},
-    {path: '/shopping', component: () => import("@/pages/ShoppingListPage.vue"), name: 'ShoppingListPage', meta: {title: 'Shopping_list'}},
+    {path: '/shopping', component: () => import("@/fork/pages/ForkShoppingList.vue"), name: 'ShoppingListPage', meta: {title: 'Shopping_list'}}, // fork: shopping (P4)
     {path: '/mealplan', component: MealPlanPage, name: 'MealPlanPage', meta: {title: 'Meal_Plan'}},
     {path: '/books', component: () => import("@/pages/BooksPage.vue"), name: 'BooksPage', meta: {title: 'Books'}},
     {path: '/book/:bookId', component: () => import("@/pages/BookViewPage.vue"), name: 'BookViewPage', props: true, meta: {title: 'Book'}},
