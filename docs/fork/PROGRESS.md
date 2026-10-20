@@ -67,7 +67,7 @@ Branche : `claude/busy-heisenberg-yf2zw3` (branche imposée par la session cloud
 6. [x] Page de connexion alignée sur les tokens (CSS du fork, sans toucher au template upstream si possible).
    Vérif : captures `login`.
 7. [x] Toutes les routes de `routes.json` en `"strict": true`, aucun débordement à 360 px. Vérif : `verify.sh --ui wip`.
-8. [ ] Porte finale `verify.sh --ui m1 --publish`, `reviewer` + `ui-auditor`, corrections, PR.
+8. [x] Porte finale `verify.sh --ui m1 --publish`, `reviewer` + `ui-auditor`, corrections, PR.
 
 ### Avancement M1
 - 1 : captures « écran visible » (`*-screen.jpg`), viewport `dark` (390 px, `prefers-color-scheme: dark`), graine fixe,
@@ -82,3 +82,24 @@ Branche : `claude/busy-heisenberg-yf2zw3` (branche imposée par la session cloud
   `AccountSettings` est corrigé en attendant l'id utilisateur.
 - 6 : connexion stylée (`kitchen/static/kitchen/login.css`).
 - 7 : les 9 routes passent en `strict` sans débordement ni erreur. Baseline vue-tsc abaissée de 650 à 649.
+- 8 : porte `verify.sh --ui m1 --publish` → `VERIFY: OK`. Les deux relectures ont été traitées :
+  - `reviewer` : 1 point bloquant, corrigé. Le fondu `out-in` laissait une page vide en quittant une page à plusieurs
+    racines (import de recette). La vue est désormais enveloppée dans un `div` à clé, et `screenshots.mjs` vérifie la
+    navigation interne (`in-app-navigation`).
+  - `ui-auditor` : « FIX FIRST » avec 3 points bloquants, corrigés :
+    - contraste du texte secondaire et des placeholders ;
+    - lien du logo à 44 px ;
+    - bouton flottant d'enregistrement remonté au-dessus de la barre.
+
+    Corrections peu coûteuses ajoutées : cellule « 1er du mois » et lignes du calendrier en sombre, « Profil » en
+    français. Le reste est listé dans la PR.
+
+## M1 — summary
+- Thème clair et sombre issu des tokens ; thème du système par défaut, réglable (Système, Clair, Sombre).
+- Police système, rayons et contours ; couleurs upstream codées en dur ramenées aux tokens.
+- Coquille mobile : barre du bas à 4 entrées avec libellés (Recettes, Courses, Ajouter, Plus), feuilles « Ajouter » et
+  « Plus », en-tête compact. Tiroir dès 960 px. Fondu de 200 ms entre les vues, coupé avec `prefers-reduced-motion`.
+- Connexion alignée sur les tokens, avec un champ d'étoiles en sombre.
+- Erreurs upstream (`view-log` en 403, `AccountSettings`) corrigées ; les 9 routes passent en `strict`.
+- Captures : « écran visible », sombre, 360 px publiées, reproductibles, contrôle de navigation interne.
+- Prochain jalon : M2.

@@ -18,17 +18,17 @@ Aucun changement visible pour l'utilisateur.
   - ajustements proposés pour M1–M4 (ajoutés en fin de ce fichier, section « Propositions M0 », sans modifier les jalons).
 
 ## M1 — Fondations visuelles [ ]
-- [ ] Thème Vuetify clair et sombre construit à partir des tokens de DESIGN.md (couleurs, typographie, rayons, élévations, espacements).
-- [ ] Transitions en fondu entre les vues (≤ 200 ms), désactivées si `prefers-reduced-motion`.
-- [ ] Coquille d'application : barre du bas sur mobile (4–5 entrées max, **avec libellés**, hauteur réservée dans `v-main`
+- [x] Thème Vuetify clair et sombre construit à partir des tokens de DESIGN.md (couleurs, typographie, rayons, élévations, espacements).
+- [x] Transitions en fondu entre les vues (≤ 200 ms), désactivées si `prefers-reduced-motion`.
+- [x] Coquille d'application : barre du bas sur mobile (4–5 entrées max, **avec libellés**, hauteur réservée dans `v-main`
       pour ne pas recouvrir le contenu), en-tête compact, tiroir **dès 960 px** (`mdAndUp`) ; zones tactiles ≥ 44 px.
-- [ ] Aucune route de `routes.json` ne déborde horizontalement à 360 px ; toutes passent en `"strict": true`
+- [x] Aucune route de `routes.json` ne déborde horizontalement à 360 px ; toutes passent en `"strict": true`
       (exception justifiée dans DECISIONS.md si une erreur upstream ne peut pas être corrigée dans le fork).
       Les deux erreurs JS upstream vues en M0 (`POST /api/view-log/` en 403, `TypeError` dans `AccountSettings`) sont
       corrigées ou contournées dans le fork, au plus près du code concerné.
-- [ ] Captures fiables : capture « écran visible » en plus de la pleine page ; captures reproductibles (pas de contenu
+- [x] Captures fiables : capture « écran visible » en plus de la pleine page ; captures reproductibles (pas de contenu
       aléatoire, attente du chargement) ; les captures 360 px (`small`) sont publiées avec `--publish`.
-- [ ] Aucune régression : `verify.sh --ui m1` OK, rapport `ui-auditor` sans problème bloquant.
+- [x] Aucune régression : `verify.sh --ui m1` OK, rapport `ui-auditor` sans problème bloquant.
 
 ## M2 — Parcours cuisine sur mobile [ ]
 Découle de SPEC.md, parcours P1 à P4.
