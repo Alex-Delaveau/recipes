@@ -4,7 +4,11 @@ Tenu par Claude pendant les jalons : plan, avancement, blocages. Le plus récent
 Questions bloquantes pour Alex : en tête de ce fichier, sous « En attente ».
 
 ## En attente
-_(aucune)_
+Questions ouvertes (non bloquantes, le travail a continué avec le choix indiqué) :
+- M2 — Feuille « Ajouter aux courses » : les aliments « jamais en courses » (sel, eau) sont proposés **décochés**.
+  Le critère dit « tous cochés ». Garder ce choix ? (DECISIONS.md)
+- M2 — Éditeur de recette upstream sur mobile : le bouton flottant « Enregistrer » peut recouvrir le bouton
+  « Supprimer » de l'image selon le défilement. Non corrigé en M2 : l'éditeur mobile est refait en M4.
 
 ## 2026-10-20 — Cadrage
 - Entretien de cadrage terminé : SPEC.md rempli, DESIGN.md validé, critères M3 et M4 réécrits.
@@ -126,7 +130,7 @@ Branche : `fork/m2-cuisine`, base `origin/main` (M1 fusionné). L'objectif de se
    la liste du foyer. Vérif : test manuel headless (script Playwright ponctuel) + capture.
 7. [x] P4 Courses (`ForkShoppingList.vue`) : groupé par rayon, un tap coche, « Dans le panier », annuler, ajout
    rapide en texte libre, message de fin, synchro automatique et au retour sur l'écran. Vérif : captures `shopping`.
-8. [ ] Routes refaites en `strict`, porte `verify.sh --ui m2 --publish`, `reviewer` + `ui-auditor`, PR.
+8. [x] Routes refaites en `strict`, porte `verify.sh --ui m2 --publish`, `reviewer` + `ui-auditor`, PR.
 
 ### Avancement M2
 - 1 : photos générées (Pillow), gabarits `{{ scale(…) }}` dans deux étapes, historique de consultation et de cuisine,
@@ -141,3 +145,19 @@ Branche : `fork/m2-cuisine`, base `origin/main` (M1 fusionné). L'objectif de se
   Deux défauts trouvés par les tests de parcours et corrigés : Entrée ne validait pas l'ajout rapide ; la file de
   synchro upstream pouvait laisser un article coché après une annulation rapide (voir DECISIONS.md).
 - Outillage : `scripts/fork/ui/flows.mjs` (35 vérifications cliquées des parcours P1 à P4) lancé par `verify.sh --ui`.
+- 8 : porte `verify.sh --ui m2 --publish` → `VERIFY: OK`. `reviewer` : 1 point bloquant (portée OAuth de l'endpoint),
+  corrigé, plus 8 remarques mineures traitées (test des recettes privées, file de synchro, ajout rapide, sortie du mode
+  cuisine, étapes à sous-recette, zones tactiles, retour depuis la vue détaillée). `ui-auditor` : « FIX FIRST »,
+  corrigés : colonne des quantités alignée, portions lisibles en mode cuisine, raccourcis visibles à 360 px, contours
+  des cartes, largeur des boutons du mode cuisine, onglet Recettes actif dans une recette. Reste listé dans la PR.
+
+## M2 — summary
+- Accueil Recettes : recherche visible, raccourcis (récentes, pas faites depuis longtemps, au hasard), feuille de
+  filtres (ingrédients sous la main classés, temps total, mots-clés), grandes cartes photo. Endpoint
+  `/api/kitchen/recipes/` testé.
+- Vue recette : photo, temps, portions ± qui recalculent la liste et les étapes ; mode cuisine plein écran, une étape
+  par écran, balayage et deux grands boutons, Wake Lock.
+- Feuille « Ajouter aux courses » et liste de courses refaite (rayons, un tap, panier, annulation, ajout rapide,
+  message de fin, synchro au retour sur l'écran). Correctif de la file de synchro upstream.
+- `verify.sh --ui` lance désormais 35 vérifications cliquées des parcours P1 à P4.
+- Prochain jalon : M3 (branche `fork/m3-aliments`, partie de `fork/m2-cuisine`).
