@@ -19,7 +19,7 @@
         </v-row>
 
         <template v-if="modelEditorFunctions != undefined">
-        <v-fab app location="bottom right" color="secondary" style="margin-bottom: 50px" v-if="model.toLowerCase() == 'recipe' && mobile" :loading="modelEditorFunctions.loading" icon>
+        <v-fab app location="bottom right" color="primary" class="fork-fab" v-if="model.toLowerCase() == 'recipe' && mobile" :loading="modelEditorFunctions.loading" icon>
             <v-icon>{{ speedDialOpen ? '$close' : '$save' }}</v-icon>
             <v-speed-dial v-model="speedDialOpen" location="top center" activator="parent">
                 <v-btn key="1" color="save" icon @click="modelEditorFunctions.saveObject()">
