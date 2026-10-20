@@ -77,9 +77,9 @@ Les chemins sont relatifs à la racine du dépôt. Les captures citées sont dan
 
 | Besoin du fork | Existant upstream | Où |
 |---|---|---|
-| Arbre famille > aliment | `Food` est un `TreeModel` treebeard (chemin matérialisé) ; API `PUT /api/food/{id}/move/{parent}/` (0 = racine) ; paramètres `root`, `tree` | `cookbook/models.py` (`TreeModel` l. 65, `Food` l. 774), `views/api.py` `TreeMixin` l. 441 |
+| Arbre famille > aliment | `Food` est un `TreeModel` treebeard (chemin matérialisé) ; API `PUT /api/food/{id}/move/{parent}/` (0 = racine) ; paramètres `root`, `tree` | `cookbook/models.py` (`TreeModel` l. 103, `Food` l. 774), `views/api.py` `TreeMixin` l. 441 |
 | Hériter du rayon de la famille | héritage de champs `inherit_fields` / `child_inherit_fields`, défauts par espace `Space.food_inherit`, appliqué par signaux `post_save` ; `api/reset-food-inheritance/` | `models.py` l. 250 et 318, `cookbook/signals.py` |
-| Rayon | `Food.supermarket_category` (FK `SupermarketCategory`) | `models.py` l. 642 |
+| Rayon | `Food.supermarket_category` (FK `SupermarketCategory`) | `models.py` l. 787 (champ), l. 642 (modèle) |
 | Ordre des rayons | **par magasin** : `Supermarket` + `SupermarketCategoryRelation.order` | `models.py` l. 669-690, `SupermarketEditor.vue` |
 | Liste groupée par rayon | `ShoppingStore.getEntriesStructure()` groupe par rayon ; l'ordre suit le magasin sélectionné, sinon l'ordre alphabétique ; le groupe « sans rayon » vient en premier | `stores/ShoppingStore.ts` l. 74-125, 398 |
 | Changer le rayon depuis la liste | `CategorySelectChip.vue` → `ShoppingStore.updateCategories` | |
@@ -88,7 +88,7 @@ Les chemins sont relatifs à la racine du dépôt. Les captures citées sont dan
 | Pluriel | `Food.plural_name`, `Unit.plural_name` | |
 | Substituts | `substitute` (M2M), `substitute_siblings`, `substitute_children` | `helper/food_availability_helper.py` |
 | « Jamais en courses » | `Food.ignore_shopping` (héritable) | |
-| Édition groupée | `PUT /api/food/batch_update/`, `BatchEditFoodDialog.vue` | `views/api.py` l. 1315 |
+| Édition groupée | `PUT /api/food/batch_update/`, `BatchEditFoodDialog.vue` | `views/api.py` l. 1316 |
 | Propriétés / nutrition | `PropertyType`, `Property`, `FoodProperty`, import USDA FDC, `PropertyEditorPage` | hors périmètre |
 | Stock, garde-manger | `onhand_users` (« en stock » par utilisateur), `InventoryLocation`, `InventoryEntry`, `InventoryLog`, `PantryPage`, `InventoryBookingPage` | hors périmètre |
 | Open Data | `api/import-open-data/` + `OpenDataImporter` (unités, rayons, propriétés, magasins, aliments, conversions) ; réglage `/settings/open-data-import` | `helper/open_data_importer.py` |
@@ -156,7 +156,7 @@ Contrôle automatique (`report.md`) : aucun débordement horizontal à 360 et 39
 
 | Écran | Constat | Capture |
 |---|---|---|
-| Toute l'app | La barre du bas n'a **que des icônes, sans libellés**. Le menu « ☰ » mélange réglages, import, base de données. Seules 3 vraies destinations. SPEC.md note qu'elle **recouvre le contenu**. Ce point n'est pas vérifiable ici : en capture pleine page, la barre fixe apparaît au milieu de l'image (artefact connu). M1 ajoutera une capture limitée à l'écran visible. | toutes |
+| Toute l'app | La barre du bas n'a **que des icônes, sans libellés**. Le menu « ☰ » mélange réglages, import, base de données. Seules 3 vraies destinations. SPEC.md note qu'elle **recouvre le contenu**. Ce point n'est pas vérifiable ici : en capture pleine page, la barre fixe apparaît au milieu de l'image (artefact connu). Une capture limitée à l'écran visible est proposée pour M1 (« Propositions M0 »). | toutes |
 | Toute l'app | En-tête haut de 56 px avec « + » et recherche en haut à droite, hors de portée du pouce. | toutes |
 | Accueil | L'accueil montre le plan du jour et une seule recette « au hasard » en carrousel, puis un bouton « Voir les recettes ». **Pas de champ de recherche visible**, cartes sans photo (placeholder), flèches de carrousel. | `start-mobile.jpg` |
 | Vue recette | L'en-tête de recette est dense (chips minuscules, temps en 3 colonnes de petit texte). Les ingrédients sont **par étape** avec des cases à cocher de 24 px. Les portions et la note sont tout en bas, après les métadonnées « Créé par / Créé / Mis à jour » en gros encadrés. Il n'y a pas de mode cuisine. 15 zones tactiles < 44 px. | `recipe-view-mobile.jpg` |
@@ -182,8 +182,9 @@ Elles sont à garder en tête : une page passée en `strict` échouera sur ces e
   - `base_url`, monté dans `recipes/urls.py` (l. 46-56) ;
   - un routeur DRF, fusionné dans `/api/` (`cookbook/urls.py`, l. 76-81).
 
-  La classe `AppConfig` est trouvée par une heuristique fragile (`dir(module)[1]`). `plugin.py` fait un `git pull`
-  puis lance le `setup_repo.py` de chaque plugin, qui crée un lien vers son code Vue.
+  La classe `AppConfig` est trouvée par une heuristique fragile (`dir(module)[1]`). `plugin.py` lance le `setup_repo.py`
+  de chaque plugin (qui crée un lien vers son code Vue), puis `yarn install` ; le `git pull` d'un plugin se fait depuis
+  la page `/system/` (`cookbook/views/views.py:342`).
 - **Frontend** (`vue3/src/types/Plugins.ts`) : `import.meta.glob('@/plugins/*/plugin.ts')`. Un plugin peut fournir :
   - des routes et des routes de réglages ;
   - des entrées de tiroir, de barre du bas et de menu utilisateur ;
