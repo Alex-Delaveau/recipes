@@ -5,12 +5,12 @@
                 <v-img src="../../assets/brand_logo.svg" width="140px" class="ms-2" ></v-img>
             </a>
         </v-app-bar>
-        <v-app-bar :color="useUserPreferenceStore().activeSpace.navBgColor ? useUserPreferenceStore().activeSpace.navBgColor : useUserPreferenceStore().userSettings.navBgColor"
-                   flat density="comfortable" v-if="useUserPreferenceStore().isAuthenticated && !useUserPreferenceStore().isPrintMode"
+        <v-app-bar :color="forkNavColor(useUserPreferenceStore().activeSpace.navBgColor ? useUserPreferenceStore().activeSpace.navBgColor : useUserPreferenceStore().userSettings.navBgColor)"
+                   flat density="compact" class="fork-app-bar" v-if="useUserPreferenceStore().isAuthenticated && !useUserPreferenceStore().isPrintMode"
                    :absolute="!useUserPreferenceStore().userSettings.navSticky"
                    :scroll-behavior="useUserPreferenceStore().userSettings.navSticky ? 'elevate' : ''">
             <router-link :to="{ name: 'StartPage', params: {} }">
-                <v-img src="../../assets/brand_logo.svg" width="140px" class="ms-2"
+                <v-img :src="theme.current.value.dark ? brandLogoDark : brandLogo" width="140px" class="ms-2"
                        v-if="useUserPreferenceStore().userSettings.navShowLogo && !useUserPreferenceStore().activeSpace.navLogo"></v-img>
                 <v-img :src="useUserPreferenceStore().activeSpace.navLogo.preview" width="140px" class="ms-2"
                        v-if="useUserPreferenceStore().userSettings.navShowLogo && useUserPreferenceStore().activeSpace.navLogo != undefined"></v-img>
@@ -18,7 +18,7 @@
 
             <v-spacer></v-spacer>
             <global-search-dialog></global-search-dialog>
-            <v-btn icon="$add" class="d-print-none">
+            <v-btn icon="$add" class="d-print-none" v-if="mdAndUp">
                 <v-icon icon="$add" class="fa-fw"></v-icon>
                 <v-menu activator="parent">
                     <v-list>
@@ -63,11 +63,16 @@
         </v-app-bar>
 
         <v-main>
-            <router-view></router-view>
+            <!-- fork: fade between views, cut by prefers-reduced-motion (src/fork/fork.css) -->
+            <router-view v-slot="{ Component }">
+                <transition name="fork-fade" mode="out-in">
+                    <component :is="Component"></component>
+                </transition>
+            </router-view>
         </v-main>
 
         <!-- completely hide in print mode because setting d-print-node keeps layout -->
-        <v-navigation-drawer v-if="lgAndUp && useUserPreferenceStore().isAuthenticated && !useUserPreferenceStore().isPrintMode">
+        <v-navigation-drawer v-if="mdAndUp && useUserPreferenceStore().isAuthenticated && !useUserPreferenceStore().isPrintMode">
             <v-list>
                 <menu-user-info></menu-user-info>
                 <v-divider></v-divider>
@@ -88,29 +93,7 @@
 
         </v-navigation-drawer>
 
-        <v-bottom-navigation grow v-if="useUserPreferenceStore().isAuthenticated && !lgAndUp && !useUserPreferenceStore().isPrintMode">
-            <v-btn value="recent" :to="{ name: 'StartPage', params: {} }">
-                <v-icon icon="fa-fw fas fa-book "/>
-            </v-btn>
-
-            <v-btn value="favorites" to="/mealplan">
-                <v-icon icon="fa-fw fas fa-calendar-alt"></v-icon>
-            </v-btn>
-
-            <v-btn value="nearby" to="/shopping">
-                <v-icon icon="fa-fw fas fa-shopping-cart"></v-icon>
-            </v-btn>
-
-            <v-btn value="nearby">
-                <v-icon icon="fa-fw fas fa-bars"></v-icon>
-                <v-bottom-sheet activator="parent" close-on-content-click>
-                    <v-list nav>
-                        <menu-user-info></menu-user-info>
-                        <component :is="item.component" :="item" :key="item.title" v-for="item in useNavigation().getBottomNavigation()"></component>
-                    </v-list>
-                </v-bottom-sheet>
-            </v-btn>
-        </v-bottom-navigation>
+        <fork-bottom-nav v-if="useUserPreferenceStore().isAuthenticated && !mdAndUp && !useUserPreferenceStore().isPrintMode"></fork-bottom-nav>
 
         <v-snackbar-queued
             :vertical="true"
@@ -124,7 +107,7 @@
 <script lang="ts" setup>
 import GlobalSearchDialog from "@/components/inputs/GlobalSearchDialog.vue"
 
-import {useDisplay, useLocale} from "vuetify"
+import {useDisplay, useLocale, useTheme} from "vuetify"
 import {toVuetifyLocale} from "@/vuetify"
 import VSnackbarQueued from "@/components/display/VSnackbarQueued.vue";
 import {useUserPreferenceStore} from "@/stores/UserPreferenceStore";
@@ -138,8 +121,13 @@ import {useRouter} from "vue-router";
 import {useI18n} from "vue-i18n";
 import {THousehold, TSpace} from "@/types/Models.ts";
 import MenuUserInfo from "@/components/display/MenuUserInfo.vue";
+import ForkBottomNav from "@/fork/ForkBottomNav.vue";
+import {forkNavColor} from "@/fork/theme";
+import brandLogo from "@/assets/brand_logo.svg";
+import brandLogoDark from "@/fork/assets/brand_logo_dark.svg";
 
-const {lgAndUp} = useDisplay()
+const {mdAndUp} = useDisplay()
+const theme = useTheme()
 const {t} = useI18n()
 
 const title = useTitle()
