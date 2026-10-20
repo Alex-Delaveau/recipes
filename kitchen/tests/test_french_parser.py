@@ -130,3 +130,19 @@ def test_shopping_free_text_in_french(space_1, u1_s1):
     with translation.override('fr'):
         response = u1_s1.post('/api/ingredient-parser/post/', {'ingredient': '2 citrons'}, content_type='application/json')
     assert response.json()['ingredient']['food']['name'] == 'Citron'
+
+
+def test_wizard_parse_creates_nothing(space_1, u1_s1):
+    with scopes_disabled():
+        Food.objects.create(name='Oignon', space=space_1)
+        before = Food.objects.filter(space=space_1).count()
+    with translation.override('fr'):
+        response = u1_s1.post(reverse('kitchen:parse'), {'lines': ['3 oignons émincés', '200 g de farine T55', '']},
+                              content_type='application/json')
+    assert response.status_code == 200, response.content
+    first, second, empty = response.json()['results']
+    assert first['food'] == 'Oignon' and first['food_id'] is not None and first['note'] == 'émincés'
+    assert second['food'] == 'farine' and second['food_id'] is None and second['unit'] == 'g'
+    assert empty['food'] is None
+    with scopes_disabled():
+        assert Food.objects.filter(space=space_1).count() == before

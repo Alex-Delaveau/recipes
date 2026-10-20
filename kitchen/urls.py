@@ -12,6 +12,7 @@ urlpatterns = [
     path('foods/<int:pk>/move/', views.KitchenFoodMoveView.as_view(), name='food-move'),
     path('foods/<int:pk>/aisle/', views.KitchenFoodAisleView.as_view(), name='food-aisle'),
     path('foods/<int:pk>/family/', views.KitchenFoodFamilyView.as_view(), name='food-family'),
+    path('parse/', views.KitchenParseView.as_view(), name='parse'),
     path('aisles/', views.KitchenAislesView.as_view(), name='aisles'),
     path('duplicates/', views.KitchenDuplicatesView.as_view(), name='duplicates'),
     path('duplicates/dismiss/', views.KitchenDuplicateDismissView.as_view(), name='duplicates-dismiss'),

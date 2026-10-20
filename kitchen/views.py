@@ -11,7 +11,8 @@ from treebeard.exceptions import InvalidMoveToDescendant, InvalidPosition, PathO
 
 from cookbook.helper.permission_helper import CustomIsGuest, CustomIsUser, CustomTokenHasReadWriteScope
 from cookbook.helper.recipe_search import RecipeSearch
-from cookbook.models import Automation, Food, Recipe, SupermarketCategory
+from cookbook.helper.ingredient_parser import IngredientParser
+from cookbook.models import Automation, Food, Recipe, SupermarketCategory, Unit
 from kitchen import services
 from kitchen.models import KitchenFood
 from cookbook.views.api import RecipePagination
@@ -239,4 +240,34 @@ class KitchenFoodMatchView(KitchenUserMixin, APIView):
             exists = Food.objects.filter(space=request.space).filter(Q(name__iexact=clean) | Q(plural_name__iexact=clean)).exists()
             alias = Automation.objects.filter(space=request.space, type=Automation.FOOD_ALIAS, disabled=False, param_1__iexact=clean).exists()
             results[name] = {'exists': exists or alias, 'closest': None if (exists or alias) else services.closest_food(request.space, clean)}
+        return Response({'results': results})
+
+
+# ------------------------------------------------------------------------- recipe wizard (M4)
+
+class KitchenParseView(KitchenUserMixin, APIView):
+    """
+    Live recognition for the recipe wizard: {lines: [...]} -> {results: [{original, amount, unit, food, note, food_id,
+    unit_id, error}]}. Uses the upstream parser (with the fork's French reading) but, unlike /api/ingredient-parser/,
+    creates no food or unit: they are created when the recipe is saved.
+    """
+
+    def post(self, request):
+        lines = request.data.get('lines')
+        if not isinstance(lines, list):
+            return Response({'error': True, 'msg': 'lines must be a list'}, status=status.HTTP_400_BAD_REQUEST)
+        parser = IngredientParser(request, cache_mode=True)
+        results = []
+        for line in [str(x) for x in lines[:200]]:
+            item = {'original': line, 'amount': 0, 'unit': None, 'food': None, 'note': '', 'food_id': None, 'unit_id': None, 'error': False}
+            if line.strip():
+                try:
+                    amount, unit, food, note = parser.parse(line)
+                    item.update({'amount': amount, 'unit': unit, 'food': food, 'note': note})
+                    item['food_id'] = Food.objects.filter(space=request.space).filter(Q(name__iexact=food) | Q(plural_name__iexact=food)).values_list('id', flat=True).first()
+                    if unit:
+                        item['unit_id'] = Unit.objects.filter(space=request.space).filter(Q(name__iexact=unit) | Q(plural_name__iexact=unit)).values_list('id', flat=True).first()
+                except ValueError:
+                    item.update({'food': line.strip()[:128], 'error': True})
+            results.append(item)
         return Response({'results': results})
