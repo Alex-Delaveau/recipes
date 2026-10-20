@@ -203,6 +203,7 @@ INSTALLED_APPS = [
     'allauth.usersessions',
 
     'cookbook.apps.CookbookConfig',
+    'kitchen.apps.KitchenConfig',
     'treebeard',
 ]
 
