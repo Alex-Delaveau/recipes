@@ -71,7 +71,8 @@ export function draftFromRecipe(recipe: Recipe): RecipeDraft {
         keywords: (recipe.keywords ?? []).filter(k => k.id != undefined).map(k => ({id: k.id!, name: k.name})),
         steps: recipe.steps.map(step => ({
             key: newKey(), name: step.name ?? '', instruction: step.instruction ?? '', raw: step,
-            ingredients: step.ingredients.filter(i => !i.isHeader).map(i => ({
+            // headers and lines without a food are not edited by the wizard: kept as they are, in place (draftToRecipe)
+            ingredients: step.ingredients.filter(i => !i.isHeader && i.food).map(i => ({
                 key: newKey(), amount: Number(i.amount ?? 0), unit: i.unit?.name ?? null, food: i.food?.name ?? '', note: i.note ?? '',
                 original: i.originalText ?? '', known: i.food != null, raw: i,
             })),
@@ -103,14 +104,26 @@ function toIngredient(d: DraftIngredient, order: number): Ingredient {
 /** keeps every field of the recipe being edited (sub-recipes, files, nutrition...) and replaces what the wizard edits */
 export function draftToRecipe(draft: RecipeDraft, base: Recipe | null): Recipe {
     const steps: Step[] = draft.steps.map((s, index) => {
-        // header ingredients are not edited by the wizard: they stay where they were
-        const headers = (s.raw?.ingredients ?? []).filter(i => i.isHeader)
+        // the step's original order is kept: headers ("For the sauce") and lines without a food stay in place, edited
+        // lines replace their original, deleted ones disappear, new ones (or moved from a deleted step) come last
+        const drafts = new Map(s.ingredients.filter(d => d.raw?.id != undefined).map(d => [d.raw!.id!, d]))
+        const used = new Set<string>()
+        const merged: (Ingredient | DraftIngredient)[] = []
+        ;(s.raw?.ingredients ?? []).forEach(ri => {
+            if (ri.isHeader || !ri.food) {
+                merged.push(ri)
+            } else if (ri.id != undefined && drafts.has(ri.id)) {
+                merged.push(drafts.get(ri.id)!)
+                used.add(drafts.get(ri.id)!.key)
+            }
+        })
+        s.ingredients.filter(d => !used.has(d.key)).forEach(d => merged.push(d))
         return {
             ...(s.raw ?? {showIngredientsTable: true, time: 0}),
             name: s.name,
             instruction: s.instruction,
             order: index,
-            ingredients: [...headers, ...s.ingredients.map((d, i) => toIngredient(d, headers.length + i))],
+            ingredients: merged.map((item, i) => 'key' in item ? toIngredient(item, i) : {...item, order: i}),
         } as Step
     })
     return {

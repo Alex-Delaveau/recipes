@@ -47,9 +47,20 @@ watch(sheet, (open) => {
     form.original = props.ingredient.original
 })
 
+/** "1,5", "1/2", "1 1/2", "½", "1½", "1 ½" */
+function parseAmount(text: string) {
+    const clean = text.trim().replace(',', '.')
+    const vulgar: Record<string, number> = {'¼': 0.25, '½': 0.5, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3}
+    let m = clean.match(/^(?:(\d+)\s+)?(\d+)\/(\d+)$/)
+    if (m) return (m[1] ? Number(m[1]) : 0) + (Number(m[3]) ? Number(m[2]) / Number(m[3]) : 0)
+    m = clean.match(/^(\d+(?:\.\d+)?)?\s*([¼½¾⅓⅔])?$/)
+    if (!m || clean == '') return NaN
+    return (m[1] ? parseFloat(m[1]) : 0) + (m[2] ? vulgar[m[2]] ?? 0 : 0)
+}
+
 function save() {
     if (!props.ingredient) return
-    const amount = parseFloat(String(form.amount).replace(',', '.'))
+    const amount = parseAmount(String(form.amount))
     const food = form.food.trim()
     emit('save', {
         ...props.ingredient,

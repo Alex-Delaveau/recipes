@@ -9,8 +9,9 @@ multi-ligne de l'éditeur, le texte libre des courses et l'assistant du fork.
 **Choix** : au démarrage de l'app, `kitchen/french.py` enveloppe `IngredientParser.parse`. Tous les appelants partagent
 la même classe et en profitent. La lecture française s'applique quand la **langue active est le français** : réglage de
 Django, donc l'en-tête `Accept-Language` du téléphone ou le choix de langue. Les autres langues gardent le parseur
-upstream tel quel, ce qui garde verts les tests upstream du parseur. Les automatisations upstream (`UNIT_ALIAS`,
-`FOOD_ALIAS`…) s'appliquent ensuite sur le texte nettoyé.
+upstream tel quel, ce qui garde verts les tests upstream du parseur. Les automatisations upstream s'appliquent :
+`TRANSPOSE_WORDS` avant la lecture, puis `UNIT_ALIAS`, `FOOD_ALIAS` (et leurs variantes regex) sur le texte nettoyé.
+`NEVER_UNIT` n'est pas appliqué en français : la table des unités du fork ne prend jamais un aliment pour une unité.
 **Alternative écartée** : un prétraitement par heuristique sur toutes les lignes (casse les lignes anglaises comme
 « 2 large eggs ») ; un patch du parseur upstream.
 **Réversible ?** Oui.
@@ -36,7 +37,9 @@ première quantité, et la fourchette va en note (comme upstream).
 - la reconnaissance en direct passe par `POST /api/kitchen/parse/`, qui **ne crée aucun aliment ni unité** (l'API
   upstream en crée à chaque appel). Les aliments sont créés à l'enregistrement, avec un rayon suggéré (M3) ;
 - brouillon gardé sur l'appareil (localStorage, une clé par recette, écran courant compris). C'est le seul état local
-  autorisé par SPEC.md. La photo n'est pas gardée dans le brouillon (fichier) ;
+  autorisé par SPEC.md. Il n'est écrit qu'après une vraie modification, et il est écarté s'il est plus ancien que la
+  recette (modifiée entre-temps ailleurs). La photo n'est pas gardée dans le brouillon (fichier). Si l'envoi de la
+  photo échoue, la recette reste enregistrée et un message le signale ;
 - recette créée : tous les ingrédients dans la première étape, les étapes suivantes en texte ;
 - recette existante : ses champs non édités (sous-recettes, fichiers, nutrition…) sont conservés tels quels. Une recette
   découpée par étape garde son découpage : les ingrédients s'affichent groupés par étape, et une étape supprimée donne

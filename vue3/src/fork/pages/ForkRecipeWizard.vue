@@ -26,6 +26,7 @@
             <v-alert v-if="restored" type="info" variant="tonal" class="mb-4" closable :text="$t('Fork_Draft_Restored')" @click:close="restored = false"></v-alert>
             <v-alert v-if="loadError" type="error" variant="tonal" class="mb-4" :text="$t('Fork_Load_Error')"></v-alert>
             <v-skeleton-loader v-if="loading" type="heading, paragraph"></v-skeleton-loader>
+            <template v-else-if="loadError"></template>
 
             <!-- 1. name and servings -->
             <section v-else-if="draft.screen == 0">
@@ -128,7 +129,7 @@
                        @click="next()" v-if="draft.screen < SCREENS.length - 1">
                     {{ $t('Next') }}
                 </v-btn>
-                <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" prepend-icon="$save" :loading="saving" :disabled="!draft.name.trim()"
+                <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" prepend-icon="$save" :loading="saving" :disabled="!draft.name.trim() || loadError || loading"
                        @click="save()" v-else>
                     {{ $t('Save') }}
                 </v-btn>
@@ -145,7 +146,7 @@ import {useRouter} from "vue-router";
 import {useI18n} from "vue-i18n";
 import {watchDebounced} from "@vueuse/core";
 import {ApiApi, Recipe} from "@/openapi";
-import {ErrorMessageType, useMessageStore} from "@/stores/MessageStore";
+import {ErrorMessageType, MessageType, useMessageStore} from "@/stores/MessageStore";
 import {useFileApi} from "@/composables/useFileApi";
 import {ParsedLine, parseLines} from "@/fork/api";
 import {clearDraft, DraftIngredient, DraftStep, draftFromRecipe, draftToRecipe, emptyDraft, fromParsed, loadDraft, newKey, RecipeDraft, storeDraft} from "@/fork/recipeDraft";
@@ -164,7 +165,11 @@ const router = useRouter()
 const {t} = useI18n()
 const {updateRecipeImage} = useFileApi()
 
-const recipeId = computed(() => props.id ? Number(props.id) : null)
+/** a new recipe gets its id at the first save: a retry (e.g. after a failed photo upload) updates it, never duplicates */
+const savedId = ref<number | null>(null)
+const recipeId = computed(() => props.id ? Number(props.id) : savedId.value)
+/** draft key: the recipe edited, or "new" until the page is left (the id of a just created recipe is not a draft key) */
+const draftId = computed(() => props.id ? Number(props.id) : null)
 const draft = ref<RecipeDraft>(emptyDraft())
 const loading = ref(false)
 const loadError = ref(false)
@@ -179,6 +184,8 @@ const photoFile = ref<File | null>(null)
 const photoPreview = ref<string | null>(null)
 const photoInput = useTemplateRef<HTMLInputElement>('photoInput')
 let ready = false
+/** snapshot of the draft as loaded: it is only kept on the device once the user changed something */
+let pristine = ''
 
 const pasteLines = computed(() => pasteText.value.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0))
 /** steps holding ingredients; a new recipe has one list, in its first step */
@@ -211,12 +218,12 @@ function previous() {
 
 /** leaving keeps the draft on the device */
 function close() {
-    if (recipeId.value) router.push({name: 'RecipeViewPage', params: {id: recipeId.value}})
+    if (draftId.value) router.push({name: 'RecipeViewPage', params: {id: draftId.value}})
     else router.push({name: 'StartPage'})
 }
 
 function discard() {
-    clearDraft(recipeId.value)
+    clearDraft(draftId.value)
     restored.value = false
     load(false)
 }
@@ -300,15 +307,18 @@ async function save() {
         draft.value.screen = 0
         return
     }
-    if (pasteLines.value.length) await new Promise<void>(resolve => {
-        addLines()
-        const stop = watch(parsing, (p) => {
-            if (!p) {
-                stop()
-                resolve()
-            }
+    if (pasteLines.value.length) {
+        await new Promise<void>(resolve => {
+            addLines()
+            const stop = watch(parsing, (p) => {
+                if (!p) {
+                    stop()
+                    resolve()
+                }
+            })
         })
-    })
+        if (pasteLines.value.length) return // the lines could not be read: they are back in the field, nothing saved
+    }
     const api = new ApiApi()
     saving.value = true
     try {
@@ -316,11 +326,18 @@ async function save() {
         const base: Recipe | null = recipeId.value ? await api.apiRecipeRetrieve({id: recipeId.value}) : null
         const recipe = draftToRecipe(draft.value, base)
         const saved = recipeId.value ? await api.apiRecipeUpdate({id: recipeId.value, recipe}) : await api.apiRecipeCreate({recipe})
-        if (photoFile.value) {
-            await updateRecipeImage(saved.id!, photoFile.value)
-        }
-        clearDraft(recipeId.value)
+        savedId.value = saved.id!
+        clearDraft(draftId.value)
         ready = false
+        if (photoFile.value) {
+            // the recipe is saved: a failed photo upload is reported, it does not undo the save
+            try {
+                const image = await updateRecipeImage(saved.id!, photoFile.value)
+                if (!image?.image) throw new Error('image not saved')
+            } catch {
+                useMessageStore().addMessage(MessageType.WARNING, {title: t('Fork_Photo_Failed'), text: ''}, 5000)
+            }
+        }
         router.replace({name: 'RecipeViewPage', params: {id: saved.id!}})
     } catch (err) {
         useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
@@ -330,26 +347,30 @@ async function save() {
 }
 
 // ---- load and keep the draft
+function start(value: RecipeDraft, fromStorage: boolean) {
+    draft.value = value
+    restored.value = fromStorage
+    pristine = fromStorage ? '' : JSON.stringify(value)
+    ready = true
+}
+
 function load(useDraft = true) {
     ready = false
-    const stored = useDraft ? loadDraft(recipeId.value) : null
-    if (stored) {
-        draft.value = stored
-        restored.value = true
-        ready = true
-        if (recipeId.value) fetchPhoto()
-        return
-    }
-    if (!recipeId.value) {
-        draft.value = emptyDraft()
-        ready = true
+    const stored = useDraft ? loadDraft(draftId.value) : null
+    if (!draftId.value) {
+        start(stored ?? emptyDraft(), stored != null)
         return
     }
     loading.value = true
-    new ApiApi().apiRecipeRetrieve({id: recipeId.value}).then(r => {
-        draft.value = draftFromRecipe(r)
+    new ApiApi().apiRecipeRetrieve({id: draftId.value}).then(r => {
         photoPreview.value = r.image ?? null
-        ready = true
+        // a draft older than the recipe (changed since in the full editor, by the other household member...) is dropped
+        if (stored && stored.savedAt >= new Date(r.updatedAt).getTime()) {
+            start(stored, true)
+        } else {
+            if (stored) clearDraft(draftId.value)
+            start(draftFromRecipe(r), false)
+        }
     }).catch(() => {
         loadError.value = true
     }).finally(() => {
@@ -357,15 +378,10 @@ function load(useDraft = true) {
     })
 }
 
-function fetchPhoto() {
-    new ApiApi().apiRecipeRetrieve({id: recipeId.value!}).then(r => {
-        if (!photoFile.value) photoPreview.value = r.image ?? null
-    }).catch(() => {
-    })
-}
-
 watchDebounced(draft, () => {
-    if (ready) storeDraft(draft.value)
+    if (ready && JSON.stringify(draft.value) != pristine) {
+        storeDraft({...draft.value, recipeId: draftId.value})
+    }
 }, {deep: true, debounce: 300})
 
 onMounted(() => load())

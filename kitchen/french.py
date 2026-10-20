@@ -71,7 +71,7 @@ NUMBER_WORDS = {'un': 1, 'une': 1, 'deux': 2, 'trois': 3, 'quatre': 4, 'cinq': 5
                 'onze': 11, 'douze': 12, 'quinze': 15, 'vingt': 20, 'demi': 0.5, 'demie': 0.5, 'quelques': None}
 
 _VULGAR = '¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞'
-_NUMBER = rf'(?:\d+\s+\d+/\d+|\d+/\d+|\d+(?:[.,]\d+)?[{_VULGAR}]?|[{_VULGAR}])'
+_NUMBER = rf'(?:\d+\s+\d+/\d+|\d+\s+[{_VULGAR}]|\d+/\d+|\d+(?:[.,]\d+)?[{_VULGAR}]?|[{_VULGAR}])'
 _AMOUNT = re.compile(rf'^(?P<amount>{_NUMBER})(?:\s*(?:-|à|a|ou)\s*(?P<to>{_NUMBER}))?(?=[\s\w(]|$)\s*', re.IGNORECASE)
 _ARTICLE = re.compile(r"^(?:de la |de l['’]|des |du |de |d['’])", re.IGNORECASE)
 
@@ -82,8 +82,14 @@ NOTE_STARTERS = DESCRIPTORS | {
     'tiede', 'froid', 'froide', 'ramolli', 'ramollie', 'battu', 'battus', 'battue', 'battues', 'concasse', 'concasses', 'concassee',
     'concassees', 'egoutte', 'egouttes', 'egouttee', 'egouttees', 'rince', 'rinces', 'lave', 'laves', 'epluche', 'epluches', 'eplucheees',
     'epluchee', 'epluchees', 'cisele', 'ciseles', 'ciselee', 'ciselees', 'presse', 'presses', 'pressee', 'pressees', 'degerme', 'degermee',
-    'degermees', 'environ', 'selon', 'a', 'au', 'en', 'sans', 'type', 'facultatif', 'optionnel', 'ou',
-}
+    'degermees', 'environ', 'selon', 'sans', 'type', 'facultatif', 'optionnel', 'ou',
+} - {'en', 'des', 'de'}
+# prepositions start a precision only before a preparation word: "coupé en dés", "beurre en pommade", but
+# "pâte à tarte", "lait en poudre", "poulet au curry" are food names
+PREPOSITIONS = {'a', 'au', 'aux', 'en'}
+PREPARATIONS = {'des', 'de', 'cube', 'cubes', 'rondelle', 'rondelles', 'lamelle', 'lamelles', 'morceau', 'morceaux', 'tranche',
+                'tranches', 'pommade', 'julienne', 'brunoise', 'quartier', 'quartiers', 'fines', 'fins', 'fine', 'fin', 'petits', 'gros',
+                'temperature', 'deux', 'quatre', 'huit', 'moitie', 'lanieres', 'batonnets', 'des'}
 _FLOUR_TYPE = re.compile(r'^t\d{2,3}$', re.IGNORECASE)
 
 
@@ -100,6 +106,9 @@ def _key(text):
 
 def parse_number(text, parser):
     text = text.strip().replace(',', '.')
+    if ' ' in text and text[-1] in _VULGAR:  # "1 ½"
+        whole, frac = text.split(None, 1)
+        return float(whole) + unicodedata.numeric(frac.strip())
     if ' ' in text and '/' in text:  # "1 1/2"
         whole, frac = text.split(None, 1)
         return float(whole) + parse_number(frac, parser)
@@ -144,7 +153,15 @@ def split_note(food_text):
     cut = len(words)
     for i, w in enumerate(words):
         k = _key(w)
-        if i > 0 and (k in NOTE_STARTERS or _FLOUR_TYPE.match(k)):
+        if i == 0:
+            continue
+        if k in PREPOSITIONS:
+            following = _key(words[i + 1]) if i + 1 < len(words) else ''
+            if following in PREPARATIONS or following in NOTE_STARTERS:
+                cut = i
+                break
+            continue
+        if k in NOTE_STARTERS or _FLOUR_TYPE.match(k):
             cut = i
             break
     food = ' '.join(words[:cut]).strip(' ,;:-')
@@ -210,7 +227,8 @@ def parse_french(parser, text):
         else:
             rest = line
 
-    if unit is None:
+    if unit is None and rest is not line:
+        # a unit only follows a quantity: "Noisettes concassées" is a food, not 2 "noisette" units
         unit, rest = match_unit(rest)
     rest = _ARTICLE.sub('', rest.strip()).strip()
     food, note = split_note(rest)
@@ -239,6 +257,8 @@ def install():
             return upstream_parse(self, ingredient)  # upstream raises the right error
         if not hasattr(self, '_kitchen_foods'):
             self._kitchen_foods = ExistingFoods(getattr(self.request, 'space', None) if self.request is not None else None)
+        if not self.ignore_rules:
+            ingredient = self.automation.apply_transpose_automation(ingredient)
         try:
             amount, unit, food, note = parse_french(self, ingredient)
         except (ValueError, ZeroDivisionError):
@@ -249,7 +269,7 @@ def install():
             food = self.automation.apply_food_automation(food)
         if len(food) > 128:
             food, note = food[:128], f'{food} {note}'.strip()
-        return amount, unit, food.strip(), note.strip()
+        return amount, unit, food.strip(), note.strip()[:256]
 
     parse._kitchen_french = True
     IngredientParser.parse = parse

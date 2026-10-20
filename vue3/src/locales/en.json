@@ -342,6 +342,7 @@
   "Fork_Not_Duplicate": "Not a duplicate",
   "Fork_Note_Hint": "e.g. chopped",
   "Fork_Photo": "Photo",
+  "Fork_Photo_Failed": "The recipe is saved, but the photo could not be sent.",
   "Fork_Plural_Hint": "e.g. onions",
   "Fork_Prep_Minutes": "Prep (min)",
   "Fork_Previous": "Back",

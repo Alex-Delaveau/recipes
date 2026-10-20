@@ -253,7 +253,7 @@ class KitchenParseView(KitchenUserMixin, APIView):
     """
 
     def post(self, request):
-        lines = request.data.get('lines')
+        lines = request.data.get('lines') if isinstance(request.data, dict) else None
         if not isinstance(lines, list):
             return Response({'error': True, 'msg': 'lines must be a list'}, status=status.HTTP_400_BAD_REQUEST)
         parser = IngredientParser(request, cache_mode=True)

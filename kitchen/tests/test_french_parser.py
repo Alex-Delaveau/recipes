@@ -146,3 +146,29 @@ def test_wizard_parse_creates_nothing(space_1, u1_s1):
     assert empty['food'] is None
     with scopes_disabled():
         assert Food.objects.filter(space=space_1).count() == before
+
+
+@pytest.mark.parametrize('line,amount,unit,food,note', [
+    ('1 ½ c. à soupe de sucre', 1.5, 'c. à soupe', 'sucre', ''),
+    ("2 ½ cuillères à soupe d'huile", 2.5, 'c. à soupe', 'huile', ''),
+    ('1 pâte à tarte', 1, None, 'pâte à tarte', ''),
+    ('2 c. à soupe de lait en poudre', 2, 'c. à soupe', 'lait en poudre', ''),
+    ('1 poulet au curry', 1, None, 'poulet au curry', ''),
+    ('50 g de beurre en pommade', 50, 'g', 'beurre', 'en pommade'),
+    ('Noisettes concassées', 0, None, 'Noisettes', 'concassées'),
+])
+def test_review_cases(line, amount, unit, food, note):
+    parser = IngredientParser(None, ignore_automations=True)
+    with translation.override('fr'):
+        assert parser.parse(line) == (amount, unit, food, note)
+
+
+def test_long_line_note_is_truncated():
+    parser = IngredientParser(None, ignore_automations=True)
+    with translation.override('fr'):
+        amount, unit, food, note = parser.parse('1 ' + 'tomate ' * 70)
+    assert len(food) <= 128 and len(note) <= 256
+
+
+def test_parse_view_rejects_non_object(u1_s1):
+    assert u1_s1.post(reverse('kitchen:parse'), ['x'], content_type='application/json').status_code == 400

@@ -311,6 +311,7 @@
     "Fork_Not_Duplicate": "Pas un doublon",
     "Fork_Note_Hint": "ex. émincé",
     "Fork_Photo": "Photo",
+    "Fork_Photo_Failed": "La recette est enregistrée, mais la photo n'a pas pu être envoyée.",
     "Fork_Plural_Hint": "ex. oignons",
     "Fork_Prep_Minutes": "Préparation (min)",
     "Fork_Previous": "Précédent",
