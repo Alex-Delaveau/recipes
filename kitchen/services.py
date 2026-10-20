@@ -150,18 +150,20 @@ def set_food_aisle(food, category):
     state.aisle_source = KitchenFood.SOURCE_USER
     state.save()
     if food.numchild:
-        # members follow the family (inheritance by default), except those whose own aisle the user confirmed
-        children = food.get_children().filter(
+        # members (any depth) follow the family (inheritance by default), except those whose own aisle the user chose
+        followers = list(food.get_descendants().filter(
             Q(supermarket_category_id=previous) | Q(supermarket_category__isnull=True) | Q(kitchen__aisle_confirmed=False)
-            | Q(kitchen__aisle_source=KitchenFood.SOURCE_PARENT))
-        Food.objects.filter(id__in=list(children.values_list('id', flat=True))).update(supermarket_category=category)
-        KitchenFood.objects.filter(food__in=children).update(aisle_confirmed=True, aisle_source=KitchenFood.SOURCE_PARENT)
+            | Q(kitchen__aisle_source=KitchenFood.SOURCE_PARENT)).values_list('id', flat=True))
+        Food.objects.filter(id__in=followers).update(supermarket_category=category)
+        for follower in Food.objects.filter(id__in=followers):
+            KitchenFood.objects.update_or_create(food=follower, defaults={'space': food.space, 'aisle_confirmed': True,
+                                                                           'aisle_source': KitchenFood.SOURCE_PARENT})
     return food
 
 
 def to_sort_queryset(space):
     """Foods whose aisle the user has not confirmed yet (new foods, or older foods without an aisle)."""
-    return Food.objects.filter(space=space).filter(
+    return Food.objects.filter(space=space, ignore_shopping=False).filter(
         Q(kitchen__isnull=True, supermarket_category__isnull=True) | Q(kitchen__aisle_confirmed=False)
     ).order_by('name')
 
@@ -224,14 +226,17 @@ def usage_counts(food_ids):
 
 def find_duplicates(space, limit=200):
     """
-    Probable duplicates among the foods of a space: pairs whose names match by the similarity rule
-    (plural, accents, extra words, spelling), minus the pairs marked "not a duplicate".
-    Returns a list of dicts sorted by score: {a, b, score, reason} with a = the food to keep (more used, shorter).
+    Probable duplicates among the foods of a space: names that match by the similarity rule (plural, accents, extra
+    words, spelling), minus the pairs marked "not a duplicate". Matches are grouped (oignons ~ Oignon ~ Oignon jaune)
+    and every other food of a group is proposed for a merge into one food to keep: the most used, then the shortest
+    name. So no proposal targets a food that is itself proposed for a merge.
+    Returns a list of dicts sorted by score: {keep, drop, score, reason}.
     """
     foods = list(Food.objects.filter(space=space).values_list('id', 'name'))
     dismissed = set(NotDuplicate.objects.filter(space=space).values_list('food_a_id', 'food_b_id'))
     keys = {fid: normalize(name) for fid, name in foods}
-    pairs = []
+    names = dict(foods)
+    edges = []
     for i, (id_a, name_a) in enumerate(foods):
         for id_b, name_b in foods[i + 1:]:
             ka, kb = keys[id_a], keys[id_b]
@@ -239,21 +244,47 @@ def find_duplicates(space, limit=200):
                 continue  # cheap pre-filter: names starting differently and sharing no first word
             score, reason = similarity(name_a, name_b)
             if reason and (min(id_a, id_b), max(id_a, id_b)) not in dismissed:
-                pairs.append((score, reason, id_a, id_b))
-    pairs.sort(key=lambda p: -p[0])
-    pairs = pairs[:limit]
-    counts = usage_counts(list({p[2] for p in pairs} | {p[3] for p in pairs}))
-    names = dict(foods)
+                edges.append((score, reason, id_a, id_b))
+
+    # groups of matching foods (union-find)
+    parent = {}
+
+    def root(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for _score, _reason, a, b in edges:
+        parent[root(a)] = root(b)
+    groups = {}
+    for fid in parent:
+        groups.setdefault(root(fid), []).append(fid)
+
+    counts = usage_counts(list(parent))
+    best_edge = {}
+    for score, reason, a, b in edges:
+        for x in (a, b):
+            if x not in best_edge or score > best_edge[x][0]:
+                best_edge[x] = (score, reason)
+
     result = []
-    for score, reason, id_a, id_b in pairs:
-        # keep the most used food, then the shorter (cleaner) name
-        keep, drop = sorted([id_a, id_b], key=lambda x: (-sum(counts[x]), len(names[x])))
-        result.append({
-            'keep': {'id': keep, 'name': names[keep], 'recipes': counts[keep][0], 'shopping': counts[keep][1]},
-            'drop': {'id': drop, 'name': names[drop], 'recipes': counts[drop][0], 'shopping': counts[drop][1]},
-            'score': score, 'reason': reason,
-        })
-    return result
+    for members in groups.values():
+        keep = sorted(members, key=lambda x: (-sum(counts[x]), len(names[x]), names[x]))[0]
+        for drop in members:
+            if drop == keep or (min(keep, drop), max(keep, drop)) in dismissed:
+                continue
+            score, reason = similarity(names[drop], names[keep])
+            if not reason:  # only linked through another member of the group: say so
+                score, reason = best_edge[drop][0] * 0.9, 'group'
+            result.append({
+                'keep': {'id': keep, 'name': names[keep], 'recipes': counts[keep][0], 'shopping': counts[keep][1]},
+                'drop': {'id': drop, 'name': names[drop], 'recipes': counts[drop][0], 'shopping': counts[drop][1]},
+                'score': score, 'reason': reason,
+            })
+    result.sort(key=lambda p: -p['score'])
+    return result[:limit]
 
 
 def dismiss_duplicate(space, id_a, id_b):

@@ -273,3 +273,34 @@ def test_upstream_merge_still_works_with_fork_food_state(setup_space, u1_s1):
     with scopes_disabled():
         assert not Food.objects.filter(id=drop.id).exists()
         assert KitchenFood.objects.filter(food=keep).exists()
+
+
+def test_duplicates_are_grouped_around_one_food_to_keep(setup_space, u1_s1):
+    with scopes_disabled():
+        for name in ['Oignon', 'oignons', 'Oignon jaune']:
+            Food.objects.create(name=name, space=setup_space)
+    results = u1_s1.get(reverse('kitchen:duplicates')).json()['results']
+    assert {p['keep']['name'] for p in results} == {'Oignon'}
+    assert sorted(p['drop']['name'] for p in results) == ['Oignon jaune', 'oignons']
+
+
+def test_aisle_counts_count_every_food(setup_space, u1_s1):
+    with scopes_disabled():
+        for name in ['Courgette', 'Poireau', 'Navet']:
+            Food.objects.create(name=name, space=setup_space)
+    aisles = {a['name']: a['foods'] for a in u1_s1.get(reverse('kitchen:aisles')).json()['aisles']}
+    assert aisles['Fruits et légumes'] == 3
+
+
+def test_invalid_category_is_a_400(setup_space, u1_s1):
+    with scopes_disabled():
+        food = Food.objects.create(name='Navet', space=setup_space)
+    response = u1_s1.post(reverse('kitchen:food-aisle', args=[food.id]), {'category': 'abc'}, content_type='application/json')
+    assert response.status_code == 400
+
+
+def test_other_space_food_cannot_be_changed(setup_space, u1_s2):
+    with scopes_disabled():
+        food = Food.objects.create(name='Navet', space=setup_space)
+    assert u1_s2.post(reverse('kitchen:food-aisle', args=[food.id]), {'category': None}, content_type='application/json').status_code == 404
+    assert u1_s2.post(reverse('kitchen:food-family', args=[food.id]), {'is_family': True}, content_type='application/json').status_code == 404

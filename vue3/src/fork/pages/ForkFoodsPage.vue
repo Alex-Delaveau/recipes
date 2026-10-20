@@ -68,16 +68,17 @@
             <v-list v-if="isOpen(group)" class="py-0" bg-color="transparent">
                 <v-list-item v-for="food in group.items" :key="food.id" min-height="52" class="fork-foods__row" @click="openSheet(food)">
                     <v-list-item-title class="fork-foods__name">{{ food.name }}</v-list-item-title>
-                    <v-list-item-subtitle>
-                        <span v-if="food.category" :class="{'fork-foods__unconfirmed': !food.aisleConfirmed}">
+                    <v-list-item-subtitle v-if="!sameAsFamily(group, food) || food.ignoreShopping">
+                        <span v-if="sameAsFamily(group, food)"></span>
+                        <span v-else-if="food.category" :class="{'fork-foods__unconfirmed': !food.aisleConfirmed}">
                             {{ food.category.name }}<template v-if="!food.aisleConfirmed"> · {{ $t('Fork_Suggested') }}</template>
                         </span>
                         <span v-else class="text-error">{{ $t('Fork_No_Aisle') }}</span>
-                        <span v-if="food.ignoreShopping"> · {{ $t('Fork_Never_In_Shopping') }}</span>
+                        <span v-if="food.ignoreShopping"><template v-if="!sameAsFamily(group, food)"> · </template>{{ $t('Fork_Never_In_Shopping') }}</span>
                     </v-list-item-subtitle>
                     <template #append>
                         <v-btn icon variant="text" size="44" :aria-label="$t('Fork_Move_To_Family')" @click.stop="openMove(food)">
-                            <v-icon icon="fa-solid fa-right-left" size="16"></v-icon>
+                            <v-icon icon="fa-solid fa-folder-open" size="16"></v-icon>
                         </v-btn>
                     </template>
                 </v-list-item>
@@ -151,6 +152,11 @@ const groups = computed<FoodGroup[]>(() => {
     return result
 })
 
+/** members repeat no aisle when they have their family's (confirmed) one: the header shows it */
+function sameAsFamily(group: FoodGroup, food: KitchenFoodItem) {
+    return !!group.family && food.aisleConfirmed && food.category?.id != undefined && food.category.id == group.family.category?.id
+}
+
 function isOpen(group: FoodGroup) {
     return filtering.value || opened.value.has(group.key)
 }
@@ -185,7 +191,8 @@ let firstLoad = true
 
 function load() {
     error.value = false
-    Promise.all([listKitchenFoods(), listAisles()]).then(([f, a]) => {
+    // one after the other: the first call may set the space up (writes), SQLite dislikes parallel writers
+    listKitchenFoods().then(f => listAisles().then(a => [f, a] as const)).then(([f, a]) => {
         foods.value = f.foods.sort((x, y) => x.name.localeCompare(y.name))
         toSort.value = f.toSort
         aisles.value = a.aisles

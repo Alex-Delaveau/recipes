@@ -308,7 +308,7 @@ const FLOWS = {
     await page.goto(base + '/foods/duplicates', { waitUntil: 'networkidle' })
     const card = page.locator('.v-card', { hasText: /zzflow poireaux/i }).filter({ hasText: /Zzflow poireau\b/ })
     check(await eventually(() => card.first().isVisible()), 'plural duplicate proposed')
-    check((await card.first().innerText()).includes('passeront sur'), 'merge preview shown (recipes and items)')
+    check((await card.first().innerText()).includes('À rattacher à'), 'merge preview shown (recipes and items)')
     await card.first().getByRole('button', { name: 'Fusionner' }).click()
     await page.locator('.v-dialog').getByRole('button', { name: 'Fusionner' }).click()
     check(await eventually(async () => !(await card.count()), 5000), 'pair gone after the merge')

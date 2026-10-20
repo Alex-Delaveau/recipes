@@ -42,6 +42,7 @@ const error = ref(false)
 const saving = ref(false)
 
 function shift(index: number, delta: number) {
+    const previous = aisles.value
     const next = [...aisles.value]
     const [moved] = next.splice(index, 1)
     next.splice(index + delta, 0, moved!)
@@ -50,6 +51,7 @@ function shift(index: number, delta: number) {
     saveAisleOrder(next.map(a => a.id)).then(r => {
         aisles.value = r.aisles
     }).catch(err => {
+        aisles.value = previous
         useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
     }).finally(() => {
         saving.value = false

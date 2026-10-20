@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from treebeard.exceptions import InvalidMoveToDescendant, InvalidPosition, PathOverflow
@@ -96,6 +97,8 @@ def _food_or_404(request, pk):
 def _category_or_none(request, value):
     if value in (None, '', 0):
         return None
+    if not str(value).isdigit():
+        raise ValidationError({'category': 'must be a category id'})
     return get_object_or_404(SupermarketCategory, pk=int(value), space=request.space)
 
 
@@ -187,7 +190,8 @@ class KitchenAislesView(KitchenUserMixin, APIView):
     """Aisles in the generic order (GET) and new order (PUT {order: [category ids]})."""
 
     def _payload(self, request, aisles):
-        counts = dict(Food.objects.filter(space=request.space).values('supermarket_category').annotate(n=Count('id'))
+        # order_by(): Food's default ordering (name) would otherwise end up in the GROUP BY and count 1 per food
+        counts = dict(Food.objects.filter(space=request.space).order_by().values('supermarket_category').annotate(n=Count('id'))
                       .values_list('supermarket_category', 'n'))
         kitchen = services.ensure_setup(request.space)
         return Response({'supermarket': kitchen.generic_supermarket_id,

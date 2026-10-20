@@ -98,8 +98,8 @@ async function save() {
         } else {
             await api.apiFoodPartialUpdate({id, patchedFood: fields})
         }
-        if (form.isFamily && !props.food?.isFamily) {
-            await setFoodFamily(id, true)
+        if (form.isFamily != (props.food?.isFamily ?? false)) {
+            await setFoodFamily(id, form.isFamily)
         }
         const family = form.isFamily ? null : form.family
         if (family != (props.food?.family ?? null)) {

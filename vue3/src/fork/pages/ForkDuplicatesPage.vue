@@ -25,7 +25,7 @@
                             <v-icon icon="fa-solid fa-arrow-right" size="14" class="mx-2"></v-icon>
                             <span class="fork-dup__keep">{{ pair.keep.name }}</span>
                             <v-btn icon variant="text" size="44" class="ms-auto" :aria-label="$t('Fork_Swap')" @click="swap(pair)">
-                                <v-icon icon="fa-solid fa-arrows-rotate" size="14"></v-icon>
+                                <v-icon icon="fa-solid fa-right-left" size="14"></v-icon>
                             </v-btn>
                         </div>
                         <div class="text-body-2 text-medium-emphasis">{{ $t('Fork_Duplicate_Reason_' + pair.reason) }}</div>
@@ -97,10 +97,11 @@ async function merge(pair: KitchenDuplicate) {
     merging.value = true
     try {
         await new ApiApi().apiFoodMergeUpdate({id: pair.drop.id, target: pair.keep.id, food: {} as Food})
-        await createFoodAlias(pair.drop.name, pair.keep.name, t)
-        useMessageStore().addPreparedMessage(PreparedMessage.MERGE_SUCCESS)
         confirming.value = null
         load()
+        // the merge is done: an alias failure is reported but does not undo it
+        await createFoodAlias(pair.drop.name, pair.keep.name, t)
+        useMessageStore().addPreparedMessage(PreparedMessage.MERGE_SUCCESS)
     } catch (err) {
         useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
     } finally {
@@ -137,7 +138,6 @@ onMounted(() => load())
 }
 
 .fork-dup__drop {
-    text-decoration: line-through;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

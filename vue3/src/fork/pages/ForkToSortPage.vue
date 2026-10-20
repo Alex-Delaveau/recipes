@@ -27,12 +27,14 @@
             <p class="text-caption text-medium-emphasis mb-4" v-if="current.suggested">{{ $t('Fork_Suggestion_Source_' + current.source) }}</p>
             <p class="text-body-2 mb-4" v-else>{{ $t('Fork_No_Suggestion') }}</p>
 
+            <div class="fork-sort__actions">
             <div class="fork-sort__grid">
                 <v-btn v-for="a in otherAisles" :key="a.id" variant="outlined" size="large" class="fork-sort__aisle" :loading="saving == a.id"
                        @click="assign(a.id)">{{ a.name }}
                 </v-btn>
             </div>
-            <v-btn variant="text" size="large" block class="mt-4" @click="later()">{{ $t('Fork_Later') }}</v-btn>
+            <v-btn variant="text" size="large" block class="mt-2" @click="later()">{{ $t('Fork_Later') }}</v-btn>
+            </div>
         </template>
     </v-container>
 </template>
@@ -70,7 +72,7 @@ function later() {
 }
 
 onMounted(() => {
-    Promise.all([listToSort(), listAisles()]).then(([q, a]) => {
+    listToSort().then(q => listAisles().then(a => [q, a] as const)).then(([q, a]) => {
         queue.value = q.results
         aisles.value = a.aisles
     }).catch(() => {
@@ -97,6 +99,24 @@ onMounted(() => {
     overflow-wrap: anywhere;
 }
 
+/* one-handed: the aisle buttons sit in the lower half of the screen */
+.fork-sort {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100dvh - 48px - var(--fork-bottom-nav));
+}
+
+.fork-sort__actions {
+    margin-top: auto;
+    padding-top: var(--fork-space-4);
+}
+
+@media (min-width: 960px) {
+    .fork-sort {
+        min-height: 0;
+    }
+}
+
 .fork-sort__grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -110,6 +130,7 @@ onMounted(() => {
 
 .fork-sort__aisle :deep(.v-btn__content) {
     white-space: normal;
+    font-size: var(--fork-text-sm);
     line-height: 1.2;
 }
 
