@@ -8,3 +8,5 @@ class KitchenConfig(AppConfig):
 
     def ready(self):
         from kitchen import signals  # noqa: F401 (registers the receivers)
+        from kitchen.french import install
+        install()  # French ingredient lines for the upstream parser (kitchen/french.py)
