@@ -62,6 +62,9 @@ FOODS = {
 
 UNITS = ["g", "ml", "c. à soupe", "c. à café", "pièce"]
 
+# names left by imports: duplicates and foods with no confirmed aisle, for the food organisation screens
+MESSY_FOODS = ["oignons", "Oignon jaune", "Échalote", "échalotes", "Tomates cerises", "Gingembre frais", "Sauce soja"]
+
 # warm palettes for the generated placeholder photos (no external image service)
 PHOTO_COLORS = {
     "Pâtes carbonara": ((236, 205, 140), (196, 140, 70)),
@@ -176,6 +179,9 @@ def main():
         units = {name: Unit.objects.get_or_create(name=name, space=space)[0] for name in UNITS}
         Unit.objects.filter(space=space, name="pièce", plural_name__isnull=True).update(plural_name="pièces")
 
+        from kitchen.services import ensure_setup
+        ensure_setup(space)  # generic aisle order of the fork (reuses the categories above)
+
         foods = {}
         for name, (cat, parent) in FOODS.items():  # parents are declared before children
             food = Food.objects.filter(name=name, space=space).first()
@@ -205,6 +211,10 @@ def main():
                                                     order=i_order, space=space)
                     step.ingredients.add(ing)
                 recipe.steps.add(step)
+
+        for name in MESSY_FOODS:
+            if not Food.objects.filter(name=name, space=space).exists():
+                Food.objects.create(name=name, space=space)  # the fork suggests an aisle, left to confirm
 
         now = timezone.now()
         for i, recipe in enumerate(Recipe.objects.filter(space=space).order_by("id")):
