@@ -1,0 +1,138 @@
+/* Fork: login page (Django template) aligned on the design tokens of docs/fork/DESIGN.md. */
+:root {
+    --k-surface: #FAF8F5;
+    --k-surface-variant: #F1EDE6;
+    --k-on-surface: #1F1D1A;
+    --k-muted: #5C5750;
+    --k-primary: #AF4A26;
+    --k-on-primary: #FFFFFF;
+    --k-border: rgba(31, 29, 26, 0.24);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --k-surface: #0B1020;
+        --k-surface-variant: #141A2E;
+        --k-on-surface: #E6E8F0;
+        --k-muted: #A9AEC2;
+        --k-primary: #8FB3FF;
+        --k-on-primary: #0B1020;
+        --k-border: rgba(230, 232, 240, 0.24);
+    }
+
+    body {
+        /* static night sky, login and empty screens only */
+        background-image:
+            radial-gradient(1px 1px at 12% 18%, rgba(230, 232, 240, 0.7), transparent 60%),
+            radial-gradient(1px 1px at 72% 12%, rgba(230, 232, 240, 0.55), transparent 60%),
+            radial-gradient(1.5px 1.5px at 38% 42%, rgba(185, 166, 255, 0.6), transparent 60%),
+            radial-gradient(1px 1px at 86% 58%, rgba(230, 232, 240, 0.5), transparent 60%),
+            radial-gradient(1px 1px at 22% 76%, rgba(143, 179, 255, 0.6), transparent 60%),
+            radial-gradient(1px 1px at 58% 88%, rgba(230, 232, 240, 0.45), transparent 60%) !important;
+        background-size: 320px 320px !important;
+    }
+
+    /* the PNG wordmark is dark: show the fork's light-text variant (no effect where `content` on img is unsupported) */
+    #id_main_nav img.brand-icon {
+        content: url("brand_logo_dark.svg");
+        height: 40px;
+        width: auto;
+    }
+}
+
+html, body {
+    background-color: var(--k-surface) !important;
+    color: var(--k-on-surface) !important;
+    font-family: system-ui, -apple-system, Roboto, "Segoe UI", sans-serif !important;
+    font-size: 16px;
+}
+
+body h1, body h2, body h3, body h4, body h5, body h6, body p, body label, body span, body input, body button, body a {
+    font-family: inherit !important;
+}
+
+#id_main_nav {
+    background-color: var(--k-surface) !important;
+    border-bottom: 1px solid var(--k-border);
+    min-height: 56px;
+}
+
+#id_main_nav .navbar-toggler {
+    display: none;
+}
+
+body h3 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-top: 24px;
+}
+
+body hr {
+    border-color: var(--k-border);
+}
+
+body label {
+    color: var(--k-on-surface) !important;
+    font-size: 14px;
+}
+
+/* repeated class: beats the theme's `input:not(...)` x4 !important rule */
+html body input.form-control.form-control.form-control.form-control.form-control,
+html body input.form-control.form-control.form-control.form-control.form-control:focus {
+    min-height: 48px;
+    border-radius: 12px;
+    background-color: var(--k-surface-variant) !important;
+    color: var(--k-on-surface) !important;
+    border: 1px solid var(--k-border) !important;
+    font-size: 16px;
+}
+
+html body .form-control::placeholder {
+    color: var(--k-muted) !important;
+}
+
+html body input.form-control.form-control.form-control.form-control.form-control:focus {
+    border-color: var(--k-primary) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--k-primary) 30%, transparent) !important;
+}
+
+body .form-check-input, body input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--k-primary);
+    margin-right: 8px;
+}
+
+body .form-check {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+body a {
+    color: var(--k-primary) !important;
+}
+
+body .btn {
+    min-height: 48px;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-weight: 600;
+    box-shadow: none !important;
+}
+
+body .btn-success {
+    width: 100%;
+    background-color: var(--k-primary) !important;
+    border-color: var(--k-primary) !important;
+    color: var(--k-on-primary) !important;
+}
+
+body .btn-secondary {
+    width: 100%;
+    margin-top: 8px;
+    background-color: transparent !important;
+    border: 1px solid var(--k-border) !important;
+    color: var(--k-on-surface) !important;
+}

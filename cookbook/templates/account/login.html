@@ -7,6 +7,11 @@
 
 {% block title %}{% trans 'Login' %}{% endblock %}
 
+{% block extra_head %}
+    {# fork: login styled with the design tokens #}
+    <link rel="stylesheet" href="{% static 'kitchen/login.css' %}">
+{% endblock %}
+
 {% block content %}
 
 
