@@ -3,6 +3,20 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-20 — M0 — Propositions M0 validées
+**Contexte** : la session M0 a proposé des ajustements pour M1 à M5 (fin de ROADMAP.md). Alex les a toutes acceptées.
+**Choix** : les propositions qui changent un critère sont intégrées aux jalons :
+- M1 : tiroir dès 960 px, barre du bas avec libellés et hauteur réservée, correction ou contournement des deux erreurs
+  JS upstream, captures fiables (écran visible, reproductibles, publication 360 px) ;
+- M2 : la synchro automatique existante suffit pour voir les modifications de l'autre membre du foyer ;
+- M5 : CI GitHub Actions avec `verify.sh`.
+
+Les notes d'implémentation (réutiliser `ShoppingStore`, un `Supermarket` unique pour l'ordre des rayons,
+`Space.food_inherit`, `ModelMergeDialog`, endpoint `kitchen/` sans stock pour P1, prétraitement branché au collage et à
+l'import) restent dans la section « Propositions M0 ».
+**Alternative écartée** : laisser chaque session de jalon trancher au cas par cas.
+**Réversible ?** Oui.
+
 ## 2026-10-20 — M0 — Branche de travail imposée par la session cloud
 **Contexte** : la règle du fork demande une branche `fork/m0-<slug>`, mais la session cloud impose de pousser sur
 `claude/gifted-cerf-5458vi` et interdit toute autre branche sans permission.
