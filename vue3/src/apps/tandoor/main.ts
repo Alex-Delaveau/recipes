@@ -15,7 +15,7 @@ import MealPlanPage from "@/pages/MealPlanPage.vue";
 import {TANDOOR_PLUGINS, TandoorPlugin} from "@/types/Plugins.ts";
 
 let routes = [
-    {path: '/', component: () => import("@/pages/StartPage.vue"), name: 'StartPage'},
+    {path: '/', component: () => import("@/fork/pages/ForkRecipesHome.vue"), name: 'StartPage'}, // fork: recipes home (P1)
     {path: '/search', redirect: {name: 'StartPage'}},
     {path: '/test', component: () => import("@/pages/TestPage.vue"), name: 'view_test'},
     {path: '/welcome', component: () => import("@/pages/WelcomePage.vue"), name: 'WelcomePage', meta: {title: 'Welcome'}},
