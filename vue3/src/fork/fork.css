@@ -1,0 +1,144 @@
+/* Fork design tokens (docs/fork/DESIGN.md). Colors live in the Vuetify themes (src/fork/theme.ts). */
+:root {
+    --fork-font: system-ui, -apple-system, Roboto, "Segoe UI", sans-serif;
+
+    --fork-text-xs: 12px;
+    --fork-text-sm: 14px;
+    --fork-text-md: 16px;
+    --fork-text-lg: 20px;
+    --fork-text-xl: 24px;
+    --fork-text-xxl: 32px;
+
+    --fork-space-1: 4px;
+    --fork-space-2: 8px;
+    --fork-space-3: 12px;
+    --fork-space-4: 16px;
+    --fork-space-6: 24px;
+    --fork-space-8: 32px;
+
+    --fork-radius-card: 12px;
+    --fork-radius-chip: 999px;
+    --fork-radius-sheet: 16px;
+
+    --fork-tap: 44px;
+    --fork-fade: 100ms; /* out + in = 200 ms with mode="out-in" */
+
+    /* Vuetify radius scale used by `rounded="lg"` etc. */
+    --v-border-radius-lg: 12px;
+}
+
+/* ---- Typography: system font, no downloaded font ---- */
+html, body, .v-application,
+.text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6,
+.text-subtitle-1, .text-subtitle-2, .text-body-1, .text-body-2,
+.text-button, .text-caption, .text-overline {
+    font-family: var(--fork-font) !important;
+}
+
+.v-application .text-h4 { font-size: var(--fork-text-xxl) !important; line-height: 40px; }
+.v-application .text-h5 { font-size: var(--fork-text-xl) !important; line-height: 32px; }
+.v-application .text-h6 { font-size: var(--fork-text-lg) !important; line-height: 28px; }
+
+.v-btn {
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+/* ---- Shapes ---- */
+.v-card.rounded-lg, .v-card {
+    border-radius: var(--fork-radius-card);
+}
+
+.v-bottom-sheet > .v-bottom-sheet__content.v-overlay__content {
+    border-top-left-radius: var(--fork-radius-sheet);
+    border-top-right-radius: var(--fork-radius-sheet);
+    overflow: hidden;
+}
+
+/* Flat surfaces: thin outlines instead of shadows */
+.v-menu > .v-overlay__content > .v-list,
+.v-menu > .v-overlay__content > .v-card {
+    box-shadow: none !important;
+    border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+    border-radius: var(--fork-radius-card) !important;
+}
+
+/* ---- Fade between views (<= 200 ms), off with prefers-reduced-motion ---- */
+.fork-fade-enter-active,
+.fork-fade-leave-active {
+    transition: opacity var(--fork-fade) ease;
+}
+
+.fork-fade-enter-from,
+.fork-fade-leave-to {
+    opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fork-fade-enter-active,
+    .fork-fade-leave-active {
+        transition: none;
+    }
+}
+
+/* ---- Upstream hard-coded colors mapped onto the tokens ---- */
+html .v-theme--light a:not([class]),
+html .v-theme--dark a:not([class]) {
+    color: rgb(var(--v-theme-primary));
+}
+
+html .v-theme--light a:hover,
+html .v-theme--dark a:hover {
+    color: rgb(var(--v-theme-on-surface));
+}
+
+html .multiselect-option.is-pointed {
+    background: rgb(var(--v-theme-surface-variant)) !important;
+    color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+html .multiselect-option.is-selected {
+    background: rgb(var(--v-theme-primary)) !important;
+    color: rgb(var(--v-theme-on-primary)) !important;
+}
+
+html .v-theme--dark .cv-header,
+html .v-theme--dark .cv-weeknumber,
+html .v-theme--dark .cv-header-day {
+    background-color: rgb(var(--v-theme-surface-variant)) !important;
+    color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+html .v-theme--dark .cv-day.past {
+    background-color: rgb(var(--v-theme-surface-variant)) !important;
+}
+
+html .v-theme--dark .cv-day.outsideOfMonth {
+    background-color: rgb(var(--v-theme-background)) !important;
+}
+
+html .v-theme--dark .cv-item {
+    background-color: rgb(var(--v-theme-surface-bright)) !important;
+}
+
+html .cv-day.today,
+html .v-theme--dark .cv-day.today {
+    background-color: rgba(var(--v-theme-primary), 0.16) !important;
+}
+
+/* ---- Night sky: static star field for empty screens and login (dark theme only) ---- */
+.v-theme--dark .fork-starfield {
+    background-image:
+        radial-gradient(1px 1px at 12% 18%, rgba(230, 232, 240, 0.7), transparent 60%),
+        radial-gradient(1px 1px at 72% 12%, rgba(230, 232, 240, 0.55), transparent 60%),
+        radial-gradient(1.5px 1.5px at 38% 42%, rgba(185, 166, 255, 0.6), transparent 60%),
+        radial-gradient(1px 1px at 86% 58%, rgba(230, 232, 240, 0.5), transparent 60%),
+        radial-gradient(1px 1px at 22% 76%, rgba(143, 179, 255, 0.6), transparent 60%),
+        radial-gradient(1px 1px at 58% 88%, rgba(230, 232, 240, 0.45), transparent 60%);
+    background-size: 320px 320px;
+}
+
+/* ---- App shell ---- */
+.fork-app-bar {
+    border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
+}

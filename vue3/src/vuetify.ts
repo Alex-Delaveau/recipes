@@ -1,15 +1,18 @@
 import '@fortawesome/fontawesome-free/css/all.css'
 import 'vuetify/styles'
+import '@/fork/fork.css'
 import {aliases, fa} from 'vuetify/iconsets/fa'
 
 // Composables
 import {createVuetify} from 'vuetify'
 import {DateTime} from "luxon";
 import * as vuetifyLocales from "vuetify/locale";
+import {forkDefaults, forkThemes, resolveThemeName} from "@/fork/theme";
 
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
 export default createVuetify({
     defaults: {
+        ...forkDefaults,
         // disabled as this leads to cards overflowing if not careful, manually set on cards containing a multiselect until proper solution is found
         // VCard: {
         //     class: 'overflow-visible' // this is needed so that vue-multiselect options show above a card, vuetify uses overlay container to avoid this
@@ -36,6 +39,7 @@ export default createVuetify({
         // }
         // chips use the close icon defined as delete in the aliases but trash can does not look good
         VChip: {
+            ...forkDefaults.VChip,
             closeIcon: 'fa-solid fa-circle-xmark'
         }
     },
@@ -45,48 +49,9 @@ export default createVuetify({
         messages: vuetifyLocales,
     },
     theme: {
-        defaultTheme: 'light',
-        themes: {
-            light: {
-                colors: {
-                    background: '#f5efea',
-                    tandoor: '#ddbf86',
-                    primary: '#b98766',
-                    secondary: '#b55e4f',
-                    success: '#82aa8b',
-                    info: '#385f84',
-                    warning: '#eaaa21',
-                    error: '#a7240e',
-
-                    save: '#82aa8b',
-                    create: '#82aa8b',
-                    edit: '#385f84',
-                    delete: '#a7240e',
-                    cancel: '#eaaa21',
-
-                    recipeImagePlaceholderBg: '#ffffff',
-                },
-            },
-            dark: {
-                colors: {
-                    tandoor: '#ddbf86',
-                    primary: '#b98766',
-                    secondary: '#b55e4f',
-                    success: '#82aa8b',
-                    info: '#385f84',
-                    warning: '#eaaa21',
-                    error: '#a7240e',
-
-                    save: '#82aa8b',
-                    create: '#82aa8b',
-                    edit: '#385f84',
-                    delete: '#a7240e',
-                    cancel: '#eaaa21',
-
-                    recipeImagePlaceholderBg: '#212121',
-                },
-            },
-        },
+        // fork: themes come from the design tokens, default follows the system color scheme
+        defaultTheme: resolveThemeName(null),
+        themes: forkThemes,
     },
     icons: {
         defaultSet: 'fa',

@@ -5,6 +5,7 @@ import {ApiApi, ServerSettings, Space, Unit, UserPreference, UserSpace} from "@/
 import {ShoppingGroupingOptions} from "@/types/Shopping";
 import {computed, ComputedRef, ref} from "vue";
 import {DeviceSettings} from "@/types/settings";
+import {resolveThemeName, watchSystemTheme} from "@/fork/theme";
 import {useTheme} from "vuetify";
 import {useRouter} from "vue-router";
 import {useRouteQuery} from "@vueuse/router";
@@ -257,11 +258,9 @@ export const useUserPreferenceStore = defineStore('user_preference_store', () =>
      * applies user settings regarding themes/styling
      */
     function updateTheme() {
-        if (userSettings.value.theme == 'TANDOOR_DARK' && !isPrintMode.value) {
-            theme.change('dark')
-        } else {
-            theme.change('light')
-        }
+        // fork: TANDOOR follows the system color scheme, see src/fork/theme.ts
+        theme.change(resolveThemeName(userSettings.value.theme, isPrintMode.value))
+        watchSystemTheme(updateTheme)
     }
 
     function init() {
