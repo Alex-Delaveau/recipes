@@ -23,11 +23,12 @@ from django.contrib.auth import get_user_model  # noqa: E402
 from django_scopes import scopes_disabled  # noqa: E402
 
 from cookbook.helper.permission_helper import create_space_for_user  # noqa: E402
-from cookbook.models import Food, Ingredient, Keyword, Recipe, Step, SupermarketCategory, Unit, UserSpace  # noqa: E402
+from cookbook.models import Food, Household, Ingredient, Keyword, Recipe, Step, SupermarketCategory, Unit, UserSpace  # noqa: E402
 
 USERNAME = "demo"
 PASSWORD = "demo"
 SPACE_NAME = "Cuisine démo"
+HOUSEHOLD_NAME = "Foyer démo"
 
 CATEGORIES = ["Fruits & légumes", "Crèmerie", "Épicerie salée", "Boucherie", "Surgelés"]
 
@@ -116,10 +117,14 @@ def main():
         if user_space is None:
             user_space = create_space_for_user(user, name=SPACE_NAME)
         UserSpace.objects.filter(user=user).exclude(pk=user_space.pk).update(active=False)
-        user_space.active = True
-        user_space.save()
         space = user_space.space
+        # a household is needed for shopping/meal plan sharing; without it the app opens on the household wizard
+        household = Household.objects.get_or_create(name=HOUSEHOLD_NAME, space=space)[0]
+        user_space.active = True
+        user_space.household = household
+        user_space.save()
         space.space_setup_completed = True
+        space.household_setup_completed = True
         space.save()
 
         cats = {name: SupermarketCategory.objects.get_or_create(name=name, space=space)[0] for name in CATEGORIES}
