@@ -10,6 +10,8 @@ Questions ouvertes (non bloquantes, le travail a continué avec le choix indiqu�
 - M3 — Rayons renommés : la suggestion par dictionnaire retrouve un rayon générique par son nom (« Frais »,
   « Crèmerie »…). Si un rayon est renommé librement (« Produits laitiers maison »), il ne reçoit plus de suggestions du
   dictionnaire. Faut-il une correspondance explicite rayon ↔ clé générique (réglable) ?
+- M4 — Reconnaissance française selon la langue active : elle suit l'en-tête `Accept-Language` du navigateur (ou le
+  choix de langue). Un téléphone réglé en anglais n'en profiterait pas. Faut-il plutôt l'activer pour tout l'espace ?
 - M2 — Éditeur de recette upstream sur mobile : le bouton flottant « Enregistrer » peut recouvrir le bouton
   « Supprimer » de l'image selon le défilement. Non corrigé en M2 : l'éditeur mobile est refait en M4.
 
@@ -237,7 +239,7 @@ Branche : `fork/m4-recettes`, partie de `fork/m3-aliments` (PR M3 ouverte, non f
 5. [x] Bouton « Ajouter » : « Saisir une recette » ouvre l'assistant ; « Modifier » de la vue recette aussi (éditeur
    complet upstream accessible). Import URL : vérifier la reconnaissance française et la proposition d'aliment proche.
    Vérif : flow d'import.
-6. [ ] Routes `strict`, porte `verify.sh --ui m4 --publish`, relectures, PR.
+6. [x] Routes `strict`, porte `verify.sh --ui m4 --publish`, relectures, PR.
 
 ### Avancement M4
 - 1 : `kitchen/french.py` (40 lignes réelles testées, plus l'API du parseur, l'import URL, le texte libre des courses
@@ -248,3 +250,27 @@ Branche : `fork/m4-recettes`, partie de `fork/m3-aliments` (PR M3 ouverte, non f
 - Parcours cliqués M4 : assistant de bout en bout (25 vérifications), relecture d'import en français. 91 vérifications
   au total. Les écrans 2 à 4 de l'assistant sont capturés par les flows et publiés avec les captures.
 - Défaut trouvé sur capture et corrigé : libellé et exemple superposés sur l'écran Ingrédients.
+- 6 : porte `verify.sh --ui m4 --publish` → `VERIFY: OK` (91 vérifications de parcours). Relectures :
+  - `reviewer` : 6 points bloquants, tous corrigés :
+    - « 1 ½ » mal lu ;
+    - note de plus de 256 caractères ;
+    - noms composés coupés (« pâte à tarte », « lait en poudre ») ;
+    - brouillon périmé qui pouvait écraser une recette modifiée ailleurs ;
+    - recette en double si l'envoi de la photo échouait ;
+    - intertitres d'ingrédients déplacés.
+
+    Remarques mineures traitées : lignes sans aliment conservées, `TRANSPOSE_WORDS` appliqué, pas d'unité sans quantité,
+    formulaire masqué si le chargement échoue, fractions dans la feuille de correction, 400 sur un corps invalide,
+    lignes jamais perdues à l'enregistrement.
+  - `ui-auditor` : « FIX FIRST » (contraste du bouton « Ajouter N ingrédients »), corrigé, avec l'aide sous le nom, l'état
+    vide, l'espacement des boutons d'étape et la largeur égale des boutons du bas.
+
+## M4 — summary
+- Reconnaissance française des ingrédients (`kitchen/french.py`), branchée sur le parseur upstream sans le modifier :
+  unités, articles, précisions en note, pluriels vers l'aliment existant, fractions. 50 lignes testées. Elle sert l'import
+  URL, le collage de l'éditeur, les courses et l'assistant.
+- Assistant de saisie en 4 écrans (création et modification), reconnaissance en direct sans création d'aliment,
+  correction d'une ligne en feuille du bas, étapes réordonnables, mots-clés, photo de la galerie, brouillon sur
+  l'appareil. Liste unique d'ingrédients pour les recettes créées ; les recettes découpées gardent leur découpage.
+- « Ajouter › Saisir une recette » et « Modifier » ouvrent l'assistant ; l'éditeur complet reste accessible.
+- Prochain jalon : M5 (livraison sur le homelab), après fusion de M2 → M3 → M4.

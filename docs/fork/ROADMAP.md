@@ -84,7 +84,7 @@ Découle de SPEC.md, section « Organisation des aliments — attendu ».
 
 ## M4 — Création et édition de recettes [ ]
 Découle de SPEC.md, section « Création de recettes — attendu ».
-- [ ] Reconnaissance des ingrédients en français, sans modifier `cookbook/helper/ingredient_parser.py` (alias d'unités et
+- [x] Reconnaissance des ingrédients en français, sans modifier `cookbook/helper/ingredient_parser.py` (alias d'unités et
       prétraitement dans `kitchen/`) :
   - unités françaises (c. à soupe, cs, càc, pincée, gousse, sachet, brin, botte…) ;
   - « de/d'/des » retirés ;
@@ -93,9 +93,9 @@ Découle de SPEC.md, section « Création de recettes — attendu ».
   - fractions ½, 1/2, 1,5.
 
   Un jeu d'au moins 30 lignes réelles est testé en pytest. Il passe aussi par l'import URL et par la liste de courses.
-- [ ] L'assistant d'import URL existant est conservé. Il bénéficie de la reconnaissance française et de la proposition
+- [x] L'assistant d'import URL existant est conservé. Il bénéficie de la reconnaissance française et de la proposition
       d'aliment proche de M3.
-- [ ] Saisie guidée sur mobile en 4 écrans :
+- [x] Saisie guidée sur mobile en 4 écrans :
   1. Nom et portions.
   2. Ingrédients (collage multi-ligne ou ligne à ligne, reconnaissance en direct, correction d'une ligne dans une
      feuille du bas).
@@ -103,12 +103,12 @@ Découle de SPEC.md, section « Création de recettes — attendu ».
   4. Détails (temps, mots-clés, photo depuis la galerie).
 
   Navigation avant/arrière sans perte de saisie. Brouillon conservé si l'on quitte la page.
-- [ ] Liste unique d'ingrédients pour les recettes créées dans le fork, stockée dans la première étape.
+- [x] Liste unique d'ingrédients pour les recettes créées dans le fork, stockée dans la première étape.
   - La vue recette l'affiche en une seule liste en haut.
   - Les recettes importées déjà découpées par étape gardent leur découpage.
-- [ ] Bouton « Ajouter » de la barre du bas : une feuille à deux choix, « Depuis un site (URL) » et « Saisir une recette ».
-- [ ] Une recette existante se modifie sur mobile avec le même découpage en écrans.
-- [ ] Pages refaites en `strict`. `verify.sh --ui m4` OK.
+- [x] Bouton « Ajouter » de la barre du bas : une feuille à deux choix, « Depuis un site (URL) » et « Saisir une recette ».
+- [x] Une recette existante se modifie sur mobile avec le même découpage en écrans.
+- [x] Pages refaites en `strict`. `verify.sh --ui m4` OK.
 
 ## M5 — Livraison sur le homelab [ ]
 - [ ] Workflow GitHub Actions qui construit l'image Docker du fork et la publie sur GHCR (tag = version upstream + suffixe fork).
