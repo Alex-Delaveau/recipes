@@ -53,18 +53,32 @@ baseline est l'objet de M0) ; `setup.sh` OK (seed `demo/demo`, 17 aliments, 4 re
 Branche : `claude/busy-heisenberg-yf2zw3` (branche imposée par la session cloud, comme en M0), base `origin/main`
 (M0 fusionné). Environnement : `verify.sh --quick` → `VERIFY: OK` avant tout changement (650 erreurs vue-tsc).
 
-1. [ ] Captures fiables (`screenshots.mjs`) : capture « écran visible » en plus de la pleine page ; `Math.random`
+1. [x] Captures fiables (`screenshots.mjs`) : capture « écran visible » en plus de la pleine page ; `Math.random`
    à graine fixe et attente de la fin des chargements ; capture sombre (mobile, `prefers-color-scheme: dark`) ;
    publication des captures `small`. Vérif : deux passes `--ui wip` donnent les mêmes images d'accueil.
-2. [ ] Thème Vuetify clair/sombre depuis les tokens de DESIGN.md (couleurs, police système, rayons, élévation 0/1 avec
+2. [x] Thème Vuetify clair/sombre depuis les tokens de DESIGN.md (couleurs, police système, rayons, élévation 0/1 avec
    contours, espacements) ; thème par défaut = système. Vérif : `verify.sh --quick --ui wip`, captures clair et sombre.
-3. [ ] Fondu entre les vues (≤ 200 ms), coupé avec `prefers-reduced-motion`. Vérif : build + lecture du CSS appliqué.
-4. [ ] Coquille : barre du bas à 4 entrées avec libellés (Recettes, Courses, Ajouter, Plus), feuilles « Ajouter » et
+3. [x] Fondu entre les vues (≤ 200 ms), coupé avec `prefers-reduced-motion`. Vérif : build + lecture du CSS appliqué.
+4. [x] Coquille : barre du bas à 4 entrées avec libellés (Recettes, Courses, Ajouter, Plus), feuilles « Ajouter » et
    « Plus », hauteur réservée dans `v-main`, en-tête compact, tiroir dès `mdAndUp`. Vérif : captures « écran visible »
    mobile et desktop, zones tactiles ≥ 44 px dans la barre.
-5. [ ] Erreurs upstream : `POST /api/view-log/` en 403 et `TypeError` dans `AccountSettings`, corrigées au plus près.
+5. [x] Erreurs upstream : `POST /api/view-log/` en 403 et `TypeError` dans `AccountSettings`, corrigées au plus près.
    Vérif : rapport UI sans erreur JS sur `recipe-view`, `mealplan`, `settings`.
-6. [ ] Page de connexion alignée sur les tokens (CSS du fork, sans toucher au template upstream si possible).
+6. [x] Page de connexion alignée sur les tokens (CSS du fork, sans toucher au template upstream si possible).
    Vérif : captures `login`.
-7. [ ] Toutes les routes de `routes.json` en `"strict": true`, aucun débordement à 360 px. Vérif : `verify.sh --ui wip`.
+7. [x] Toutes les routes de `routes.json` en `"strict": true`, aucun débordement à 360 px. Vérif : `verify.sh --ui wip`.
 8. [ ] Porte finale `verify.sh --ui m1 --publish`, `reviewer` + `ui-auditor`, corrections, PR.
+
+### Avancement M1
+- 1 : captures « écran visible » (`*-screen.jpg`), viewport `dark` (390 px, `prefers-color-scheme: dark`), graine fixe,
+  paramètre `random` retiré des appels API, attente des chargements, cookie CSRF obtenu comme lors d'une vraie
+  connexion, requêtes en échec listées dans le rapport, tout publié (360 px compris).
+- 2 : thème depuis les tokens (`vue3/src/fork/theme.ts`, `fork.css`). Le thème suit le système par défaut ; le choix
+  Système, Clair ou Sombre est dans les réglages « Cosmétique ».
+- 3 : fondu `fork-fade`, 100 ms à la sortie et 100 ms à l'entrée (`mode="out-in"`), coupé par `prefers-reduced-motion`.
+- 4 : `ForkBottomNav.vue` (4 entrées avec libellés, feuilles « Ajouter » et « Plus », 64 px), en-tête `compact`,
+  tiroir `mdAndUp`.
+- 5 : le 403 sur `view-log` venait du cookie CSRF absent dans les captures (voir DECISIONS.md) ; le `TypeError` dans
+  `AccountSettings` est corrigé en attendant l'id utilisateur.
+- 6 : connexion stylée (`kitchen/static/kitchen/login.css`).
+- 7 : les 9 routes passent en `strict` sans débordement ni erreur. Baseline vue-tsc abaissée de 650 à 649.
