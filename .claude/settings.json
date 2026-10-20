@@ -1,0 +1,52 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scripts/fork/*)",
+      "Bash(bash scripts/fork/*)",
+      "Bash(node scripts/fork/ui/*)",
+      "Bash(uv *)",
+      "Bash(.venv/bin/python *)",
+      "Bash(yarn *)",
+      "Bash(npx vue-tsc *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git checkout -b *)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(git push -u origin fork/*)",
+      "Bash(git push origin fork/*)",
+      "Bash(git push -u origin sync/*)",
+      "Bash(gh pr *)"
+    ],
+    "deny": [
+      "Edit(/cookbook/migrations/**)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push origin main)",
+      "Bash(git push origin main *)",
+      "Bash(git push upstream *)",
+      "Bash(* makemigrations cookbook*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/scripts/fork/session_start.sh",
+            "args": [],
+            "timeout": 900,
+            "statusMessage": "Préparation de l'environnement du fork..."
+          }
+        ]
+      }
+    ]
+  }
+}

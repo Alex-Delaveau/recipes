@@ -1,0 +1,6 @@
+
+# --- fork tooling ---
+.venv/
+.fork/
+scripts/fork/ui/node_modules/
+vue3/*.tsbuildinfo

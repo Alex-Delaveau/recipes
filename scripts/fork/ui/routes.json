@@ -1,0 +1,18 @@
+{
+  "viewports": {
+    "mobile": { "width": 390, "height": 844, "deviceScaleFactor": 2, "isMobile": true, "hasTouch": true },
+    "small": { "width": 360, "height": 740, "deviceScaleFactor": 2, "isMobile": true, "hasTouch": true },
+    "desktop": { "width": 1280, "height": 800, "deviceScaleFactor": 1, "isMobile": false, "hasTouch": false }
+  },
+  "routes": [
+    { "name": "login", "path": "/accounts/login/", "auth": false, "strict": false },
+    { "name": "start", "path": "/", "strict": false },
+    { "name": "recipe-view", "path": "/recipe/{recipe}", "strict": false },
+    { "name": "recipe-edit", "path": "/edit/Recipe/{recipe}", "strict": false },
+    { "name": "food-list", "path": "/list/Food", "strict": false },
+    { "name": "shopping", "path": "/shopping", "strict": false },
+    { "name": "mealplan", "path": "/mealplan", "strict": false },
+    { "name": "pantry", "path": "/pantry", "strict": false },
+    { "name": "settings", "path": "/settings/account", "strict": false }
+  ]
+}
