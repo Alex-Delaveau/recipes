@@ -21,6 +21,7 @@
     --fork-radius-sheet: 16px;
 
     --fork-tap: 44px;
+    --fork-bottom-nav: 64px;
     --fork-fade: 100ms; /* out + in = 200 ms with mode="out-in" */
 
     /* Vuetify radius scale used by `rounded="lg"` etc. */
@@ -139,6 +140,48 @@ html .v-theme--dark .cv-day.today {
 }
 
 /* ---- App shell ---- */
+.fork-view {
+    height: 100%;
+}
+
 .fork-app-bar {
     border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity)) !important;
+}
+
+/* Logo link in the header: 44 px tap target */
+.fork-app-bar a {
+    display: flex;
+    align-items: center;
+    min-height: var(--fork-tap);
+}
+
+/* Floating save button: the `app` fab ignores the bottom bar, lift it by the bar height (+ its own ~12 px offset = 16 px gap) */
+.v-fab.fork-fab {
+    margin-bottom: calc(var(--fork-bottom-nav) + var(--fork-space-1));
+}
+
+/* ---- Secondary text reaches 4.5:1 in both themes ---- */
+.v-application .text-disabled,
+.v-application .text-grey {
+    color: rgba(var(--v-theme-on-surface), 0.66) !important;
+}
+
+.v-application .v-field input::placeholder,
+.v-application .v-field textarea::placeholder,
+.v-application .v-field__input::placeholder {
+    opacity: 0.66 !important;
+}
+
+/* Meal plan calendar: month-start cell and grid lines from the tokens */
+html .v-application .d01 .cv-day-number {
+    background-color: rgb(var(--v-theme-surface-variant)) !important;
+    color: rgb(var(--v-theme-on-surface)) !important;
+}
+
+html .v-theme--dark .cv-day,
+html .v-theme--dark .cv-week,
+html .v-theme--dark .cv-weeks,
+html .v-theme--dark .cv-header-day,
+html .v-theme--dark .cv-header-days {
+    border-color: rgba(var(--v-theme-on-surface), 0.12) !important;
 }
