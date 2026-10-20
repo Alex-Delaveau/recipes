@@ -30,7 +30,8 @@
             <!-- 1. name and servings -->
             <section v-else-if="draft.screen == 0">
                 <v-text-field v-model="draft.name" :label="$t('Fork_Recipe_Name')" variant="outlined" autocomplete="off" autofocus class="mb-4"
-                              :rules="[v => !!v?.trim() || $t('Fork_Required')]" @keydown.enter.prevent="next()"></v-text-field>
+                              :hint="draft.name.trim() ? '' : $t('Fork_Name_To_Continue')" persistent-hint enterkeyhint="next"
+                              @keydown.enter.prevent="next()"></v-text-field>
                 <fork-servings-stepper v-model="draft.servings" :label="$t('Servings')"></fork-servings-stepper>
             </section>
 
@@ -47,7 +48,7 @@
                         <span class="text-medium-emphasis" v-if="p.note">({{ p.note }})</span>
                     </div>
                 </div>
-                <v-btn color="primary" variant="tonal" size="large" block class="mt-2 mb-4" :disabled="!pasteText.trim()" :loading="parsing"
+                <v-btn color="primary" variant="flat" size="large" block class="mt-2 mb-4" :disabled="!pasteText.trim()" :loading="parsing"
                        prepend-icon="$create" @click="addLines()">
                     {{ $t('Fork_Add_N_Ingredients', {n: pasteLines.length}, pasteLines.length) }}
                 </v-btn>
@@ -72,13 +73,13 @@
                         </v-list-item>
                     </v-list>
                 </template>
-                <p class="text-body-2 text-medium-emphasis mt-2" v-if="ingredientCount == 0">{{ $t('Fork_No_Ingredient_Yet') }}</p>
+                <p class="text-body-2 text-medium-emphasis mt-2" v-if="ingredientCount == 0 && !preview.length">{{ $t('Fork_No_Ingredient_Yet') }}</p>
             </section>
 
             <!-- 3. steps -->
             <section v-else-if="draft.screen == 2">
                 <div v-for="(step, index) in draft.steps" :key="step.key" class="fork-wizard__step">
-                    <div class="d-flex align-center ga-1 mb-1">
+                    <div class="d-flex align-center ga-2 mb-1">
                         <span class="fork-wizard__step-number">{{ index + 1 }}</span>
                         <span class="flex-grow-1 text-body-2 text-medium-emphasis">{{ step.ingredients.length ? $t('Fork_N_Ingredients_Attached', {n: step.ingredients.length}, step.ingredients.length) : '' }}</span>
                         <v-btn icon variant="text" size="44" :disabled="index == 0" :aria-label="$t('Fork_Step_Up', {n: index + 1})" @click="moveStep(index, -1)">
@@ -88,7 +89,7 @@
                                @click="moveStep(index, 1)">
                             <v-icon icon="fa-solid fa-arrow-down" size="14"></v-icon>
                         </v-btn>
-                        <v-btn icon variant="text" size="44" :disabled="draft.steps.length == 1" :aria-label="$t('Fork_Step_Delete', {n: index + 1})"
+                        <v-btn icon variant="text" size="44" class="ms-4" :disabled="draft.steps.length == 1" :aria-label="$t('Fork_Step_Delete', {n: index + 1})"
                                @click="removeStep(index)">
                             <v-icon icon="$delete" size="14"></v-icon>
                         </v-btn>
@@ -493,5 +494,6 @@ onMounted(() => load())
 
 .fork-wizard__nav .v-btn {
     min-height: 56px;
+    flex: 1 1 0; /* equal widths: the buttons do not move from one screen to the next */
 }
 </style>

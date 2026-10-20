@@ -323,6 +323,7 @@
   "Fork_N_Items": "no shopping item | {n} shopping item | {n} shopping items",
   "Fork_N_Left": "Done | {n} left | {n} left",
   "Fork_N_Recipes": "no recipe | {n} recipe | {n} recipes",
+  "Fork_Name_To_Continue": "Give the recipe a name to continue",
   "Fork_Never_In_Shopping": "Never added to shopping",
   "Fork_New_Food": "New food",
   "Fork_New_Food_Badge": "new food",
