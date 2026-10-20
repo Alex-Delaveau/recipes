@@ -27,7 +27,7 @@ baseline est l'objet de M0) ; `setup.sh` OK (seed `demo/demo`, 17 aliments, 4 re
    Vérif : `verify.sh` → `VERIFY: OK`, test `kitchen` compté.
 5. [x] `docs/fork/AUDIT.md` (carte UI, aliments, création de recettes, friction mobile, plugins) + « Propositions M0 »
    en fin de ROADMAP.md. Vérif : relecture `reviewer`.
-6. [ ] Porte finale `verify.sh --ui m1 --publish` (libellé demandé par Alex), `reviewer` + `ui-auditor`, PR.
+6. [x] Porte finale `verify.sh --ui m1 --publish` (libellé demandé par Alex), `reviewer` + `ui-auditor`, PR.
 
 ### Avancement M0
 - 1 : `.gitignore` contenait déjà le bloc de `gitignore.append` (commit du kit) ; `package-lock.json` des outils UI commité.
@@ -38,3 +38,13 @@ baseline est l'objet de M0) ; `setup.sh` OK (seed `demo/demo`, 17 aliments, 4 re
   republiées.
 - 4 : `kitchen/` créée, dans `INSTALLED_APPS`, test `kitchen/tests/test_app.py` lancé par `verify.sh`.
 - 5 : `docs/fork/AUDIT.md` rédigé, propositions ajoutées en fin de ROADMAP.md.
+
+## M0 — summary
+- Socle prêt : baseline (650 erreurs vue-tsc, 1 test upstream en échec), captures `m0-baseline`, app `kitchen/` vide
+  et testée, `verify.sh` complet fonctionnel (environ 2 min 30 avec l'UI).
+- `docs/fork/AUDIT.md` décrit la carte de l'UI, l'existant aliments et recettes, la friction mobile et les plugins.
+  Les propositions pour M1 à M4 sont en fin de ROADMAP.md, à valider par Alex.
+- Relectures : `reviewer` n'a trouvé aucun point bloquant (références corrigées) ; `ui-auditor` donne SHIP (aucun
+  changement visible, compléments ajoutés à l'audit § 4).
+- Porte finale : `verify.sh --ui m1 --publish` → `VERIFY: OK`.
+- Prochain jalon : M1, après validation des propositions M0.

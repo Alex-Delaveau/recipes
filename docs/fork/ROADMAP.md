@@ -6,11 +6,11 @@ Statut : `[ ]` à faire, `[x]` fait. Un jalon est terminé quand sa PR est fusio
 
 ## M0 — Socle et audit [ ]
 Aucun changement visible pour l'utilisateur.
-- [ ] `docs/fork/gitignore.append` est intégré à `.gitignore`.
-- [ ] `scripts/fork/setup.sh` fonctionne dans la session cloud ; baseline enregistrée (`verify.sh --update-baseline`) et commitée dans `docs/fork/baseline/`.
-- [ ] Captures de référence publiées : `verify.sh --ui m0-baseline --publish`.
-- [ ] App Django `kitchen/` créée (vide, un test pytest trivial, enregistrée dans `INSTALLED_APPS`) ; `verify.sh` reste OK.
-- [ ] `docs/fork/AUDIT.md` rédigé :
+- [x] `docs/fork/gitignore.append` est intégré à `.gitignore`.
+- [x] `scripts/fork/setup.sh` fonctionne dans la session cloud ; baseline enregistrée (`verify.sh --update-baseline`) et commitée dans `docs/fork/baseline/`.
+- [x] Captures de référence publiées : `verify.sh --ui m0-baseline --publish`.
+- [x] App Django `kitchen/` créée (vide, un test pytest trivial, enregistrée dans `INSTALLED_APPS`) ; `verify.sh` reste OK.
+- [x] `docs/fork/AUDIT.md` rédigé :
   - carte de l'UI (pages, composants partagés, thème Vuetify, navigation mobile/desktop, stores Pinia) ;
   - ce qui existe déjà pour les aliments (arbre `Food`, catégories de rayon, substituts, propriétés, pantry/inventaire, éditeur d'ingrédients, open data) et pour la création de recettes (éditeur, parseur d'ingrédients, import) ;
   - points de friction mobile vus sur les captures `m0-baseline` ;
@@ -124,6 +124,9 @@ pas modifiés tant qu'Alex ne les a pas validées.
   - `TypeError` dans `AccountSettings`.
 
   Sinon, ces pages ne pourront pas passer en `strict`. Le critère « toutes en strict » prévoit déjà l'exception.
+- Rendre les captures reproductibles : graine fixe (ou bloc masqué) pour « Recettes aléatoires », attente de la fin du
+  chargement utilisateur avant la capture des réglages. Publier aussi les captures 360 px (`small`), largeur de référence
+  des règles du fork.
 - Passer le seuil mobile de la coquille de `lgAndUp` (1280 px) à `mdAndUp` (960 px), pour que les tablettes en paysage
   aient le tiroir. C'est un réglage de `Tandoor.vue`.
 - Réserver la hauteur de la barre du bas dans `v-main` et ajouter des libellés aux entrées.

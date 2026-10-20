@@ -157,21 +157,28 @@ Contrôle automatique (`report.md`) : aucun débordement horizontal à 360 et 39
 | Écran | Constat | Capture |
 |---|---|---|
 | Toute l'app | La barre du bas n'a **que des icônes, sans libellés**. Le menu « ☰ » mélange réglages, import, base de données. Seules 3 vraies destinations. SPEC.md note qu'elle **recouvre le contenu**. Ce point n'est pas vérifiable ici : en capture pleine page, la barre fixe apparaît au milieu de l'image (artefact connu). Une capture limitée à l'écran visible est proposée pour M1 (« Propositions M0 »). | toutes |
-| Toute l'app | En-tête haut de 56 px avec « + » et recherche en haut à droite, hors de portée du pouce. | toutes |
+| Toute l'app | En-tête haut de 56 px, couleur sable hors tokens, avec « + » et recherche en haut à droite, hors de portée du pouce. | toutes |
+| Toute l'app | **Contrastes insuffisants** : texte blanc sur vert sauge (≈ 2,4:1) sur les « + » flottants et « Sauvegarder » ; texte secondaire gris (descriptions, libellés de temps) sous 4,5:1. | `food-list`, `pantry`, `settings`, `recipe-view` |
+| Connexion | Template Django au style Bootstrap : police Poppins téléchargée, case à cocher bleue, bouton vert clair peu contrasté, menu « ☰ » inutile. À aligner sur les tokens en M1 (la route est dans `routes.json`). | `login-mobile.jpg` |
 | Accueil | L'accueil montre le plan du jour et une seule recette « au hasard » en carrousel, puis un bouton « Voir les recettes ». **Pas de champ de recherche visible**, cartes sans photo (placeholder), flèches de carrousel. | `start-mobile.jpg` |
 | Vue recette | L'en-tête de recette est dense (chips minuscules, temps en 3 colonnes de petit texte). Les ingrédients sont **par étape** avec des cases à cocher de 24 px. Les portions et la note sont tout en bas, après les métadonnées « Créé par / Créé / Mis à jour » en gros encadrés. Il n'y a pas de mode cuisine. 15 zones tactiles < 44 px. | `recipe-view-mobile.jpg` |
-| Éditeur de recette | Onglets **tronqués** (« Propriétés », le 4ᵉ coupé). Le formulaire est long : diamètre, texte des portions, aide sur le diamètre. Le bouton Enregistrer est un bouton flottant isolé à droite, au milieu du formulaire. Champs numériques avec flèches haut/bas. 11 petites zones tactiles. | `recipe-edit-mobile.jpg` |
+| Éditeur de recette | Onglets **tronqués** (« Propriétés », le 4ᵉ coupé). Le formulaire est long : diamètre, texte des portions, aide sur le diamètre. Le bouton Enregistrer est flottant, fixé en bas à droite juste au-dessus de la barre du bas : il est à portée de pouce, mais il masque des champs et encombre la barre. Champs numériques avec flèches haut/bas. 11 petites zones tactiles. | `recipe-edit-mobile.jpg` |
 | Aliments | Tableau paginé (10 par page) à 4 colonnes, noms et rayons sur deux lignes, cases à cocher et menus « ⋮ ». Le bloc d'en-tête prend un tiers de l'écran avec un texte d'aide. Pas d'arbre, pas de filtre « sans rayon ». | `food-list-mobile.jpg` |
-| Courses | Barre d'outils de boutons-icônes sans libellés, plus deux menus (« Supermarché », « Liste de courses ») qui **sortent de l'écran** dans un défilement horizontal. Le champ d'ajout s'appuie sur un exemple en placeholder. Liste vide sans état vide explicite. | `shopping-mobile.jpg` |
+| Courses | Barre d'outils de boutons-icônes sans libellés, plus deux menus (« Supermarché », « Liste de courses ») **coupés au bord droit**. La rangée défile dans son propre conteneur : la page elle-même ne déborde pas. Le bouton d'annulation paraît désactivé. Le champ d'ajout s'appuie sur un exemple en placeholder. Liste vide sans état vide explicite. | `shopping-mobile.jpg` |
 | Plan de repas | Calendrier mensuel à 7 colonnes de 50 px, illisible sur téléphone. Hors périmètre, à part le thème (SPEC). | `mealplan-mobile.jpg` |
 | Garde-manger | Tableau à 4 colonnes aux en-têtes coupés sur 3 lignes, pagination. Hors périmètre. | `pantry-mobile.jpg` |
 | Réglages | Menu de réglages puis page Profil dans le même flux. Boutons pleine couleur alignés à gauche et de couleurs variées (marron, jaune, bleu) : pas de hiérarchie d'action. | `settings-mobile.jpg` |
 
-Erreurs relevées pendant les captures (upstream, sans effet visible) :
+Erreurs relevées pendant les captures (upstream) :
 - `POST /api/view-log/` → 403 à l'ouverture d'une recette, et sur le plan de repas en desktop ;
-- `TypeError … reading 'id'` dans `AccountSettings` à 390 px.
+- `TypeError … reading 'id'` dans `AccountSettings`. L'erreur est intermittente et change de viewport d'une passe à l'autre ;
+  elle est **visible**, car le champ « Nom d'utilisateur » s'affiche alors vide (condition de course upstream).
 
-Elles sont à garder en tête : une page passée en `strict` échouera sur ces erreurs JS.
+Autres couleurs hors tokens à reprendre au thème M1 : case rose « novembre 1 » du calendrier, boutons jaune et bleu des
+réglages. Les captures ne sont pas reproductibles à l'identique : l'accueil tire des recettes au hasard, et les réglages
+dépendent de la course ci-dessus.
+
+Ces erreurs sont à garder en tête : une page passée en `strict` échouera sur ces erreurs JS.
 
 ## 5. Système de plugins Tandoor face à l'app `kitchen/`
 
