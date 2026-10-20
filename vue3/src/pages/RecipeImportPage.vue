@@ -302,6 +302,8 @@
                                         </v-btn-group>
                                     </v-col>
                                 </v-row>
+                                <!-- fork: closest existing food for unknown foods (M3) -->
+                                <fork-import-food-matches :recipe="importResponse.recipe" class="mt-2"></fork-import-food-matches>
                                 <v-row v-for="(s, stepIndex) in importResponse.recipe.steps" :key="stepIndex">
                                     <v-col cols="12">
                                         <v-chip color="primary">#{{ stepIndex + 1 }}</v-chip>
@@ -566,6 +568,7 @@
 
 <script lang="ts" setup>
 
+import ForkImportFoodMatches from "@/fork/components/ForkImportFoodMatches.vue";
 import {useI18n} from "vue-i18n";
 import {computed, onMounted, ref} from "vue";
 import {

@@ -58,3 +58,100 @@ export async function listKitchenRecipes(q: KitchenRecipeQuery): Promise<Kitchen
         })),
     }
 }
+
+// ---------------------------------------------------------------- food organisation (M3)
+
+export interface KitchenCategory {
+    id: number
+    name: string
+}
+
+export interface KitchenFoodItem {
+    id: number
+    name: string
+    pluralName: string | null
+    depth: number
+    numchild: number
+    family: number | null
+    category: KitchenCategory | null
+    ignoreShopping: boolean
+    isFamily: boolean
+    aisleConfirmed: boolean
+}
+
+export interface KitchenAisle extends KitchenCategory {
+    foods: number
+}
+
+export interface KitchenToSortItem {
+    id: number
+    name: string
+    suggested: KitchenCategory | null
+    source: string
+}
+
+export interface KitchenDuplicateSide {
+    id: number
+    name: string
+    recipes: number
+    shopping: number
+}
+
+export interface KitchenDuplicate {
+    keep: KitchenDuplicateSide
+    drop: KitchenDuplicateSide
+    score: number
+    reason: 'same' | 'extra_words' | 'spelling'
+}
+
+export interface KitchenFoodMatch {
+    exists: boolean
+    closest: { id: number, name: string, score: number, reason: string } | null
+}
+
+export async function listKitchenFoods(): Promise<{ foods: KitchenFoodItem[], toSort: number }> {
+    const data = await kitchenFetch('foods/')
+    return {
+        toSort: data.to_sort,
+        foods: data.foods.map((f: any) => ({
+            id: f.id, name: f.name, pluralName: f.plural_name, depth: f.depth, numchild: f.numchild, family: f.family,
+            category: f.category, ignoreShopping: f.ignore_shopping, isFamily: f.is_family, aisleConfirmed: f.aisle_confirmed,
+        })),
+    }
+}
+
+export function moveFoodToFamily(foodId: number, familyId: number | null) {
+    return kitchenFetch(`foods/${foodId}/move/`, {method: 'POST', body: JSON.stringify({family: familyId})})
+}
+
+export function setFoodAisle(foodId: number, categoryId: number | null): Promise<{ to_sort: number }> {
+    return kitchenFetch(`foods/${foodId}/aisle/`, {method: 'POST', body: JSON.stringify({category: categoryId})})
+}
+
+export function setFoodFamily(foodId: number, isFamily: boolean) {
+    return kitchenFetch(`foods/${foodId}/family/`, {method: 'POST', body: JSON.stringify({is_family: isFamily})})
+}
+
+export async function listToSort(): Promise<{ count: number, results: KitchenToSortItem[] }> {
+    return kitchenFetch('foods/to-sort/')
+}
+
+export async function listAisles(): Promise<{ supermarket: number, aisles: KitchenAisle[] }> {
+    return kitchenFetch('aisles/')
+}
+
+export async function saveAisleOrder(ids: number[]): Promise<{ supermarket: number, aisles: KitchenAisle[] }> {
+    return kitchenFetch('aisles/', {method: 'PUT', body: JSON.stringify({order: ids})})
+}
+
+export async function listDuplicates(): Promise<KitchenDuplicate[]> {
+    return (await kitchenFetch('duplicates/')).results
+}
+
+export function dismissDuplicate(a: number, b: number) {
+    return kitchenFetch('duplicates/dismiss/', {method: 'POST', body: JSON.stringify({a, b})})
+}
+
+export async function matchFoods(names: string[]): Promise<Record<string, KitchenFoodMatch>> {
+    return (await kitchenFetch('foods/match/', {method: 'POST', body: JSON.stringify({names})})).results
+}

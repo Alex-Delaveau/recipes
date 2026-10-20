@@ -34,6 +34,11 @@ let routes = [
     {path: '/recipe/:id', component: () => import("@/pages/RecipeViewPage.vue"), name: 'RecipeViewPage', props: true, meta: {title: 'Recipe'}},
     {path: '/view/recipe/:id', redirect: {name: 'RecipeViewPage'}}, // old Tandoor v1 url pattern
 
+    // fork: food organisation (M3)
+    {path: '/foods', component: () => import("@/fork/pages/ForkFoodsPage.vue"), name: 'ForkFoodsPage', meta: {title: 'Food'}},
+    {path: '/foods/to-sort', component: () => import("@/fork/pages/ForkToSortPage.vue"), name: 'ForkToSortPage', meta: {title: 'Food'}},
+    {path: '/foods/aisles', component: () => import("@/fork/pages/ForkAislesPage.vue"), name: 'ForkAislesPage', meta: {title: 'Food'}},
+    {path: '/foods/duplicates', component: () => import("@/fork/pages/ForkDuplicatesPage.vue"), name: 'ForkDuplicatesPage', meta: {title: 'Food'}},
     {path: '/list/:model?', component: () => import("@/pages/ModelListPage.vue"), props: true, name: 'ModelListPage'},
     {path: '/edit/:model/:id?', component: () => import("@/pages/ModelEditPage.vue"), props: true, name: 'ModelEditPage', meta: {title: 'Edit'}},
     {path: '/delete/:model/:id?', component: () => import("@/pages/ModelDeletePage.vue"), props: true, name: 'ModelDeletePage', meta: {title: 'Delete'}},
