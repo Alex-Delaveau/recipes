@@ -3,7 +3,7 @@
 #
 #   scripts/fork/verify.sh                   full: fork rules + vue-tsc ratchet + build + backend tests
 #   scripts/fork/verify.sh --quick           skip backend tests (fast loop while coding)
-#   scripts/fork/verify.sh --ui LABEL        also start the app and run screenshot/mobile checks
+#   scripts/fork/verify.sh --ui LABEL        also start the app and run screenshot/mobile checks + journey flows
 #   scripts/fork/verify.sh --ui LABEL --publish   copy screenshots to docs/fork/screens/LABEL (for the PR)
 #   scripts/fork/verify.sh --update-baseline record current vue-tsc count + failing tests as the baseline
 #
@@ -84,6 +84,10 @@ if [ -n "$UI_LABEL" ]; then
     if node scripts/fork/ui/screenshots.mjs --label "$UI_LABEL" $PUBLISH > .fork/ui.txt 2>&1; then
       ok "UI checks (report: .fork/screens/$UI_LABEL/report.md)"
     else ko "ui-checks"; grep -E 'FAIL|ERROR|\| yes \|' .fork/ui.txt | grep -v '| OK |' | head -15 | sed 's/^/         /'; fi
+    # journey flows (click-through checks of the acceptance criteria); they restore the data they change
+    if node scripts/fork/ui/flows.mjs > .fork/flows.txt 2>&1; then
+      ok "journey flows: $(tail -1 .fork/flows.txt)"
+    else ko "journey-flows"; grep -E '\[FAIL\]|FLOWS' .fork/flows.txt | head -15 | sed 's/^/         /'; fi
   else ko "dev-server"; tail -10 .fork/serve.txt | sed 's/^/         /'; fi
 fi
 

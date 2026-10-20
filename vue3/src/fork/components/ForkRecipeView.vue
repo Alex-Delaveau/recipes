@@ -143,7 +143,8 @@ const sourceHost = computed(() => {
 
 onMounted(() => {
     // keep the screen on while a recipe is open (upstream behaviour)
-    request("screen")
+    // the browser may refuse (hidden tab, low battery, no permission): not an error for the user
+    request("screen").catch(() => {})
 })
 
 onBeforeUnmount(() => {

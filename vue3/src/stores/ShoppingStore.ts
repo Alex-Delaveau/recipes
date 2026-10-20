@@ -483,6 +483,9 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
             let promises: Promise<void>[] = []
 
             let updatedEntries = new Map<number, ShoppingListEntry>()
+            // fork: requests run in parallel, so a "checked" and an "unchecked" for the same entry (tap then undo) could
+            // reach the server in any order; keep only the last state of each entry before sending
+            itemCheckSyncQueue.value = coalesceSyncQueue(itemCheckSyncQueue.value)
             itemCheckSyncQueue.value.forEach((entry, index) => {
                 entry['status'] = ((entry['status'] === 'waiting_failed_before') ? 'syncing_failed_before' : 'syncing')
                 syncQueueRunning.value = true
@@ -494,12 +497,12 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
                             updatedEntries.set(id, e)
                         }
                     })
-                    itemCheckSyncQueue.value.splice(index, 1)
+                    itemCheckSyncQueue.value = itemCheckSyncQueue.value.filter(q => q !== entry) // fork: splice(index) removed the wrong item once the queue shifted
                 }).catch((err) => {
                     if (err.name === "FetchError") {
                         entry['status'] = 'waiting_failed_before'
                     } else {
-                        itemCheckSyncQueue.value.splice(index, 1)
+                        itemCheckSyncQueue.value = itemCheckSyncQueue.value.filter(q => q !== entry)
                         useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
                     }
                 })
@@ -519,6 +522,25 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
             // try again if internet after a few seconds
             runSyncQueue(5000)
         }
+    }
+
+    /**
+     * fork: merge queued check/uncheck requests so that each entry is sent once, with its last state
+     * @param queue queued requests, oldest first
+     */
+    function coalesceSyncQueue(queue: IShoppingSyncQueueEntry[]) {
+        let lastState = new Map<number, { checked: boolean, failedBefore: boolean }>()
+        queue.forEach(q => q.ids.forEach(id => lastState.set(id, {checked: q.checked, failedBefore: q.status.endsWith('failed_before')})))
+        let merged = [] as IShoppingSyncQueueEntry[]
+        for (const checked of [true, false]) {
+            for (const failedBefore of [true, false]) {
+                let ids = [...lastState.entries()].filter(([, v]) => v.checked == checked && v.failedBefore == failedBefore).map(([id]) => id)
+                if (ids.length > 0) {
+                    merged.push({ids: ids, checked: checked, status: failedBefore ? 'waiting_failed_before' : 'waiting'} as IShoppingSyncQueueEntry)
+                }
+            }
+        }
+        return merged
     }
 
     /**

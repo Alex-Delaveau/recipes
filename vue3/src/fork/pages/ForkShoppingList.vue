@@ -35,9 +35,10 @@
                 enterkeyhint="done"
                 autocomplete="off"
                 :loading="adding"
+                @keydown.enter.prevent="quickAdd()"
             >
                 <template #append-inner>
-                    <v-btn icon variant="text" size="44" type="submit" :disabled="!newItem.trim()" :aria-label="$t('Add')">
+                    <v-btn icon variant="text" size="44" :disabled="!newItem.trim()" :aria-label="$t('Add')" @click="quickAdd()">
                         <v-icon icon="fa-solid fa-arrow-right"></v-icon>
                     </v-btn>
                 </template>
@@ -219,7 +220,7 @@ function openDetails(row: ShoppingRow) {
 /** free text goes through the ingredient parser, the food keeps its aisle */
 function quickAdd() {
     const text = newItem.value.trim()
-    if (!text) return
+    if (!text || adding.value) return
     adding.value = true
     new ApiApi().apiIngredientParserPostCreate({ingredientParserRequest: {ingredient: text}}).then(r => {
         if (!r.ingredient?.food) throw new Error('no food recognised')

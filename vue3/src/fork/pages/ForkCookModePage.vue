@@ -129,7 +129,8 @@ onKeyStroke('ArrowRight', () => next())
 onKeyStroke('ArrowLeft', () => previous())
 
 onMounted(() => {
-    request("screen")
+    // the browser may refuse (hidden tab, low battery, no permission): not an error for the user
+    request("screen").catch(() => {})
     new ApiApi().apiRecipeRetrieve({id: Number(props.id)}).then(r => {
         recipe.value = r
         title.value = r.name
