@@ -3,19 +3,16 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
-## 2026-10-20 — cadrage — M2 non modifié, ajustements proposés
-**Contexte** : SPEC.md retient deux parcours que M2 ne couvre pas explicitement :
+## 2026-10-20 — cadrage — M2 aligné sur les parcours de SPEC.md
+**Contexte** : la première version de M2 ne couvrait pas tous les parcours retenus dans SPEC.md :
 - P1, la recherche par ingrédients sous la main ;
-- P3, l'envoi aux courses en décochant ce qu'on a.
+- P3, l'envoi aux courses en décochant ce qu'on a ;
+- le mode cuisine « une étape à la fois ».
 
-Le mode cuisine voulu est en outre « une étape à la fois ».
-**Choix** : seuls M3 et M4 ont été réécrits, comme demandé. Proposition pour M2, à valider par Alex :
-- ajouter le filtre par ingrédients et les raccourcis « récentes / pas faites depuis longtemps / au hasard » ;
-- ajouter la feuille « Ajouter aux courses » avec décochage ;
-- passer le mode cuisine en une étape par écran.
-
-Le Wake Lock est gardé (peu coûteux), même s'il n'a pas été cité comme prioritaire.
-**Alternative écartée** : réécrire M2 dès maintenant sans validation.
+**Choix** : M2 est réécrit autour des parcours P1 à P4, ce qu'Alex a validé dans la PR de cadrage. Le Wake Lock est
+gardé (peu coûteux), même s'il n'a pas été cité comme prioritaire. « Ingrédients cochables » est retiré : ce n'était
+pas un besoin exprimé.
+**Alternative écartée** : garder M2 générique et traiter ces parcours plus tard.
 **Réversible ?** Oui.
 
 ## 2026-10-20 — cadrage — Liste unique d'ingrédients

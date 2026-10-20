@@ -1,7 +1,7 @@
 # Feuille de route du fork
 
 Chaque jalon = une session Claude Code autonome = une PR. Les critères ci-dessous sont la définition de « fini ».
-M3 et M4 découlent de SPEC.md (cadrage du 2026-10-20) ; M2 reste la proposition initiale.
+M2 à M4 découlent de SPEC.md (cadrage du 2026-10-20).
 Statut : `[ ]` à faire, `[x]` fait. Un jalon est terminé quand sa PR est fusionnée.
 
 ## M0 — Socle et audit [ ]
@@ -26,10 +26,31 @@ Aucun changement visible pour l'utilisateur.
 - [ ] Aucune régression : `verify.sh --ui m1` OK, rapport `ui-auditor` sans problème bloquant.
 
 ## M2 — Parcours cuisine sur mobile [ ]
-- [ ] Accueil/recherche : recherche visible immédiatement, filtres en bottom sheet, cartes de recette lisibles à une main.
-- [ ] Vue recette en « mode cuisine » : ingrédients cochables, portions ajustables, étapes en gros caractères, écran maintenu allumé.
-- [ ] Liste de courses : cocher en un tap, regroupement par rayon, ajout rapide d'un article, annulation possible.
-- [ ] Pages refaites en `strict` ; `verify.sh --ui m2` OK.
+Découle de SPEC.md, parcours P1 à P4.
+- [ ] P1 Choisir quoi manger : l'onglet Recettes est l'accueil, avec la recherche visible immédiatement.
+  - Filtres en feuille du bas :
+    - ingrédients sous la main, les recettes qui en utilisent le plus d'abord ;
+    - temps total (≤ 15, 30 ou 60 min) ;
+    - mots-clés.
+  - Raccourcis « récentes », « pas faites depuis longtemps » et « au hasard ».
+  - Grandes cartes avec photo, lisibles à une main.
+- [ ] P2 Cuisiner : la vue recette montre la photo, le temps, les portions et les ingrédients.
+  - Les portions sont ajustables et recalculent toutes les quantités, dans la liste comme dans les étapes.
+  - Le mode cuisine affiche **une étape par écran**, en plein écran et en gros caractères (DESIGN.md, « Mode cuisine »).
+  - On avance et recule par balayage ou avec deux grands boutons en bas.
+  - Les ingrédients de l'étape sont rappelés quand la recette les y rattache.
+  - L'écran reste allumé (Wake Lock).
+- [ ] P3 Recette → courses : la feuille « Ajouter aux courses » liste les ingrédients aux portions choisies, tous cochés.
+  - On décoche ce qu'on a déjà, puis on valide.
+  - Les articles rejoignent la liste partagée du foyer.
+- [ ] P4 Courses : liste groupée par rayon.
+  - Un tap coche un article, qui descend dans « dans le panier ».
+  - L'annulation est possible.
+  - Ajout rapide en texte libre (« 2 citrons »).
+  - Message de fin simple, sans animation.
+- [ ] Les modifications faites par l'autre membre du foyer apparaissent sans recharger la page, au plus tard au retour
+      sur l'écran.
+- [ ] Pages refaites en `strict`. `verify.sh --ui m2` OK.
 
 ## M3 — Organisation des aliments [ ]
 Découle de SPEC.md, section « Organisation des aliments — attendu ».
