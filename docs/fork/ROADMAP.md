@@ -113,4 +113,43 @@ Découle de SPEC.md, section « Création de recettes — attendu ».
 À chaque release Tandoor : `/upstream-sync` (branche `sync/upstream-<tag>`, PR dédiée).
 
 ## Propositions M0
-(rempli par la session M0)
+Rédigées par la session M0 à partir de `docs/fork/AUDIT.md`. Ce sont des propositions : les jalons ci-dessus ne sont
+pas modifiés tant qu'Alex ne les a pas validées.
+
+**M1 — Fondations visuelles**
+- Ajouter à `screenshots.mjs` une capture « écran visible » (viewport seul) en plus de la pleine page. Elle permet de
+  juger le recouvrement par la barre du bas, que la capture pleine page ne montre pas.
+- Corriger ou contourner dans le fork les deux erreurs JS upstream vues en `m0-baseline` :
+  - `POST /api/view-log/` en 403 sur la vue recette ;
+  - `TypeError` dans `AccountSettings`.
+
+  Sinon, ces pages ne pourront pas passer en `strict`. Le critère « toutes en strict » prévoit déjà l'exception.
+- Passer le seuil mobile de la coquille de `lgAndUp` (1280 px) à `mdAndUp` (960 px), pour que les tablettes en paysage
+  aient le tiroir. C'est un réglage de `Tandoor.vue`.
+- Réserver la hauteur de la barre du bas dans `v-main` et ajouter des libellés aux entrées.
+
+**M2 — Parcours cuisine**
+- P4 : s'appuyer sur `ShoppingStore`, qui fait déjà le regroupement, la synchro automatique et la pile d'annulation.
+  Refaire l'affichage plutôt que le store.
+- P1 : le filtre « ingrédients sous la main » existe en partie dans la recherche avancée (`food_availability_helper.py`),
+  mais repose sur le stock (`onhand`). Prévoir un endpoint `kitchen/` de classement par nombre d'ingrédients
+  correspondants, sans stock.
+- Mettre le critère « modifications de l'autre membre du foyer » au niveau de ce que fait déjà la synchro automatique
+  des courses (intervalle réglable), plutôt que du temps réel.
+
+**M3 — Organisation des aliments**
+- Ordre de rayons générique : réutiliser un `Supermarket` unique (« Ordre générique ») et
+  `SupermarketCategoryRelation.order`, sélectionné par défaut, plutôt qu'un nouveau modèle. Le groupement existant de
+  la liste de courses en profite sans changement.
+- Héritage du rayon : activer `supermarket_category` dans `Space.food_inherit` (mécanisme upstream) plutôt que de le
+  recoder.
+- Ajouter au critère des doublons : réutiliser `ModelMergeDialog` / `MergeMixin`, qui créent déjà l'alias.
+
+**M4 — Création de recettes**
+- Le collage multi-ligne (`StepEditor.parseAndInsertIngredients`) et l'import URL passent tous deux par
+  `IngredientParser`. Le prétraitement français doit donc être branché aux deux endroits (endpoint `kitchen/`
+  équivalent à `/api/ingredient-parser/`, et relecture d'import côté front), sans toucher au parseur.
+- Le jeu de 30 lignes peut partir des cas mesurés dans AUDIT.md § 3, qui échouent tous sauf les fractions.
+
+**Outillage**
+- Lancer `verify.sh` complet en CI GitHub Actions sur chaque PR, avec la même porte `VERIFY: OK` (à rattacher à M5).

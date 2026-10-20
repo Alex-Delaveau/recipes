@@ -3,6 +3,36 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-20 — M0 — Branche de travail imposée par la session cloud
+**Contexte** : la règle du fork demande une branche `fork/m0-<slug>`, mais la session cloud impose de pousser sur
+`claude/gifted-cerf-5458vi` et interdit toute autre branche sans permission.
+**Choix** : le jalon M0 est développé sur `claude/gifted-cerf-5458vi`, partie de `origin/main` ; la PR vise `main`.
+**Alternative écartée** : créer `fork/m0-socle` (refusé par la configuration de la session).
+**Réversible ?** Oui : la branche peut être renommée avant fusion.
+
+## 2026-10-20 — M0 — Libellé des captures finales
+**Contexte** : la consigne de la session demande `verify.sh --ui m1 --publish` comme porte finale, alors que le skill
+prévoit le libellé du jalon (`m0`).
+**Choix** : la porte finale est lancée avec le libellé `m1`, comme demandé. M0 ne change rien de visible : ces captures
+sont identiques à `m0-baseline`, et M1 les écrasera.
+**Alternative écartée** : libellé `m0`.
+**Réversible ?** Oui.
+
+## 2026-10-20 — M0 — pytest avec `recipes.test_settings`
+**Contexte** : avec `DJANGO_SETTINGS_MODULE=recipes.settings` exporté, pytest-django ignore `pytest.ini`. Les
+connecteurs externes démarrent alors un thread qui bloque la sortie de pytest, et une vingtaine de tests échouent.
+**Choix** : `verify.sh` passe `--ds recipes.test_settings`, ce qui reprend la configuration de test d'upstream.
+**Alternative écartée** : modifier `pytest.ini` ou `recipes/settings.py` (fichiers upstream).
+**Réversible ?** Oui.
+
+## 2026-10-20 — M0 — `kitchen/` déclarée dans INSTALLED_APPS plutôt qu'en plugin
+**Contexte** : le système de plugins de Tandoor charge des apps depuis `recipes/plugins/`, un dossier ignoré par git
+(voir AUDIT.md § 5).
+**Choix** : `kitchen/` est une app à la racine, ajoutée explicitement dans `INSTALLED_APPS`. Cela coûte une ligne de
+diff upstream. Elle est versionnée et testée avec le fork.
+**Alternative écartée** : un plugin, qui serait hors du dépôt, sans tests du fork et sans possibilité de refondre l'UI.
+**Réversible ?** Oui.
+
 ## 2026-10-20 — cadrage — M2 aligné sur les parcours de SPEC.md
 **Contexte** : la première version de M2 ne couvrait pas tous les parcours retenus dans SPEC.md :
 - P1, la recherche par ingrédients sous la main ;
