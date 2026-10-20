@@ -60,26 +60,26 @@ Découle de SPEC.md, parcours P1 à P4.
 
 ## M3 — Organisation des aliments [ ]
 Découle de SPEC.md, section « Organisation des aliments — attendu ».
-- [ ] Écran Aliments en vue arbre à 2 niveaux (famille > aliment) :
+- [x] Écran Aliments en vue arbre à 2 niveaux (famille > aliment) :
   - familles repliables, recherche instantanée, filtre « sans rayon » ;
   - déplacement vers une autre famille en 2 taps ;
   - un aliment hérite du rayon de sa famille par défaut ;
   - aucun tableau à colonnes sur mobile.
-- [ ] Rayon suggéré à chaque création d'aliment (import, saisie, liste de courses), puis confirmé en un tap :
+- [x] Rayon suggéré à chaque création d'aliment (import, saisie, liste de courses), puis confirmé en un tap :
   - ordre de suggestion : rayon de la famille, puis dictionnaire français d'aliments courants dans `kitchen/`, puis
     aliment au nom proche ;
   - file « à ranger » à vider en rafale, un tap par rayon.
-- [ ] Ordre de rayons générique en français pré-rempli (fruits et légumes → … → hygiène/maison) et réglable. La liste de
+- [x] Ordre de rayons générique en français pré-rempli (fruits et légumes → … → hygiène/maison) et réglable. La liste de
       courses est groupée selon cet ordre.
-- [ ] Écran « doublons probables » (pluriels, accents, mots en plus) :
+- [x] Écran « doublons probables » (pluriels, accents, mots en plus) :
   - fusion avec aperçu (recettes et articles concernés) et confirmation, via l'API de fusion existante ;
   - création automatique d'un alias `FOOD_ALIAS`.
-- [ ] Relecture d'un import URL : pour chaque ingrédient d'aliment inconnu, proposition de l'aliment existant le plus
+- [x] Relecture d'un import URL : pour chaque ingrédient d'aliment inconnu, proposition de l'aliment existant le plus
       proche. Le choisir crée un alias `FOOD_ALIAS`.
-- [ ] Édition rapide d'un aliment dans une feuille du bas (nom, pluriel, famille, rayon, « jamais en courses »), sans
+- [x] Édition rapide d'un aliment dans une feuille du bas (nom, pluriel, famille, rayon, « jamais en courses »), sans
       changer de page.
-- [ ] Rien n'est ajouté pour le stock ni le garde-manger (hors périmètre).
-- [ ] Toute donnée nouvelle vit dans `kitchen/`. Tests pytest pour chaque endpoint ajouté, dont un test qui fait
+- [x] Rien n'est ajouté pour le stock ni le garde-manger (hors périmètre).
+- [x] Toute donnée nouvelle vit dans `kitchen/`. Tests pytest pour chaque endpoint ajouté, dont un test qui fait
       détecter les doublons par la règle de similarité sur un jeu d'exemples français. `verify.sh --ui m3` OK.
 
 ## M4 — Création et édition de recettes [ ]

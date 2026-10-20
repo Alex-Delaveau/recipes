@@ -7,6 +7,9 @@ Questions bloquantes pour Alex : en tête de ce fichier, sous « En attente ».
 Questions ouvertes (non bloquantes, le travail a continué avec le choix indiqué) :
 - M2 — Feuille « Ajouter aux courses » : les aliments « jamais en courses » (sel, eau) sont proposés **décochés**.
   Le critère dit « tous cochés ». Garder ce choix ? (DECISIONS.md)
+- M3 — Rayons renommés : la suggestion par dictionnaire retrouve un rayon générique par son nom (« Frais »,
+  « Crèmerie »…). Si un rayon est renommé librement (« Produits laitiers maison »), il ne reçoit plus de suggestions du
+  dictionnaire. Faut-il une correspondance explicite rayon ↔ clé générique (réglable) ?
 - M2 — Éditeur de recette upstream sur mobile : le bouton flottant « Enregistrer » peut recouvrir le bouton
   « Supprimer » de l'image selon le défilement. Non corrigé en M2 : l'éditeur mobile est refait en M4.
 
@@ -180,7 +183,7 @@ Branche : `fork/m3-aliments`, partie de `fork/m2-cuisine` (PR M2 ouverte, non fu
    Vérif : flow (fusion puis contrôle de l'alias).
 7. [x] Relecture d'import URL : proposition de l'aliment existant le plus proche, alias à la sélection. Vérif : flow sur
    une réponse d'import simulée.
-8. [ ] Navigation (Plus, tiroir), routes `strict`, porte `verify.sh --ui m3 --publish`, relectures, PR.
+8. [x] Navigation (Plus, tiroir), routes `strict`, porte `verify.sh --ui m3 --publish`, relectures, PR.
 
 ### Avancement M3
 - 1 : modèles `kitchen/` (migration `0001` dans `kitchen/migrations`), similarité (`names.py`), dictionnaire de rayons
@@ -196,3 +199,21 @@ Branche : `fork/m3-aliments`, partie de `fork/m2-cuisine` (PR M2 ouverte, non fu
   - cinq traductions manquaient pour l'encart d'import.
 - Parcours cliqués M3 ajoutés à `flows.mjs` : arbre, déplacement en 2 taps, édition rapide, file, ordre, doublons
   avec alias, relecture d'import (64 vérifications au total avec M2).
+- 8 : porte `verify.sh --ui m3 --publish` → `VERIFY: OK` (64 vérifications de parcours). Relectures :
+  - `reviewer` : les points bloquants (comptes par rayon faux, porte non relancée) sont corrigés, comme les remarques
+    mineures peu coûteuses : descendants qui suivent la famille, interrupteur « famille », 400 sur un id invalide,
+    fusion puis alias, ordre restauré si l'enregistrement échoue, file sans les « jamais en courses », appels
+    séquentiels, tests multi-espaces ;
+  - `ui-auditor` : « FIX FIRST », corrigés : comptes par rayon, doublons regroupés autour d'un seul aliment à garder,
+    actions de la file en bas d'écran, sous-titres sans répétition du rayon de la famille, icônes, libellés.
+
+## M3 — summary
+- Écran Aliments en arbre famille > aliment (recherche instantanée, filtre « sans rayon », déplacement en 2 taps, édition
+  rapide en feuille du bas), file « à ranger » un tap par rayon, ordre générique des rayons réglable, suivi par la liste
+  de courses.
+- Rayon suggéré à chaque création d'aliment (famille, dictionnaire français, nom proche), appliqué tout de suite, puis
+  confirmé.
+- Doublons probables (règle de similarité française testée), fusion upstream avec aperçu et alias `FOOD_ALIAS`.
+  Proposition de l'aliment existant le plus proche pendant la relecture d'import.
+- Tout le nouveau stockage est dans `kitchen/` (une migration). 52 tests `kitchen` au total.
+- Prochain jalon : M4 (branche `fork/m4-recettes`, partie de `fork/m3-aliments`).

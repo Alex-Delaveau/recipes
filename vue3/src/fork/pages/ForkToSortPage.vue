@@ -106,6 +106,10 @@ onMounted(() => {
     min-height: calc(100dvh - 48px - var(--fork-bottom-nav));
 }
 
+.fork-sort > :deep(*) {
+    flex: 0 0 auto;
+}
+
 .fork-sort__actions {
     margin-top: auto;
     padding-top: var(--fork-space-4);
