@@ -33,9 +33,17 @@ defineProps({
 </script>
 
 <style scoped>
+/* one grid for every row: quantities share a column as wide as the longest one (at most half the width) */
+.fork-ingredients {
+    display: grid;
+    grid-template-columns: fit-content(50%) 1fr;
+    column-gap: var(--fork-space-3);
+}
+
 .fork-ingredients__row {
-    display: flex;
-    gap: var(--fork-space-3);
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
     padding: var(--fork-space-2) 0;
     border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
     font-size: var(--fork-text-md);
@@ -47,15 +55,11 @@ defineProps({
 }
 
 .fork-ingredients__amount {
-    flex: 0 0 auto;
-    min-width: 28%;
-    max-width: 50%;
     font-weight: 600;
     text-align: right;
 }
 
 .fork-ingredients__food {
-    flex: 1 1 auto;
     min-width: 0;
     overflow-wrap: anywhere;
 }
@@ -67,6 +71,7 @@ defineProps({
 }
 
 .fork-ingredients__header {
+    grid-column: 1 / -1;
     font-weight: 600;
     font-size: var(--fork-text-sm);
     text-transform: uppercase;

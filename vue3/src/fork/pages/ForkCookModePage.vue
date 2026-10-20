@@ -9,9 +9,7 @@
                 <div class="fork-cook__recipe">{{ recipe?.name }}</div>
                 <div class="fork-cook__progress-label" v-if="screens.length">{{ $t('Fork_Step_Of', {n: current + 1, total: screens.length}) }}</div>
             </div>
-            <span class="fork-cook__servings" v-if="recipe">
-                <v-icon icon="fa-solid fa-user-group" size="16" class="me-1"></v-icon>{{ servings }}
-            </span>
+            <span class="fork-cook__servings" v-if="recipe">{{ $t('Fork_Servings_N', {n: servings}) }}</span>
         </header>
         <v-progress-linear :model-value="screens.length ? (current + 1) / screens.length * 100 : 0" color="primary" height="4"></v-progress-linear>
 
@@ -31,7 +29,9 @@
                 <v-chip v-if="screen.step.time" variant="tonal" size="large" prepend-icon="fas fa-stopwatch" class="mb-4">{{ screen.step.time }} {{ $t('min') }}</v-chip>
                 <fork-ingredient-list v-if="screen.step.ingredients.length && !singleList" :ingredients="screen.step.ingredients" :factor="factor" large
                                       class="fork-cook__step-ingredients"></fork-ingredient-list>
-                <div class="fork-cook__instructions markdown-body">
+                <step-view v-if="screen.step.stepRecipe || screen.step.file" :model-value="screen.step" :step-number="screen.number"
+                           :ingredient-factor="factor"></step-view>
+                <div class="fork-cook__instructions markdown-body" v-else>
                     <instructions :instructions_html="screen.step.instructionsMarkdown ?? ''" :ingredient_factor="factor"></instructions>
                 </div>
             </template>
@@ -44,6 +44,7 @@
         </main>
 
         <footer class="fork-cook__nav">
+            <div class="fork-cook__nav-inner">
             <v-btn size="x-large" variant="tonal" class="flex-grow-1" :disabled="current == 0" prepend-icon="fa-solid fa-arrow-left" @click="previous()">
                 {{ $t('Fork_Previous') }}
             </v-btn>
@@ -53,6 +54,7 @@
             <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" append-icon="fa-solid fa-check" @click="exit()" v-else>
                 {{ $t('Fork_Cook_Done') }}
             </v-btn>
+            </div>
         </footer>
     </div>
 </template>
@@ -65,6 +67,7 @@ import {onKeyStroke, useSwipe, useTitle, useWakeLock} from "@vueuse/core";
 import {ApiApi, Recipe, Step} from "@/openapi";
 // @ts-ignore upstream component written in plain JS
 import Instructions from "@/components/display/Instructions.vue";
+import StepView from "@/components/display/StepView.vue";
 import ForkIngredientList from "@/fork/components/ForkIngredientList.vue";
 import {ingredientFactor, ingredientGroups} from "@/fork/recipe";
 
@@ -88,7 +91,7 @@ const swipeArea = useTemplateRef<HTMLElement>('swipeArea')
 
 const factor = computed(() => recipe.value ? ingredientFactor(recipe.value, servings.value) : 1)
 const groups = computed(() => recipe.value ? ingredientGroups(recipe.value, t) : [])
-const cookSteps = computed(() => recipe.value ? recipe.value.steps.filter(s => s.instruction || s.ingredients.length) : [])
+const cookSteps = computed(() => recipe.value ? recipe.value.steps.filter(s => s.instruction || s.ingredients.length || s.stepRecipe || s.file) : [])
 /** a "get ready" screen with every ingredient, unless the recipe has a single step (it shows them already) */
 const prepScreen = computed(() => cookSteps.value.length > 1 && groups.value.some(g => g.ingredients.length))
 /** single ingredient list (fork recipes): ingredients are all on the first screen, not repeated in the steps */
@@ -115,7 +118,13 @@ function previous() {
 }
 
 function exit() {
-    router.push({name: 'RecipeViewPage', params: {id: props.id}, query: servings.value != recipe.value?.servings ? {servings: servings.value} : {}})
+    // came from the recipe (its URL carries the servings): go back so the phone back button does not reopen cook mode
+    const back = window.history.state?.back
+    if (typeof back == 'string' && back.startsWith(`/recipe/${props.id}`) && !back.includes('/cook')) {
+        router.back()
+        return
+    }
+    router.replace({name: 'RecipeViewPage', params: {id: props.id}, query: servings.value != recipe.value?.servings ? {servings: servings.value} : {}})
 }
 
 const {direction} = useSwipe(swipeArea, {
@@ -177,7 +186,13 @@ onBeforeUnmount(() => {
     text-overflow: ellipsis;
 }
 
-.fork-cook__progress-label, .fork-cook__servings {
+.fork-cook__servings {
+    font-size: var(--fork-text-md);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.fork-cook__progress-label {
     font-size: var(--fork-text-sm);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -236,11 +251,16 @@ onBeforeUnmount(() => {
     margin: 0 0 var(--fork-space-4);
 }
 
+.fork-cook__nav-inner {
+    display: flex;
+    gap: var(--fork-space-3);
+    max-width: 760px;
+    margin: 0 auto;
+}
+
 .fork-cook__nav {
     position: sticky;
     bottom: 0;
-    display: flex;
-    gap: var(--fork-space-3);
     padding: var(--fork-space-3) var(--fork-space-4);
     padding-bottom: calc(var(--fork-space-3) + env(safe-area-inset-bottom));
     background: rgb(var(--v-theme-background));

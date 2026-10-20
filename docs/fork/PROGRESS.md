@@ -109,21 +109,35 @@ Branche : `fork/m2-cuisine`, base `origin/main` (M1 fusionné). L'objectif de se
 `fork/m<N>-<slug>` est utilisé (le push de cette branche est accepté). Environnement : `verify.sh --quick` →
 `VERIFY: OK` avant tout changement (649 erreurs vue-tsc).
 
-1. [ ] Jeu de démo enrichi : photos générées (Pillow, sans service externe), gabarits de quantités dans les étapes
+1. [x] Jeu de démo enrichi : photos générées (Pillow, sans service externe), gabarits de quantités dans les étapes
    (`{{ ingredients[0] }}`), historique de consultation et de cuisine, quelques articles de courses ; route
    `cook-mode` ajoutée à `routes.json`. Vérif : `dev_seed.py` deux fois sans doublon, captures.
-2. [ ] Endpoint `kitchen/` `GET /api/kitchen/recipes/` : recherche upstream (`RecipeSearch`) + classement par nombre
+2. [x] Endpoint `kitchen/` `GET /api/kitchen/recipes/` : recherche upstream (`RecipeSearch`) + classement par nombre
    d'ingrédients sous la main (sans stock, descendants compris), temps total maximal, modes `recent`, `forgotten`,
    `random`. Vérif : tests pytest dans `kitchen/tests`.
-3. [ ] P1 Accueil Recettes (`vue3/src/fork/pages/ForkRecipesHome.vue`) : recherche visible, raccourcis, feuille de
+3. [x] P1 Accueil Recettes (`vue3/src/fork/pages/ForkRecipesHome.vue`) : recherche visible, raccourcis, feuille de
    filtres (ingrédients, temps, mots-clés), grandes cartes photo, états vide/chargement/erreur, filtres dans l'URL.
    Vérif : captures `start` mobile, 360 px, sombre, desktop.
-4. [ ] P2 Vue recette (`ForkRecipeView.vue`) : photo, temps total, portions ajustables (± 44 px), liste d'ingrédients
+4. [x] P2 Vue recette (`ForkRecipeView.vue`) : photo, temps total, portions ajustables (± 44 px), liste d'ingrédients
    (groupée par étape si la recette est découpée), étapes avec quantités recalculées. Vérif : captures `recipe-view`.
-5. [ ] P2 Mode cuisine (`/recipe/:id/cook`) : une étape par écran, plein écran, 24/20 px, balayage + deux boutons,
+5. [x] P2 Mode cuisine (`/recipe/:id/cook`) : une étape par écran, plein écran, 24/20 px, balayage + deux boutons,
    ingrédients de l'étape, Wake Lock. Vérif : captures `cook-mode`.
-6. [ ] P3 Feuille « Ajouter aux courses » : ingrédients aux portions choisies, tous cochés, décochage, validation vers
+6. [x] P3 Feuille « Ajouter aux courses » : ingrédients aux portions choisies, tous cochés, décochage, validation vers
    la liste du foyer. Vérif : test manuel headless (script Playwright ponctuel) + capture.
-7. [ ] P4 Courses (`ForkShoppingList.vue`) : groupé par rayon, un tap coche, « Dans le panier », annuler, ajout
+7. [x] P4 Courses (`ForkShoppingList.vue`) : groupé par rayon, un tap coche, « Dans le panier », annuler, ajout
    rapide en texte libre, message de fin, synchro automatique et au retour sur l'écran. Vérif : captures `shopping`.
 8. [ ] Routes refaites en `strict`, porte `verify.sh --ui m2 --publish`, `reviewer` + `ui-auditor`, PR.
+
+### Avancement M2
+- 1 : photos générées (Pillow), gabarits `{{ scale(…) }}` dans deux étapes, historique de consultation et de cuisine,
+  6 articles de courses, unité « pièce » au pluriel ; route `cook-mode` ajoutée (strict).
+- 2 : `GET /api/kitchen/recipes/` (10 tests pytest : espace, anonyme, classement par ingrédients, familles, temps,
+  texte, récentes, oubliées, hasard).
+- 3 : accueil `ForkRecipesHome` (recherche, raccourcis, feuille de filtres, cartes 16:9, états vide/erreur/chargement).
+- 4 : `ForkRecipeView` (photo, temps total et détail, portions ± 44 px, ingrédients, étapes recalculées).
+- 5 : mode cuisine `/recipe/:id/cook` (plein écran, 24/20 px, balayage, boutons de 56 px, Wake Lock).
+- 6 : feuille « Ajouter aux courses » (cases cochées, portions ajustables, liste du foyer).
+- 7 : `ForkShoppingList` (rayons, un tap, « Dans le panier », annuler, ajout rapide, message de fin, synchro au retour).
+  Deux défauts trouvés par les tests de parcours et corrigés : Entrée ne validait pas l'ajout rapide ; la file de
+  synchro upstream pouvait laisser un article coché après une annulation rapide (voir DECISIONS.md).
+- Outillage : `scripts/fork/ui/flows.mjs` (35 vérifications cliquées des parcours P1 à P4) lancé par `verify.sh --ui`.

@@ -8,7 +8,7 @@
             </v-card-title>
             <div class="d-flex align-center justify-space-between flex-wrap ga-2 px-4 pb-2">
                 <fork-servings-stepper v-model="sheetServings" :label="recipe.servingsText || $t('Servings')"></fork-servings-stepper>
-                <v-btn variant="text" @click="toggleAll()">{{ allChecked ? $t('Fork_Uncheck_All') : $t('Fork_Check_All') }}</v-btn>
+                <v-btn variant="text" size="large" @click="toggleAll()">{{ allChecked ? $t('Fork_Uncheck_All') : $t('Fork_Check_All') }}</v-btn>
             </div>
             <p class="text-body-2 text-medium-emphasis px-4 pb-2">{{ $t('Fork_Uncheck_What_You_Have') }}</p>
             <v-divider></v-divider>

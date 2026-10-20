@@ -49,6 +49,14 @@ def test_other_space_is_not_visible(kitchen_data, u1_s2):
     assert names(u1_s2.get(URL)) == []
 
 
+def test_private_recipe_of_another_user_stays_hidden(kitchen_data, u1_s1, u2_s1, space_1):
+    other = auth.get_user(u2_s1)
+    with scopes_disabled():
+        make_recipe(space_1, other, 'Secret de famille', [], 5, 0).__class__.objects.filter(name='Secret de famille').update(private=True)
+    assert 'Secret de famille' not in names(u1_s1.get(URL))
+    assert 'Secret de famille' in names(u2_s1.get(URL))
+
+
 def test_foods_on_hand_rank_recipes_using_most_of_them(kitchen_data, u1_s1):
     d = kitchen_data
     response = u1_s1.get(URL, {'have': [d['courgette'].id, d['riz'].id]})

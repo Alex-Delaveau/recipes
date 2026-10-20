@@ -96,6 +96,7 @@
 <script setup lang="ts">
 import {computed, onBeforeUnmount, onMounted, ref, watch} from "vue";
 import {useI18n} from "vue-i18n";
+import {useRoute, useRouter} from "vue-router";
 import {useWakeLock} from "@vueuse/core";
 import {Recipe} from "@/openapi";
 import {useUserPreferenceStore} from "@/stores/UserPreferenceStore";
@@ -119,10 +120,17 @@ const props = defineProps({
 
 const recipe = defineModel<Recipe>({required: true})
 const {t} = useI18n()
+const router = useRouter()
+const route = useRoute()
 const {request, release} = useWakeLock()
 
 const servings = ref(props.servings ?? recipe.value.servings ?? 1)
 const shoppingSheet = ref(false)
+
+// keep the servings in the URL: cook mode comes back to them, and a shared link keeps them
+watch(servings, (value) => {
+    router.replace({query: {...route.query, servings: value != recipe.value.servings ? String(value) : undefined}})
+})
 
 watch(() => recipe.value.servings, () => {
     if (props.servings == undefined && recipe.value.servings) {

@@ -478,6 +478,11 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
      * @private
      */
     function _replaySyncQueue() {
+        if (syncQueueRunning.value) {
+            // fork: never send a new state while the previous requests are in flight (their order is not guaranteed)
+            runSyncQueue(300)
+            return
+        }
         if (navigator.onLine || document.location.href.includes('localhost')) {
             let api = new ApiApi()
             let promises: Promise<void>[] = []

@@ -1,6 +1,6 @@
 <template>
     <!-- Large photo card, readable one-handed (journey P1) -->
-    <v-card :to="{name: 'RecipeViewPage', params: {id: recipe.id}}" class="fork-recipe-card h-100" variant="outlined">
+    <v-card :to="{name: 'RecipeViewPage', params: {id: recipe.id}}" class="fork-recipe-card h-100">
         <v-img :src="recipe.image ?? undefined" :aspect-ratio="16/9" cover class="fork-recipe-card__photo" :alt="recipe.name">
             <template #placeholder>
                 <div class="fork-recipe-card__placeholder"><v-icon icon="$recipes" size="40"></v-icon></div>

@@ -25,10 +25,10 @@
         </div>
 
         <!-- shortcuts: browse without a filter -->
-        <v-chip-group v-model="filters.sort" selected-class="text-primary" class="mt-2 fork-home__shortcuts">
+        <v-chip-group v-model="filters.sort" column selected-class="text-primary" class="mt-2 fork-home__shortcuts">
             <v-chip value="recent" filter variant="outlined" prepend-icon="fa-solid fa-clock-rotate-left">{{ $t('Fork_Shortcut_Recent') }}</v-chip>
-            <v-chip value="forgotten" filter variant="outlined" prepend-icon="fa-solid fa-hourglass-half">{{ $t('Fork_Shortcut_Forgotten') }}</v-chip>
             <v-chip value="random" filter variant="outlined" prepend-icon="fa-solid fa-shuffle" @click.capture="reshuffle">{{ $t('Fork_Shortcut_Random') }}</v-chip>
+            <v-chip value="forgotten" filter variant="outlined" prepend-icon="fa-solid fa-hourglass-half">{{ $t('Fork_Shortcut_Forgotten') }}</v-chip>
         </v-chip-group>
 
         <!-- active filters, removable in one tap -->
@@ -60,7 +60,7 @@
         <!-- error -->
         <v-alert v-else-if="error" type="error" variant="tonal" class="mt-4" :text="$t('Fork_Load_Error')">
             <template #append>
-                <v-btn variant="text" @click="reload()">{{ $t('Fork_Retry') }}</v-btn>
+                <v-btn variant="text" size="large" @click="reload()">{{ $t('Fork_Retry') }}</v-btn>
             </template>
         </v-alert>
 
@@ -168,7 +168,8 @@ function loadPage(p: number) {
         recipes.value = p == 1 ? r.results : recipes.value.concat(r.results)
         count.value = r.count
         page.value = p
-        hasMore.value = r.next != null
+        // random order changes on every request: paging would repeat or skip recipes
+        hasMore.value = r.next != null && filters.sort != 'random'
     }).catch(() => {
         if (id == requestId) error.value = true
     }).finally(() => {

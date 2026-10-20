@@ -1,6 +1,11 @@
 <template>
     <!-- Journey P4 "Shopping": grouped by aisle, one tap checks, "in the cart" below, undo, quick add -->
-    <shopping-list-view v-if="detailedView"></shopping-list-view>
+    <template v-if="detailedView">
+        <div class="d-flex justify-end px-4 pt-2">
+            <v-btn variant="text" size="large" prepend-icon="fa-solid fa-arrow-left" @click="detailedView = false">{{ $t('Fork_Simple_View') }}</v-btn>
+        </div>
+        <shopping-list-view></shopping-list-view>
+    </template>
 
     <v-container class="fork-shopping" max-width="760" v-else>
         <div class="d-flex align-center ga-2 mb-3">
@@ -105,7 +110,7 @@
     <v-snackbar v-model="undoSnackbar" :timeout="4000" location="bottom" class="fork-shopping__snackbar">
         {{ undoText }}
         <template #actions>
-            <v-btn variant="text" color="primary" @click="undo()">{{ $t('Fork_Undo') }}</v-btn>
+            <v-btn variant="text" color="primary" size="large" @click="undo()">{{ $t('Fork_Undo') }}</v-btn>
         </template>
     </v-snackbar>
 </template>
@@ -225,14 +230,14 @@ function quickAdd() {
     new ApiApi().apiIngredientParserPostCreate({ingredientParserRequest: {ingredient: text}}).then(r => {
         if (!r.ingredient?.food) throw new Error('no food recognised')
         const entry = {
-            amount: Math.max(r.ingredient.amount ?? 1, 1),
+            amount: (r.ingredient.amount ?? 0) > 0 ? r.ingredient.amount : 1,
             unit: r.ingredient.unit,
             food: r.ingredient.food,
             shoppingLists: useShoppingStore().shoppingLists.filter(sl => useUserPreferenceStore().deviceSettings.shopping_selected_shopping_lists.includes(sl.id!)),
         } as ShoppingListEntry
         return useShoppingStore().createObject(entry, true)
-    }).then(() => {
-        newItem.value = ''
+    }).then((created) => {
+        if (created) newItem.value = '' // on failure the store shows the error: keep the text to retry
     }).catch(err => {
         useMessageStore().addError(ErrorMessageType.CREATE_ERROR, err)
     }).finally(() => {

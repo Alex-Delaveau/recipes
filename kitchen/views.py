@@ -4,7 +4,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics
 
-from cookbook.helper.permission_helper import CustomIsGuest
+from cookbook.helper.permission_helper import CustomIsGuest, CustomTokenHasReadWriteScope
 from cookbook.helper.recipe_search import RecipeSearch
 from cookbook.models import Food, Recipe
 from cookbook.views.api import RecipePagination
@@ -32,7 +32,7 @@ class KitchenRecipeListView(generics.ListAPIView):
     "recent" / "not cooked for a long time" / "random" shortcuts.
     """
     serializer_class = KitchenRecipeSerializer
-    permission_classes = [CustomIsGuest]
+    permission_classes = [CustomIsGuest & CustomTokenHasReadWriteScope]
     pagination_class = RecipePagination
 
     def get_queryset(self):

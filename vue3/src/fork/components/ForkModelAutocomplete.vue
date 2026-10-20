@@ -51,6 +51,8 @@ function load() {
         // keep the selected items in the list so their chips keep a label
         const results = r.results.map(x => ({id: x.id!, name: x.name}))
         items.value = [...model.value, ...results.filter(x => !model.value.some(m => m.id == x.id))]
+    }).catch(() => {
+        items.value = [...model.value]
     }).finally(() => {
         loading.value = false
     })
