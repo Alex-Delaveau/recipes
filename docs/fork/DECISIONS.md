@@ -3,6 +3,20 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — « Vider la liste de courses »
+**Contexte** : Alex demande une fonction pour vider la liste de courses.
+**Choix** : deux entrées dans le menu « ⋮ » de la liste :
+- « Retirer les articles du panier » (ce qui est coché) ;
+- « Vider la liste » (tout).
+
+Chacune demande une confirmation qui donne le nombre d'articles, puis peut être annulée : bandeau « Annuler », et le
+bouton ↶ garde les deux actions. On ne supprime que ce que l'appareil affiche (listes sélectionnées). Les entrées sont
+supprimées une à une par l'API upstream, sans changement backend ni dans `ShoppingStore`. Les actions sont grisées
+hors ligne.
+**Alternative écartée** : seulement « tout vider » (on perd ce qui reste à acheter quand on veut juste ranger le
+panier) ; un endpoint de suppression groupée dans `kitchen/` (inutile pour une liste de quelques dizaines d'articles).
+**Réversible ?** Oui.
+
 ## 2026-10-21 — M6 — Branche et libellé de la porte finale
 **Contexte** : comme en M5, la session cloud impose la branche `claude/zen-ramanujan-cnfub4` (au lieu de
 `fork/m6-livraison`), et la consigne demande `verify.sh --ui m1 --publish`.
