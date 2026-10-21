@@ -897,6 +897,30 @@ const FLOWS = {
     await page.locator('.v-dialog').getByRole('button', { name: 'Annuler' }).click()
   },
 
+  // an imported photo can be framed before saving (the server downloads and crops it at save time)
+  async importcrop(page) {
+    const jsonld = JSON.stringify({ '@context': 'https://schema.org', '@type': 'Recipe', name: 'Flow crop test', image: base + '/static/assets/logo_color_512.png',
+      recipeIngredient: ['1 citron'], recipeInstructions: [{ '@type': 'HowToStep', text: 'Presser.' }] })
+    await page.goto(base + '/recipe/import', { waitUntil: 'networkidle' })
+    await page.locator('.v-card', { hasText: 'JSON/HTML' }).first().click()
+    await page.getByRole('button', { name: 'Suivant' }).first().click()
+    await page.locator('textarea').first().fill(`<script type="application/ld+json">${jsonld}</` + 'script>')
+    await page.getByRole('button', { name: 'Chargement' }).click()
+    const crop = page.getByRole('button', { name: 'Recadrer' })
+    for (let i = 0; i < 6 && !(await crop.isVisible().catch(() => false)); i++) {
+      await page.waitForTimeout(800)
+      if (await crop.isVisible().catch(() => false)) break
+      await page.locator('button:visible', { hasText: /^\s*Suivant\s*$/ }).last().click().catch(() => {})
+    }
+    check(await eventually(() => crop.isVisible(), 8000), 'the image step offers to crop the imported photo')
+    await crop.click()
+    await eventually(() => page.locator('.fork-crop__img').isVisible(), 5000)
+    await page.locator('.fork-crop').getByRole('button', { name: '4:3' }).click()
+    await page.locator('.fork-crop').getByRole('button', { name: 'Appliquer' }).click()
+    check(await eventually(() => page.locator('.fork-import-crop').isVisible(), 3000), 'framed photo previewed in the import')
+    check(await page.getByRole('button', { name: 'Recadrer à nouveau' }).isVisible(), 'and it can be framed again')
+  },
+
   // M3 + M4: URL import review: French recognition, closest existing food proposed; choosing it creates a FOOD_ALIAS
   async importreview(page) {
     const jsonld = JSON.stringify({ '@context': 'https://schema.org', '@type': 'Recipe', name: 'Flow import test',
@@ -1008,10 +1032,26 @@ const FLOWS = {
     await eventually(async () => (await page.getByLabel('Nom de la recette').inputValue()) === 'Flow poêlée test')
     await page.getByLabel('Nom de la recette').fill('Flow poêlée modifiée')
     for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Suivant' }).click()
+    // frame the stored photo as a square: cropped by the server after the save
+    await page.getByRole('button', { name: 'Recadrer' }).click()
+    const cropper = page.locator('.fork-crop')
+    await eventually(() => cropper.locator('.fork-crop__img').isVisible(), 5000)
+    await cropper.getByRole('button', { name: '1:1' }).click()
+    await page.waitForTimeout(300)
+    const frameBox = await cropper.locator('.fork-crop__frame').boundingBox()
+    await page.mouse.move(frameBox.x + frameBox.width / 2, frameBox.y + frameBox.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(frameBox.x + frameBox.width / 2 - 40, frameBox.y + frameBox.height / 2, { steps: 5 })
+    await page.mouse.up()
+    await shot(page, 'photo-crop')
+    await cropper.getByRole('button', { name: 'Appliquer' }).click()
+    check(await eventually(() => page.getByRole('img', { name: 'Photo recadrée' }).isVisible(), 3000), 'framed photo previewed before saving')
     await page.getByRole('button', { name: 'Sauvegarder' }).click()
     await page.waitForURL(new RegExp(`/recipe/${id}$`), { timeout: 15000 })
     const edited = (await api(page, 'GET', `/api/recipe/${id}/`)).data
     check(edited.name === 'Flow poêlée modifiée', 'existing recipe edited')
+    const size = await page.evaluate((src) => new Promise((resolve) => { const i = new Image(); i.onload = () => resolve([i.naturalWidth, i.naturalHeight]); i.onerror = () => resolve([0, 0]); i.src = src }), edited.image)
+    check(edited.image !== recipe.image && size[0] > 0 && Math.abs(size[0] - size[1]) <= 1, `photo cropped to a square by the server (${size.join('×')})`)
     check(edited.steps[0].ingredients.map((i) => i.id).join() === recipe.steps[0].ingredients.map((i) => i.id).join(), 'ingredients updated in place, not duplicated')
 
     // a recipe split by step keeps its split

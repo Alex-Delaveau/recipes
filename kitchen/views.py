@@ -277,6 +277,28 @@ class KitchenFoodMatchView(KitchenUserMixin, APIView):
 
 # ------------------------------------------------------------------------- recipe wizard (M4)
 
+class KitchenRecipeImageView(KitchenUserMixin, APIView):
+    """
+    Crop a recipe photo: {crop: {x, y, w, h} as fractions, image_url?}. With `image_url` (an import) the photo is
+    downloaded like upstream's image endpoint does, else the recipe's current photo is cropped.
+    """
+
+    def put(self, request, pk):
+        from kitchen import images
+        user = request.user
+        recipe = get_object_or_404(Recipe.objects.filter(space=request.space).filter(
+            Q(private=False) | Q(created_by=user) | Q(shared=user)).distinct(), pk=pk)
+        image_url = request.data.get('image_url') or None
+        try:
+            crop = images.parse_crop(request.data.get('crop') or {})
+            url = images.save_cropped(recipe, image_url, crop)
+        except images.CropError as e:
+            return Response({'error': True, 'msg': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            return Response({'error': True, 'msg': 'the photo could not be fetched'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'id': recipe.id, 'image': url})
+
+
 class KitchenParseView(KitchenUserMixin, APIView):
     """
     Live recognition for the recipe wizard: {lines: [...]} -> {results: [{original, amount, unit, food, note, food_id,

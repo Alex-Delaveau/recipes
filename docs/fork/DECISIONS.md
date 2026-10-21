@@ -3,6 +3,30 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — Recadrer la photo d'une recette (import et saisie)
+**Contexte** : à l'import depuis Jow, l'image est prise telle quelle. Alex veut pouvoir la recadrer et la redimensionner.
+**Choix** :
+- **Fenêtre « Recadrer la photo »** (`ForkImageCropper`) : on fait glisser la photo, on zoome (pincement, molette ou
+  curseur, jusqu'à ×4), avec trois formats : 16:9 (par défaut, celui de la page recette), 4:3 ou 1:1. Une grille des
+  tiers aide au cadrage.
+  - On la trouve à l'étape Image et à la dernière étape de l'import (l'étape Image est sautée quand le site ne propose
+    qu'une photo), ainsi que dans l'assistant de saisie (photo de la galerie ou photo déjà enregistrée).
+  - Un aperçu montre le résultat avant l'enregistrement.
+- **La coupe est faite par le serveur** (`PUT /api/kitchen/recipes/<id>/image/`, Pillow) au moment d'enregistrer.
+  - Un navigateur ne peut pas lire les pixels d'une photo venant d'un autre site (Jow), il ne peut donc pas la couper.
+  - Le serveur télécharge la photo comme l'endpoint upstream (`safe_request`) ou reprend la photo enregistrée.
+  - Il respecte l'orientation des photos de téléphone, limite la largeur à 1 600 px et ré-encode en JPEG (ce qui
+    retire aussi les métadonnées).
+- Page d'import upstream : diff limité au composant de la photo et à l'appel d'enregistrement. Sans recadrage, c'est
+  le chemin upstream inchangé.
+
+**Alternative écartée** :
+- Recadrer dans le navigateur avec un canvas : impossible pour les photos d'autres sites.
+- Ajouter une librairie de recadrage : dépendance lourde pour un geste simple.
+- Faire pivoter la photo : rare pour des photos du web ; à ajouter si besoin.
+
+**Réversible ?** Oui.
+
 ## 2026-10-21 — hors jalon — « Toutes les recettes » : aperçu sur l'accueil, page dédiée pour parcourir
 **Contexte** : Alex trouve pénible de parcourir toutes les recettes en défilant une par ligne sur l'accueil.
 **Choix** :

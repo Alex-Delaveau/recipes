@@ -217,7 +217,9 @@
                                 <v-row>
                                     <v-col cols="12" md="6">
                                         <h2 class="text-h5">{{ $t('Selected') }}</h2>
-                                        <v-img max-height="30vh" :src="importResponse.recipe.imageUrl"></v-img>
+                                        <!-- fork: the photo can be framed (cropped by the server when the recipe is saved) -->
+                                        <fork-import-photo v-if="importResponse.recipe?.imageUrl" :src="importResponse.recipe.imageUrl" v-model:crop="forkImageCrop"
+                                                           v-model:aspect="forkImageAspect"></fork-import-photo>
                                     </v-col>
                                     <v-col cols="12" md="6">
                                         <h2 class="text-h5">{{ $t('Available') }}</h2>
@@ -390,7 +392,8 @@
                                     <v-card-title>{{ importResponse.recipe.name }}</v-card-title>
                                     <v-row>
                                         <v-col cols="12" md="6">
-                                            <v-img v-if="importResponse.recipe.imageUrl" :src="importResponse.recipe.imageUrl"></v-img>
+                                            <fork-import-photo v-if="importResponse.recipe?.imageUrl" :src="importResponse.recipe.imageUrl" v-model:crop="forkImageCrop"
+                                                               v-model:aspect="forkImageAspect"></fork-import-photo> <!-- fork: was a plain v-img -->
                                         </v-col>
                                         <v-col cols="12" md="6">
                                             <v-text-field :label="$t('Name')" v-model="importResponse.recipe.name" :rules="[['maxLength',128]]"></v-text-field>
@@ -570,7 +573,7 @@
 
 import ForkImportFoodMatches from "@/fork/components/ForkImportFoodMatches.vue";
 import {useI18n} from "vue-i18n";
-import {computed, onMounted, ref} from "vue";
+import {computed, onMounted, ref, watch} from "vue";
 import {
     AccessToken,
     AiProvider,
@@ -603,6 +606,8 @@ import StepIngredientSorterDialog from "@/components/dialogs/StepIngredientSorte
 import {mergeAllSteps, splitAllSteps, splitStep} from "@/utils/step_utils.ts";
 import VModelSelect from "@/components/inputs/VModelSelect.vue";
 import {extractSharedUrl} from "@/fork/share";
+import ForkImportPhoto from "@/fork/components/ForkImportPhoto.vue";
+import {ImageCrop, saveImportImage} from "@/fork/images";
 
 function doListImport() {
     urlList.value = urlListImportInput.value.split('\n')
@@ -694,6 +699,13 @@ const editAfterImport = ref(false)
 const bookmarkletToken = ref("")
 
 const importResponse = ref({} as RecipeFromSourceResponse)
+
+// fork: optional crop of the imported photo, applied by the server when the recipe is saved; another photo resets it
+const forkImageCrop = ref<ImageCrop | null>(null)
+const forkImageAspect = ref(16 / 9)
+watch(() => importResponse.value.recipe?.imageUrl, () => {
+    forkImageCrop.value = null
+})
 const keywordSelect = ref<null | SourceImportKeyword>(null)
 const editingIngredient = ref({} as SourceImportIngredient)
 
@@ -827,7 +839,7 @@ function createRecipeFromImport() {
         importResponse.value.recipe.keywords = importResponse.value.recipe.keywords.filter(k => k.importKeyword)
 
         api.apiRecipeCreate({recipe: importResponse.value.recipe}).then(recipe => {
-            updateRecipeImage(recipe.id!, null, importResponse.value.recipe?.imageUrl).then(r => {
+            saveImportImage(recipe.id!, importResponse.value.recipe?.imageUrl, forkImageCrop.value, updateRecipeImage).then(r => { // fork: optional crop
                 if (editAfterImport.value) {
                     router.push({name: 'ModelEditPage', params: {id: recipe.id, model: 'recipe'}})
                 } else {

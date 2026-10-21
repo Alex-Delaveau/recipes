@@ -6,6 +6,7 @@ app_name = 'kitchen'
 
 urlpatterns = [
     path('recipes/', views.KitchenRecipeListView.as_view(), name='recipes'),
+    path('recipes/<int:pk>/image/', views.KitchenRecipeImageView.as_view(), name='recipe-image'),
     path('foods/', views.KitchenFoodListView.as_view(), name='foods'),
     path('foods/to-sort/', views.KitchenToSortView.as_view(), name='foods-to-sort'),
     path('foods/names/', views.KitchenFoodNamesView.as_view(), name='foods-names'),
