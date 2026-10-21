@@ -14,16 +14,19 @@ export interface DetectedDuration {
 
 const WORD_NUMBERS: Record<string, number> = {
     un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10,
-    douze: 12, quinze: 15, vingt: 20, trente: 30, quarante: 40, 'quarante-cinq': 45, cinquante: 50,
+    onze: 11, douze: 12, treize: 13, quatorze: 14, quinze: 15, seize: 16, vingt: 20, trente: 30, quarante: 40, cinquante: 50,
 }
 const FRACTIONS: Record<string, number> = {'½': 0.5, '¼': 0.25, '¾': 0.75}
 
-const NUM = String.raw`(?:\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?(?:\s*[½¼¾])?|[½¼¾]|quarante-cinq|une|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|douze|quinze|vingt|trente|quarante|cinquante)`
+const UNITS_WORDS = 'un|deux|trois|quatre|cinq|six|sept|huit|neuf'
+// compound numbers first ("vingt-cinq", "dix-huit"), or "cinq" alone would be read out of "vingt-cinq"
+const WORD = String.raw`(?:(?:vingt|trente|quarante|cinquante)(?:-et-un|-(?:${UNITS_WORDS}))?|dix-(?:sept|huit|neuf)|une|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize)`
+const NUM = String.raw`(?:\d+\s*\/\s*\d+|\d+(?:[.,]\d+)?(?:\s*[½¼¾])?|[½¼¾]|${WORD})`
 const H = String.raw`(?:heures?|hrs?|h)`
 const M = String.raw`(?:minutes?|mins?|mn)`
 const S = String.raw`(?:secondes?|secs?|s)`
 const B = String.raw`(?![\p{L}\d])`
-const BEFORE = String.raw`(?<![\p{L}\d.,/])`
+const BEFORE = String.raw`(?<![\p{L}\d.,/])(?<!\p{L}-)`
 
 // one duration, most specific forms first
 const SINGLE = new RegExp([
@@ -35,15 +38,27 @@ const SINGLE = new RegExp([
 ].join('|'), 'giu')
 
 // what may stand right before a duration to make it a range: "20 à", "2-", "entre 1 h et"
-const RANGE_PREFIX = new RegExp(String.raw`${BEFORE}(?<low>${NUM})(?:\s*(?<lowUnit>${H}|${M}|${S}))?\s*(?:à|-|–|—|ou|et)\s*$`, 'iu')
+const RANGE_PREFIX = new RegExp(String.raw`(?:(?<entre>entre)\s+)?${BEFORE}(?<low>${NUM})(?:\s*(?<lowUnit>${H}|${M}|${S}))?\s*(?<sep>à|-|–|—|ou|et)\s*$`, 'iud')
 
-const RANGE_SEP = /^\s*(?:à|-|–|—|ou|et)\s*$/iu
+const RANGE_SEP = /^\s*(?:à|-|–|—|ou)\s*$/iu
+/** "et" only makes a range after "entre": "entre 2 et 3 heures", not "ajouter 2 et 10 min plus tard" */
+const RANGE_ET = /^\s*et\s*$/iu
+const ENTRE_BEFORE = /entre\s*$/iu
+/** "étape 1 - 10 min" is a step number, not a range */
+const NOT_A_RANGE_BEFORE = /(?:étape|step|n°|no\.?)\s*$/iu
+/** "servir à 20 h", "vers 19 h": a time of day, not a duration */
+const CLOCK_BEFORE = /(?:^|[\s(])(?:à|vers|dès|avant|après|jusqu'à|jusqu’à)\s*$/iu
 
 // a bare number after hours ("1 h 30") must not be a quantity ("1 h 30 g")
 const MEASURE_AFTER = /^\s*(?:g|kg|mg|l|cl|ml|dl|cm|mm|°|%|personnes?|œufs?|oeufs?)(?![\p{L}])/iu
 
 export function parseNumber(raw: string): number {
     const s = raw.trim().toLowerCase()
+    if (/^[a-z]+(?:-[a-z]+)+$/.test(s)) {
+        // "vingt-cinq", "trente-et-un", "dix-huit"
+        const parts = s.split('-').filter(p => p != 'et').map(p => WORD_NUMBERS[p])
+        return parts.every(p => p !== undefined) ? parts.reduce((a, b) => a! + b!, 0)! : NaN
+    }
     const word = WORD_NUMBERS[s] ?? FRACTIONS[s]
     if (word !== undefined) return word
     const frac = s.match(/^(\d+)\s*\/\s*(\d+)$/)
@@ -109,24 +124,33 @@ export function detectDurations(text: string): DetectedDuration[] {
         let start = cur.start
         let low: number | undefined
         const prev = out[out.length - 1]
-        if (prev && prev.maxSeconds === undefined && prev.seconds < cur.seconds && RANGE_SEP.test(text.slice(prev.end, cur.start))) {
+        const between = prev ? text.slice(prev.end, cur.start) : ''
+        const prevIsRangeLow = prev && prev.maxSeconds === undefined && prev.seconds < cur.seconds
+            && !NOT_A_RANGE_BEFORE.test(text.slice(0, prev.start))
+            && (RANGE_SEP.test(between) || (RANGE_ET.test(between) && ENTRE_BEFORE.test(text.slice(0, prev.start))))
+        if (prev && prevIsRangeLow) {
             // the low part is a full duration itself: "15 s à 45 min", "1 h 30 à 2 h"
             out.pop()
             start = prev.start
             low = prev.seconds
         } else {
-            // bare low number taking the unit of the high part: "20 à 25 minutes", "2-3 min"
-            const prefix = text.slice(prev?.end ?? 0, cur.start).match(RANGE_PREFIX)
-            if (prefix && prefix.index !== undefined) {
-                const n = parseNumber(prefix.groups!.low ?? '')
-                const unit = prefix.groups!.lowUnit ? unitSeconds(prefix.groups!.lowUnit) : cur.unit
+            // bare low number taking the unit of the high part: "20 à 25 minutes", "2-3 min", "entre 2 et 3 heures"
+            const offset = prev?.end ?? 0
+            const prefix = text.slice(offset, cur.start).match(RANGE_PREFIX) as (RegExpMatchArray & { indices?: any }) | null
+            const g = prefix?.groups
+            if (prefix && g && (g.sep?.toLowerCase() != 'et' || g.entre)) {
+                const lowStart = offset + (prefix.indices?.groups?.low?.[0] ?? prefix.index ?? 0)
+                const n = parseNumber(g.low ?? '')
+                const unit = g.lowUnit ? unitSeconds(g.lowUnit) : cur.unit
                 const candidate = Math.round(n * unit)
-                if (Number.isFinite(candidate) && candidate > 0 && candidate < cur.seconds) {
+                if (Number.isFinite(candidate) && candidate > 0 && candidate < cur.seconds && !NOT_A_RANGE_BEFORE.test(text.slice(0, lowStart))) {
                     low = candidate
-                    start = (prev?.end ?? 0) + prefix.index
+                    start = lowStart
                 }
             }
         }
+        // "servir à 20 h": a time of day (a range like "6 à 8 h" was handled above)
+        if (low === undefined && cur.unit == 3600 && CLOCK_BEFORE.test(text.slice(0, cur.start))) continue
         out.push(low !== undefined
             ? {start, end: cur.end, text: text.slice(start, cur.end), seconds: low, maxSeconds: cur.seconds}
             : {start: cur.start, end: cur.end, text: text.slice(cur.start, cur.end), seconds: cur.seconds})

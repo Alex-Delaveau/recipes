@@ -78,10 +78,13 @@ const texts = (page, selector) => page.locator(selector).allInnerTexts()
 
 // screens that only a click-through reaches (wizard screens 2-4...): published with the route captures
 const SHOTS = join(ROOT, '.fork/screens/flows')
-async function shot(page, name) {
+async function shot(page, name, scheme = 'light') {
   mkdirSync(SHOTS, { recursive: true })
+  if (scheme === 'dark') await page.emulateMedia({ colorScheme: 'dark' })
   await page.waitForTimeout(400)
-  await page.screenshot({ path: join(SHOTS, `${name}-mobile-screen.jpg`), type: 'jpeg', quality: 80 }).catch(() => {})
+  const suffix = scheme === 'dark' ? 'dark' : 'mobile'
+  await page.screenshot({ path: join(SHOTS, `${name}-${suffix}-screen.jpg`), type: 'jpeg', quality: 80 }).catch(() => {})
+  if (scheme === 'dark') { await page.emulateMedia({ colorScheme: 'light' }); await page.waitForTimeout(200) }
 }
 
 // ---- flows ----
@@ -174,7 +177,7 @@ const FLOWS = {
       check(await eventually(() => timerRows.first().isVisible(), 3000), 'tapping it starts a timer shown in the timers bar')
       const time = () => timerRows.first().locator('.fork-timers__time').innerText()
       check(/^1[45]:\d\d$/.test(await time()), `countdown from 15:00 (${await time()})`)
-      check((await timerRows.first().innerText()).includes('Étape 2 · Curry de pois chiches'), 'timer labelled with the recipe and the step')
+      check((await timerRows.first().innerText()).includes('Mijoter · 15 min'), 'timer labelled with its step and duration')
       await timerRows.first().getByRole('button', { name: 'Mettre en pause' }).click()
       const paused = await time()
       await page.waitForTimeout(1500)
@@ -193,12 +196,16 @@ const FLOWS = {
       await page.locator('.fork-timer-link', { hasText: '16 à 18 min' }).click()
       const sheet = page.locator('.v-bottom-sheet')
       check(await eventually(() => sheet.getByText('Quelle durée ?').isVisible(), 3000), 'a range opens a duration choice')
-      const options = await sheet.locator('.v-btn').allInnerTexts()
+      const options = await sheet.locator('.v-btn', { hasText: 'min' }).allInnerTexts()
       check(options.join('|') === '16 min|17 min|18 min', `low, middle and high proposed (${options.join(', ')})`)
       await shot(page, 'timer-range')
       await sheet.getByRole('button', { name: '17 min' }).click()
-      check(await eventually(async () => (await timerRows.count()) === 3, 3000), 'choosing 17 min starts a third timer')
+      const summary = page.locator('.fork-timers__summary')
+      check(await eventually(() => summary.isVisible(), 3000) && (await summary.innerText()).includes('3 minuteurs'), 'a third timer collapses the bar into one summary row')
+      await summary.click()
+      check(await eventually(async () => (await page.locator('.fork-timers__row[role="timer"]').count()) === 3, 3000), 'the summary row opens the full list')
       await shot(page, 'timers-bar')
+      await shot(page, 'timers-bar', 'dark')
 
       // timers rely on their end time: a reload keeps them; an elapsed one shows as done
       await page.evaluate(() => {
@@ -207,8 +214,8 @@ const FLOWS = {
         localStorage.setItem('fork_timers', JSON.stringify(list))
       })
       await page.reload({ waitUntil: 'networkidle' })
-      check(await eventually(async () => (await timerRows.count()) === 3), 'timers survive a reload')
-      check(await eventually(() => page.locator('.fork-timers__row--done', { hasText: 'Terminé' }).isVisible(), 5000), 'a timer reaching its end time rings as done')
+      check(await eventually(async () => (await page.locator('.fork-timers__summary').innerText()).includes('3 minuteurs')), 'timers survive a reload')
+      check(await eventually(() => page.locator('.fork-timers__row--done', { hasText: 'Terminé' }).isVisible(), 5000), 'a timer reaching its end time rings as done (shown even when collapsed)')
 
       // cook mode shows them above its buttons, durations tappable there too
       await page.goto(`${base}/recipe/${ctx.curry}/cook`, { waitUntil: 'networkidle' })
@@ -218,8 +225,12 @@ const FLOWS = {
       check(await page.locator('.fork-cook__instructions .fork-timer-link', { hasText: '15 min' }).isVisible(), 'durations tappable in cook mode')
       check(await page.locator('.fork-cook__time').isVisible(), 'step time chip shown in cook mode')
       await shot(page, 'cook-timers')
-      for (let i = await timerRows.count(); i > 0; i--) await timerRows.first().getByRole('button', { name: 'Arrêter le minuteur' }).click()
-      check(await eventually(async () => (await timerRows.count()) === 0, 3000), 'stop removes the timers')
+      const stopButtons = page.locator('.fork-timers').getByRole('button', { name: 'Arrêter le minuteur' })
+      for (let i = 0; i < 3; i++) {
+        if (await page.locator('.fork-timers__summary[aria-expanded="false"]').count()) await page.locator('.fork-timers__summary').click()
+        await stopButtons.first().click()
+      }
+      check(await eventually(async () => !(await page.locator('.fork-timers').count()), 3000), 'stop removes the timers')
     } finally {
       await api(page, 'PATCH', `/api/step/${step.id}/`, { time: step.time ?? 0 })
       await page.evaluate(() => localStorage.removeItem('fork_timers')).catch(() => {})
@@ -246,6 +257,7 @@ const FLOWS = {
       await page.locator('.fork-cook__rating .v-rating__item').nth(3).locator('button, input').first().click()
       await page.getByLabel('Commentaire (facultatif)').fill('Un peu plus de citron')
       await shot(page, 'cook-done')
+      await shot(page, 'cook-done', 'dark')
       await page.getByRole('button', { name: 'Enregistrer' }).click()
       await page.waitForURL(/\/recipe\/\d+(\?servings=5)?$/)
       check(!page.url().includes('/cook'), 'back to the recipe after saving')
@@ -325,15 +337,16 @@ const FLOWS = {
       meal_type: { id: mealType.id, name: mealType.name }, title: '',
     })
     const titled = await api(page, 'POST', '/api/meal-plan/', {
-      title: '[flow] Restes', servings: 2, from_date: day.iso, to_date: day.iso, meal_type: { id: mealType.id, name: mealType.name },
+      title: 'Restes', note: '[flow]', servings: 2, from_date: day.iso, to_date: day.iso, meal_type: { id: mealType.id, name: mealType.name },
     })
     try {
       check(plan.status === 201 && titled.status === 201, `meal plan entries created (${plan.status}, ${titled.status})`)
       await page.reload({ waitUntil: 'networkidle' })
       check(await eventually(() => card.isVisible()), 'card shown on the phone home when a meal is planned')
       check((await card.innerText()).includes(day.tomorrow ? 'Au menu demain' : "Au menu aujourd'hui"), 'card says today (or tomorrow after 21:00)')
-      check(await card.locator('.fork-menu__row', { hasText: '[flow] Restes' }).isVisible(), 'an entry without recipe shows its title')
+      check(await card.locator('div.fork-menu__row', { hasText: 'Restes' }).isVisible(), 'an entry without recipe shows its title (no link)')
       await shot(page, 'home-menu')
+      await shot(page, 'home-menu', 'dark')
       await card.locator('a.fork-menu__row', { hasText: 'Curry' }).click()
       await page.waitForURL(/\/recipe\/\d+\?servings=4/)
       check(true, 'a tap opens the recipe at the planned servings')
@@ -443,7 +456,7 @@ const FLOWS = {
     check(await eventually(() => page.evaluate(() => window.__forkWakeLocks?.some((l) => !l.released))), 'screen kept on while the list is open')
     try {
       await context.setOffline(true)
-      check(await eventually(() => page.getByText('Hors ligne : dernier état connu de la liste').isVisible(), 3000), 'offline banner shown')
+      check(await eventually(() => page.getByText('Dernier état connu de la liste').isVisible(), 3000), 'offline banner shown')
       await row.click()
       const cart = page.locator('.fork-shopping__row--done', { hasText: 'Citron' })
       check(await eventually(() => cart.isVisible(), 3000), 'checking works offline')
@@ -451,6 +464,7 @@ const FLOWS = {
       const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fork_shopping_sync_queue') || '[]'))
       check(stored.some((q) => q.checked && ids.every((id) => q.ids.includes(id))), 'pending check stored on the device')
       await shot(page, 'shopping-offline')
+      await shot(page, 'shopping-offline', 'dark')
 
       // closing the app (here: a reload, still offline) loses nothing; the last known list is shown
       await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {})

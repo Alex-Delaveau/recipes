@@ -34,6 +34,12 @@ const CASES = [
     ['Ajouter 1 h 30 g de sucre.', [[3600]]],
     ['Compter trois quarts d’heure de cuisson.', [[2700]]],
     ['Laisser cuire 6 à 8 h à basse température.', [[21600, 28800]]],
+    ['Prolonger la cuisson de vingt-cinq minutes.', [[1500]]],
+    ['Laisser reposer dix-huit minutes à couvert.', [[1080]]],
+    ['Servir à 20 h, ou réchauffer vers 19 h 30.', []],
+    ['Étape 1 - 10 min de préparation.', [[600]]],
+    ['Ajouter les herbes 2 et 10 min plus tard.', [[600]]],
+    ['Cuire 1 h à 2 h selon la taille.', [[3600, 7200]]],
 ]
 
 test('at least 20 real French step sentences', () => assert.ok(CASES.length >= 20))

@@ -69,11 +69,11 @@
                                     <span class="fork-recipe__step-title">{{ step.name }}</span>
                                     <v-chip v-if="step.time" variant="tonal" prepend-icon="fas fa-stopwatch" class="fork-recipe__time-chip"
                                             :aria-label="$t('Fork_Timer_Start_N', {duration: `${step.time} ${$t('min')}`})"
-                                            @click="startStepTimer(step.time, index + 1)">{{ step.time }} {{ $t('min') }}</v-chip>
+                                            @click="startStepTimer(step.time, step.name, index + 1)">{{ step.time }} {{ $t('min') }}</v-chip>
                                 </div>
                                 <div class="fork-recipe__instructions markdown-body">
                                     <fork-step-text :html="step.instructionsMarkdown ?? ''" :factor="factor" :recipe-id="recipe.id"
-                                                    :label="$t('Fork_Timer_Label', {recipe: recipe.name, n: index + 1})"></fork-step-text>
+                                                    :recipe-name="recipe.name" :label="step.name?.trim() || $t('Fork_Timer_Label', {n: index + 1})"></fork-step-text>
                                 </div>
                             </template>
                         </div>
@@ -143,8 +143,8 @@ watch(() => recipe.value.servings, () => {
 
 const timers = useForkTimers()
 
-function startStepTimer(minutes: number, number: number) {
-    timers.start(minutes * 60, t('Fork_Timer_Label', {recipe: recipe.value.name, n: number}), `${minutes} ${t('min')}`, recipe.value.id)
+function startStepTimer(minutes: number, name: string | undefined, number: number) {
+    timers.start(minutes * 60, name?.trim() || t('Fork_Timer_Label', {n: number}), `${minutes} ${t('min')}`, recipe.value.id, recipe.value.name)
 }
 
 const factor = computed(() => ingredientFactor(recipe.value, servings.value))

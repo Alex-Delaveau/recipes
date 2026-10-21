@@ -33,7 +33,11 @@ function write(key: string, value: unknown) {
         if (value === null) localStorage.removeItem(key)
         else localStorage.setItem(key, JSON.stringify(value))
     } catch {
-        // storage full or blocked: the queue still works in memory
+        // storage full or blocked: the queue still works in memory; never keep an older copy as if it were current
+        try {
+            localStorage.removeItem(key)
+        } catch {
+        }
     }
 }
 

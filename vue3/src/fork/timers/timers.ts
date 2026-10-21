@@ -6,8 +6,9 @@ import {useStorage} from "@vueuse/core";
 
 export interface ForkTimer {
     id: string
-    /** what the timer is for, e.g. "Curry · étape 2" */
+    /** what the timer is for: the step name ("Mijoter"), else "Étape 2" */
     label: string
+    recipeName?: string
     /** the duration as written in the step, e.g. "20 min" */
     durationText: string
     recipeId?: number
@@ -39,13 +40,13 @@ export const useForkTimers = defineStore('fork_timers', () => {
         return timer.endAt !== null ? Math.max(0, timer.endAt - now.value) : timer.remainingMs
     }
 
-    function start(seconds: number, label: string, durationText: string, recipeId?: number) {
+    function start(seconds: number, label: string, durationText: string, recipeId?: number, recipeName?: string) {
         unlockAudio()
         askNotificationPermission()
         const durationMs = Math.round(seconds * 1000)
         timers.value = [...timers.value, {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            label, durationText, recipeId, durationMs,
+            label, durationText, recipeId, recipeName, durationMs,
             endAt: Date.now() + durationMs, remainingMs: durationMs, done: false,
         }]
         tick()
@@ -85,9 +86,10 @@ export const useForkTimers = defineStore('fork_timers', () => {
         now.value = Date.now()
         for (const t of timers.value) {
             if (t.endAt !== null && t.endAt <= now.value) {
+                // late (phone asleep, app in the background): one short alarm when the user is back, no repetition
                 const late = now.value - t.endAt > LATE_ALARM_MS
                 update(t.id, () => ({done: true, endAt: null, remainingMs: 0}))
-                if (!late) ring(t)
+                ring(t, !late)
             }
         }
         clearTimeout(tickId)
@@ -111,7 +113,14 @@ export const useForkTimers = defineStore('fork_timers', () => {
     }
 
     function beep() {
-        if (!audio || audio.state != 'running') return
+        if (!audio) return
+        if (audio.state != 'running') {
+            // suspended after the app went to the background: resuming works once the page has had a tap
+            audio.resume().then(() => {
+                if (audio?.state == 'running') beep()
+            }).catch(() => {})
+            return
+        }
         const start = audio.currentTime
         for (let i = 0; i < 3; i++) {
             const osc = audio.createOscillator()
@@ -127,7 +136,7 @@ export const useForkTimers = defineStore('fork_timers', () => {
         }
     }
 
-    function ring(timer: ForkTimer) {
+    function ring(timer: ForkTimer, repeat: boolean) {
         const started = Date.now()
         const once = () => {
             beep()
@@ -136,6 +145,8 @@ export const useForkTimers = defineStore('fork_timers', () => {
         }
         once()
         stopRinging(timer.id)
+        notify(timer)
+        if (!repeat) return
         ringing.set(timer.id, window.setInterval(() => {
             if (Date.now() - started > RING_MAX_MS || !timers.value.some(t => t.id == timer.id && t.done)) {
                 stopRinging(timer.id)
@@ -143,7 +154,6 @@ export const useForkTimers = defineStore('fork_timers', () => {
                 once()
             }
         }, RING_REPEAT_MS))
-        notify(timer)
     }
 
     function stopRinging(id: string) {
@@ -163,7 +173,7 @@ export const useForkTimers = defineStore('fork_timers', () => {
 
     function notify(timer: ForkTimer) {
         if (!('Notification' in window) || Notification.permission != 'granted' || document.visibilityState == 'visible') return
-        const title = timer.label
+        const title = timer.recipeName ? `${timer.recipeName} · ${timer.label}` : timer.label
         const options = {body: timer.durationText, tag: `fork-timer-${timer.id}`}
         navigator.serviceWorker?.getRegistration().then(reg => {
             if (reg) return reg.showNotification(title, options)
@@ -173,6 +183,11 @@ export const useForkTimers = defineStore('fork_timers', () => {
 
     // a reload or a background tab: recompute everything from the end times
     document.addEventListener('visibilitychange', () => tick())
+    // after a reload, sound needs a new user gesture: the first tap anywhere unlocks it for the running timers
+    const unlockOnTap = () => {
+        if (timers.value.length) unlockAudio()
+    }
+    document.addEventListener('pointerdown', unlockOnTap, {capture: true, passive: true})
     watch(hasRunning, (running) => {
         if (running) tick()
     })

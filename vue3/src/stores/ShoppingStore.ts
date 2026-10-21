@@ -279,7 +279,8 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
         }).catch((err) => {
             currentlyUpdating.value = false
             // fork: offline, show the last known list instead of an empty one
-            const snapshot = requestParameters.page == 1 && !requestParameters.mealplan ? loadShoppingSnapshot() : null
+            const offline = err?.name === 'FetchError' || !navigator.onLine // a server error is reported, not hidden
+            const snapshot = offline && requestParameters.page == 1 && !requestParameters.mealplan ? loadShoppingSnapshot() : null
             if (snapshot) {
                 globalEntriesMap.value = snapshot
                 applyPendingChecks(globalEntriesMap.value, itemCheckSyncQueue.value)

@@ -7,7 +7,8 @@
             </v-btn>
             <div class="fork-cook__heading">
                 <div class="fork-cook__recipe">{{ recipe?.name }}</div>
-                <div class="fork-cook__progress-label" v-if="screens.length">{{ $t('Fork_Step_Of', {n: current + 1, total: screens.length}) }}</div>
+                <div class="fork-cook__progress-label" v-if="finished">{{ $t('Fork_Cook_Done') }}</div>
+                <div class="fork-cook__progress-label" v-else-if="screens.length">{{ $t('Fork_Step_Of', {n: current + 1, total: screens.length}) }}</div>
             </div>
             <span class="fork-cook__servings" v-if="recipe">{{ $t('Fork_Servings_N', {n: servings}) }}</span>
         </header>
@@ -20,7 +21,7 @@
             <h2 class="fork-cook__group">{{ $t('Fork_Done_Rating') }}</h2>
             <v-rating v-model="rating" :length="5" size="x-large" density="comfortable" color="primary" active-color="primary" clearable
                       class="fork-cook__rating"></v-rating>
-            <v-textarea v-model="comment" :label="$t('Fork_Done_Comment')" rows="3" auto-grow class="mt-4"></v-textarea>
+            <v-textarea v-model="comment" :label="$t('Fork_Done_Comment')" rows="3" auto-grow variant="solo-filled" flat rounded="lg" class="mt-4"></v-textarea>
             <v-alert v-if="saveError" type="error" variant="tonal" :text="$t('Fork_Done_Error')"></v-alert>
         </main>
         <main class="fork-cook__content" v-else-if="recipe && screen" :key="current" aria-live="polite">
@@ -45,7 +46,7 @@
                            :ingredient-factor="factor"></step-view>
                 <div class="fork-cook__instructions markdown-body" v-else>
                     <fork-step-text :html="screen.step.instructionsMarkdown ?? ''" :factor="factor" :recipe-id="recipe.id"
-                                    :label="timerLabel(screen.number)"></fork-step-text>
+                                    :recipe-name="recipe.name" :label="timerLabel(screen.step, screen.number)"></fork-step-text>
                 </div>
             </template>
         </main>
@@ -134,12 +135,13 @@ const isLast = computed(() => current.value >= screens.value.length - 1)
 
 const timers = useForkTimers()
 
-function timerLabel(number: number) {
-    return t('Fork_Timer_Label', {recipe: recipe.value?.name ?? '', n: number})
+/** the step name tells timers apart ("Mijoter"), else its number */
+function timerLabel(step: Step, number: number) {
+    return step.name?.trim() || t('Fork_Timer_Label', {n: number})
 }
 
 function startStepTimer(step: Step, number: number) {
-    if (step.time) timers.start(step.time * 60, timerLabel(number), `${step.time} ${t('min')}`, recipe.value?.id)
+    if (step.time) timers.start(step.time * 60, timerLabel(step, number), `${step.time} ${t('min')}`, recipe.value?.id, recipe.value?.name)
 }
 
 const finished = ref(false)

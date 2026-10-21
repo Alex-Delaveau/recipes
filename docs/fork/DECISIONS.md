@@ -44,8 +44,9 @@ feuille « Quelle durée ? » avec le bas, le milieu (arrondi à la minute au-de
 - Fin : trois bips (Web Audio, aucun fichier son), vibration, répétés toutes les 3 s pendant 60 s au plus ou jusqu'à
   l'arrêt ou +1 min. Notification système seulement si l'app est en arrière-plan et que la permission est accordée. La
   permission est demandée **une fois**, au premier minuteur lancé ; un refus ne change rien d'autre.
-- Un minuteur échu pendant que l'app était fermée s'affiche « Terminé ! » au retour, sans sonner (plus d'une minute
-  de retard).
+- Un minuteur échu pendant que l'app dormait ou était fermée (plus d'une minute de retard) s'affiche « Terminé ! »
+  au retour, avec une seule alarme courte, sans répétition. Après un rechargement, le son a besoin d'un nouveau geste :
+  le premier tap n'importe où le réactive pour les minuteurs en cours.
 - Les minuteurs sont propres à l'appareil (`localStorage`), ce qui est cohérent avec SPEC : c'est un état de cuisine,
   pas une donnée partagée.
 

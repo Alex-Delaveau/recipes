@@ -58,11 +58,13 @@
         </v-form>
 
         <!-- offline in the shop: checks are kept on the device and sent when the network is back -->
-        <v-alert v-if="!online || (pendingShoppingChanges > 0 && useShoppingStore().hasFailedItems())" type="warning" variant="tonal" class="mt-3 fork-shopping__offline"
-                 icon="fa-solid fa-cloud-arrow-up" role="status" density="compact">
-            <div v-if="!online">{{ $t('Fork_Shopping_Offline') }}</div>
-            <div v-if="pendingShoppingChanges > 0" class="fork-shopping__pending">{{ $t('Fork_Shopping_Pending', {n: pendingShoppingChanges}, pendingShoppingChanges) }}</div>
-        </v-alert>
+        <div v-if="!online || (pendingShoppingChanges > 0 && useShoppingStore().hasFailedItems())" class="fork-shopping__offline mt-3" role="status">
+            <v-icon icon="fa-solid fa-cloud-arrow-up" size="18" class="fork-shopping__offline-icon"></v-icon>
+            <div>
+                <div class="fork-shopping__offline-title" v-if="!online">{{ $t('Fork_Shopping_Offline_Title') }}</div>
+                <div>{{ [!online ? $t('Fork_Shopping_Offline') : '', pendingShoppingChanges > 0 ? $t('Fork_Shopping_Pending', {n: pendingShoppingChanges}, pendingShoppingChanges) : ''].filter(Boolean).join(' · ') }}</div>
+            </div>
+        </div>
 
         <!-- loading -->
         <div v-if="!useShoppingStore().initialized" class="mt-4">
@@ -319,6 +321,26 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.fork-shopping__offline {
+    display: flex;
+    gap: var(--fork-space-3);
+    align-items: flex-start;
+    padding: var(--fork-space-3) var(--fork-space-4);
+    border-radius: var(--fork-radius-card);
+    background: rgb(var(--v-theme-surface-variant));
+    border: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+    font-size: var(--fork-text-sm);
+}
+
+.fork-shopping__offline-icon {
+    margin-top: 2px;
+    color: rgb(var(--v-theme-primary));
+}
+
+.fork-shopping__offline-title {
+    font-weight: 600;
+}
+
 .fork-shopping__title {
     font-size: var(--fork-text-xl);
     line-height: 32px;

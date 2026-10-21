@@ -48,9 +48,10 @@ onMounted(() => {
     tomorrow.value = day.getHours() >= TOMORROW_FROM_HOUR
     if (tomorrow.value) day.setDate(day.getDate() + 1)
     const date = isoDay(day)
-    new ApiApi().apiMealPlanList({fromDate: date, toDate: date}).then(r => {
+    // the API filters both bounds on the end date: ask for plans ending that day or later, keep those started by then
+    new ApiApi().apiMealPlanList({fromDate: date, pageSize: 50}).then(r => {
         plans.value = r.results
-            .filter(p => p.recipe || p.title)
+            .filter(p => isoDay(p.fromDate) <= date && (p.recipe || p.title))
             .sort((a, b) => (a.mealType.time ?? '').localeCompare(b.mealType.time ?? '') || (a.mealType.order ?? 0) - (b.mealType.order ?? 0))
             .slice(0, 3)
     }).catch(() => {

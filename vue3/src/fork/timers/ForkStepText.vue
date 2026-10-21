@@ -7,9 +7,11 @@
     <v-bottom-sheet v-model="rangeSheet">
         <v-card v-if="range" :title="$t('Fork_Timer_Choose')" :subtitle="range.text">
             <v-card-text class="d-flex flex-column ga-2">
-                <v-btn v-for="option in rangeOptions" :key="option" size="x-large" variant="tonal" block prepend-icon="fa-solid fa-stopwatch"
+                <v-btn v-for="(option, i) in rangeOptions" :key="option" size="x-large" block prepend-icon="fa-solid fa-stopwatch"
+                       :variant="rangeOptions.length == 3 && i == 1 ? 'flat' : 'tonal'" :color="rangeOptions.length == 3 && i == 1 ? 'primary' : undefined"
                        @click="startRange(option)">{{ formatDuration(option) }}
                 </v-btn>
+                <v-btn size="large" variant="text" block @click="rangeSheet = false">{{ $t('Cancel') }}</v-btn>
             </v-card-text>
         </v-card>
     </v-bottom-sheet>
@@ -26,9 +28,10 @@ import {useForkTimers} from "@/fork/timers/timers";
 const props = defineProps({
     html: {type: String, required: true},
     factor: {type: Number, required: true},
-    /** shown in the timers bar, e.g. "Curry · étape 2" */
+    /** tells the timer apart in the timers bar: the step name, else "Étape 2" */
     label: {type: String, required: true},
     recipeId: {type: Number, required: false},
+    recipeName: {type: String, required: false},
 })
 
 const timers = useForkTimers()
@@ -56,30 +59,40 @@ function onActivate(event: Event) {
         range.value = {low: seconds, high: max, text}
         rangeSheet.value = true
     } else if (seconds > 0) {
-        timers.start(seconds, props.label, text, props.recipeId)
+        timers.start(seconds, props.label, text, props.recipeId, props.recipeName)
     }
 }
 
 function startRange(seconds: number) {
-    if (range.value) timers.start(seconds, props.label, range.value.text, props.recipeId)
+    if (range.value) timers.start(seconds, props.label, formatDuration(seconds), props.recipeId, props.recipeName)
     rangeSheet.value = false
 }
 </script>
 
 <style>
 /* not scoped: the links live inside the compiled step HTML */
+.fork-timer-link::before {
+    /* stopwatch (Font Awesome, already loaded by the app): says "tap to start a timer" */
+    content: "\f2f2";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 0.75em;
+    margin-right: 0.3em;
+    color: rgb(var(--v-theme-primary));
+    text-decoration: none;
+    display: inline-block;
+}
+
 .fork-timer-link {
-    /* the vertical padding enlarges the tap area to 44 px without moving the lines; the tint stays on the text */
+    /* the vertical padding enlarges the tap area to 44 px without moving the lines */
     padding: 10px 2px;
     margin: 0 -2px;
-    background-clip: content-box;
-    background-color: rgba(var(--v-theme-primary), 0.14);
+    /* text keeps the on-surface color (primary on cream is under 4.5:1 at 16 px); underline and icon carry the accent */
     color: inherit;
     font-weight: 600;
-    border-radius: 6px;
     cursor: pointer;
-    text-decoration: underline dotted rgb(var(--v-theme-primary));
-    text-underline-offset: 3px;
+    text-decoration: underline solid 2px rgb(var(--v-theme-primary));
+    text-underline-offset: 4px;
     -webkit-tap-highlight-color: transparent;
 }
 
