@@ -33,6 +33,26 @@ class KitchenFood(models.Model):
     aisle_confirmed = models.BooleanField(default=False)
     # name the user chose to keep on the "names to fix" screen ("4 épices"): not proposed again while it stays the same
     kept_name = models.CharField(max_length=128, blank=True, default='')
+
+    # price (M7): the amount itself is the upstream "Price" property of the food; the fork keeps where it comes from
+    PRICE_ESTIMATED = 'estimated'
+    PRICE_CONFIRMED = 'confirmed'
+    PRICE_SOURCES = ((PRICE_ESTIMATED, 'estimated'), (PRICE_CONFIRMED, 'confirmed'))
+    # empty: no price, or a price set outside the fork (upstream screens), which counts as confirmed
+    price_source = models.CharField(max_length=16, choices=PRICE_SOURCES, blank=True, default='')
+    # number of observations the price stands for (estimate = 1, each adjustment after shopping adds one, capped):
+    # the weight of the current price in the smoothing of the next adjustment
+    price_weight = models.PositiveSmallIntegerField(default=1)
+    # optional package bought as a whole ("500 g for 1.20 €"): amount in grams, millilitres or pieces
+    KIND_WEIGHT = 'g'
+    KIND_VOLUME = 'ml'
+    KIND_PIECE = 'piece'
+    KINDS = ((KIND_WEIGHT, 'g'), (KIND_VOLUME, 'ml'), (KIND_PIECE, 'piece'))
+    package_amount = models.DecimalField(max_digits=16, decimal_places=4, null=True, blank=True)
+    package_kind = models.CharField(max_length=8, choices=KINDS, blank=True, default='')
+    package_price = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    # grams per piece ("1 onion = 150 g"), to convert counted ingredients when the price is per kilo (and back)
+    piece_weight = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     space = models.ForeignKey(Space, on_delete=models.CASCADE)
 
     objects = ScopedManager(space='space')
