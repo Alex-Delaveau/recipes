@@ -446,3 +446,6 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
   Nouveau parcours `week` ; `p1` et `draw` adaptés.
 - « Toutes les recettes » : aperçu de 6 sur l'accueil + page `/recipes/all` (grille ou liste, groupée par lettre, barre de
   lettres, recherche). Parcours `allrecipes`.
+- Recadrage de la photo : fenêtre « Recadrer » (glisser, zoomer, 16:9 / 4:3 / 1:1) à l'import (étape Image et
+  dernière étape) et dans l'assistant de saisie ; coupe faite par le serveur (`kitchen/images.py`). Tests pytest
+  (`test_images.py`), parcours `importcrop` et `wizard` étendu (photo recadrée en carré vérifiée).
