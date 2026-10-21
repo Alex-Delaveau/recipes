@@ -23,9 +23,9 @@ from kitchen.names import DESCRIPTORS, normalize, strip_accents
 # canonical unit name -> spellings (accent-free, lower case, without dots); the canonical name is what gets stored
 UNITS = {
     'c. à soupe': ['c a soupe', 'c a s', 'cas', 'cs', 'cuillere a soupe', 'cuilleres a soupe', 'cuillere soupe', 'c soupe', 'cuil a soupe',
-                   'cuill a soupe', 'tbsp', 'cs bombee', 'grosse cuillere'],
+                   'cuill a soupe', 'tbsp', 'cs bombee', 'grosse cuillere', 'c s', 'cuilleree a soupe', 'cuillerees a soupe'],
     'c. à café': ['c a cafe', 'c a c', 'cac', 'cc', 'cuillere a cafe', 'cuilleres a cafe', 'cuillere cafe', 'c cafe', 'cuil a cafe', 'cuill a cafe',
-                  'tsp', 'petite cuillere', 'cuillere a the', 'c a the'],
+                  'tsp', 'petite cuillere', 'cuillere a the', 'c a the', 'c c', 'cuilleree a cafe', 'cuillerees a cafe'],
     'g': ['g', 'gr', 'gramme', 'grammes'],
     'kg': ['kg', 'kilo', 'kilos', 'kilogramme', 'kilogrammes'],
     'mg': ['mg'],
@@ -231,6 +231,10 @@ def parse_french(parser, text):
         # a unit only follows a quantity: "Noisettes concassées" is a food, not 2 "noisette" units
         unit, rest = match_unit(rest)
     rest = _ARTICLE.sub('', rest.strip()).strip()
+    extra = _EXTRA_AMOUNT.search(rest)
+    if extra:
+        note_parts.append(extra.group(0).strip())
+        rest = rest[:extra.start()].strip()
     food, note = split_note(rest)
     if note:
         note_parts.append(note)
@@ -241,6 +245,48 @@ def parse_french(parser, text):
     if existing:
         food = existing
     return float(amount), unit, food, ', '.join(note_parts)[:256]
+
+
+# "+ 30 ml", "+ 1 c. à soupe" after the food: a second quantity, never part of the name
+_EXTRA_AMOUNT = re.compile(rf'\s*\+\s*{_NUMBER}.*$')
+# what an old import left in front of a food name: the end of "c. à soupe", "cuillère à café"...
+# a quantity followed by a space (never "100% cacao")
+_LEADING_AMOUNT = re.compile(rf'^{_NUMBER}(?=\s)\s*')
+_UNIT_LEFTOVER = re.compile(r'^(?:(?:c\.?|cuill[eè]re?s?|cuiller[ée]es?)\s*)?(?:à|a)\s+(?:soupe|caf[ée]|th[ée])\b\.?\s*'
+                            r'(?:(?:ras|rases?|bomb[ée]e?s?|pleines?)\b\s*)?', re.IGNORECASE)
+
+
+def clean_food_name(name):
+    """
+    Food name without what an import left around it: "à café coriandre en poudre" -> "coriandre en poudre",
+    "à soupe d'huile" -> "huile", "d'eau + 30 ml" -> "eau", "200 g de farine" -> "farine". Returns the name unchanged
+    when there is nothing to remove. Careful with real names: "4 épices", "7 Up", "100% cacao", "Du Barry" stay, and
+    descriptions such as "en poudre" stay too (they make a different food).
+    """
+    text = re.sub(r'\s+', ' ', str(name)).strip()
+    # a lower case leading article is a leftover ("de la crème"); a capital one is part of a name ("Du Barry")
+    removed = bool(re.match(r"^(?:de la |de l['’]|des |du |de |d['’])", text))
+    for _ in range(3):  # "2 c. à soupe de ..." needs several passes
+        before = text
+        text = _EXTRA_AMOUNT.sub('', text).strip()
+        text = _UNIT_LEFTOVER.sub('', text).strip()
+        m = _LEADING_AMOUNT.match(text)
+        if m:
+            unit, rest = match_unit(text[m.end():])
+            if unit:  # "200 g de farine"; a bare number stays ("4 épices")
+                text = rest
+            elif _ARTICLE.match(text[m.end():]):  # "2 de ..."
+                text = text[m.end():]
+        elif _key(text).startswith(('c a ', 'cuillere', 'cuilleree')):
+            unit, rest = match_unit(text)
+            if unit:
+                text = rest
+        removed = removed or text != before
+        if removed:
+            text = _ARTICLE.sub('', text).strip(' ,;:-')
+        if text == before:
+            break
+    return text or str(name).strip()
 
 
 def install():

@@ -487,6 +487,63 @@ const FLOWS = {
   },
 
   // M3: food tree, move in 2 taps, quick edit, "no aisle" filter
+  // clear the list: only the cart, or everything; confirmed first, undo brings everything back
+  async clearshopping(page) {
+    const all = async () => (await api(page, 'GET', '/api/shopping-list-entry/?page_size=200')).data.results
+    const before = await all()
+    const food = async (q) => (await api(page, 'GET', `/api/food/?query=${q}&page_size=1`)).data.results[0]
+    const ail = await food('Ail'), poivron = await food('Poivron')
+    const inCart = (await api(page, 'POST', '/api/shopping-list-entry/', { food: { id: ail.id, name: ail.name }, amount: 1, unit: null })).data
+    await api(page, 'PATCH', `/api/shopping-list-entry/${inCart.id}/`, { checked: true })
+    const toBuy = (await api(page, 'POST', '/api/shopping-list-entry/', { food: { id: poivron.id, name: poivron.name }, amount: 2, unit: null })).data
+
+    await page.goto(base + '/shopping', { waitUntil: 'networkidle' })
+    await eventually(() => page.locator('.fork-shopping__row--done', { hasText: /^\s*Ail/ }).first().isVisible())
+    const menu = () => page.getByRole('button', { name: 'Options' }).click()
+
+    // the cart only
+    await menu()
+    await page.getByText('Retirer les articles du panier').click()
+    const dialog = page.locator('.fork-shopping__clear')
+    check(await eventually(() => dialog.isVisible(), 3000), 'confirmation before removing the cart')
+    await dialog.getByRole('button', { name: 'Retirer' }).click()
+    check(await eventually(async () => (await page.locator('.fork-shopping__row--done').count()) === 0, 6000), 'cart emptied on screen')
+    check(await eventually(async () => !(await all()).some(e => e.id === inCart.id), 6000), 'checked entry deleted on the server')
+    check((await all()).some(e => e.id === toBuy.id), 'items still to buy are kept')
+
+    // everything: cancel first, then confirm
+    const rows = async () => page.locator('.fork-shopping__row').count()
+    const n = await rows()
+    await menu()
+    await page.getByText('Vider la liste').click()
+    check(await eventually(() => dialog.getByText(/articles? seront? supprimés? de la liste/).isVisible(), 3000), 'the dialog says how many items go')
+    await dialog.getByRole('button', { name: 'Annuler' }).click()
+    check(await eventually(async () => !(await dialog.isVisible()), 3000) && (await rows()) === n, 'cancel keeps the list')
+    await menu()
+    await page.getByText('Vider la liste').click()
+    await shot(page, 'shopping-clear-mobile')
+    await dialog.getByRole('button', { name: 'Vider' }).click()
+    check(await eventually(() => page.getByText('La liste de courses est vide.').isVisible(), 8000), 'list emptied')
+    check(await eventually(async () => (await all()).filter(e => before.some(b => b.id === e.id) || e.id === toBuy.id).length === 0, 6000), 'entries deleted on the server')
+
+    // undo: the whole list comes back, then the cart (the undo button keeps both)
+    await page.locator('.v-snackbar').getByRole('button', { name: 'Annuler' }).click()
+    check(await eventually(async () => (await rows()) === n, 8000), 'undo brings every item back')
+    await page.getByRole('button', { name: 'Annuler' }).first().click()
+    const checkedBefore = before.filter(e => e.checked).length
+    check(await eventually(async () => (await page.locator('.fork-shopping__row--done').count()) >= checkedBefore + 1, 8000), 'undo again brings the cart back')
+    check(await eventually(async () => (await all()).length === before.length + 2, 6000), 'entries recreated on the server')
+
+    // restore: drop the two items added by this flow (recreated by the undo)
+    await page.waitForTimeout(800)
+    const mine = [(e) => e.food?.id === poivron.id && Number(e.amount) === 2, (e) => e.food?.id === ail.id && Number(e.amount) === 1]
+    for (const added of mine) {
+      const extra = (await all()).filter(added).slice(before.filter(added).length)
+      for (const e of extra) await api(page, 'DELETE', `/api/shopping-list-entry/${e.id}/`)
+    }
+    check((await all()).length === before.length, `list restored (${before.length} entries)`)
+  },
+
   async foods(page) {
     await page.goto(base + '/foods', { waitUntil: 'networkidle' })
     const family = page.locator('.fork-foods__family', { hasText: 'Légumes' })
@@ -542,6 +599,75 @@ const FLOWS = {
     check(after.supermarket_category?.name === 'Épicerie salée', 'aisle saved')
     check(left !== (await page.locator('text=/encore \\d+|Tous les aliments/').first().innerText()), 'queue counter decreases')
     await api(page, 'DELETE', `/api/food/${food.id}/`)
+
+    // not something to sort: a bad name, never bought, not a food at all
+    const make = async (name) => (await api(page, 'POST', '/api/food/', { name })).data
+    const bad = await make("d'Aaazeau + 30 ml"), never = await make('Aaazglace pilée'), junk = await make('Aaaznouveaux')
+    await page.reload({ waitUntil: 'networkidle' })
+    const showFood = async (name) => {
+      for (let i = 0; i < 60; i++) {
+        if ((await page.locator('.fork-sort__food').innerText().catch(() => '')).includes(name)) return true
+        await page.getByRole('button', { name: 'Plus tard' }).click()
+      }
+      return false
+    }
+    check(await showFood("d'Aaazeau"), 'bad name in the queue')
+    await page.getByRole('button', { name: 'Renommer' }).click()
+    await page.locator('.v-dialog').getByLabel('Nouveau nom').fill('Aaazeau')
+    await page.locator('.v-dialog').getByRole('button', { name: 'Sauvegarder' }).click()
+    check(await eventually(async () => (await api(page, 'GET', `/api/food/${bad.id}/`)).data?.name === 'Aaazeau', 5000), 'renamed from the queue')
+    check(await eventually(() => page.locator('.fork-sort__food', { hasText: 'Aaazeau' }).isVisible(), 3000), 'still to sort under its new name')
+
+    check(await showFood('Aaazglace'), 'never-bought food in the queue')
+    await page.getByRole('button', { name: 'Jamais en courses' }).click()
+    check(await eventually(async () => (await api(page, 'GET', `/api/food/${never.id}/`)).data?.ignore_shopping === true, 5000), '"never in shopping" saved')
+    check(await eventually(async () => !(await page.locator('.fork-sort__food', { hasText: 'Aaazglace' }).count()), 3000), 'and it leaves the queue')
+
+    check(await showFood('Aaaznouveaux'), 'junk food in the queue')
+    await page.getByRole('button', { name: 'Supprimer' }).click()
+    const dlg = page.locator('.fork-sort__delete')
+    check(await eventually(() => dlg.getByText("Aucune recette ne l'utilise.").isVisible(), 3000), 'delete asks first (no recipe uses it)')
+    await shot(page, 'tosort-delete')
+    await dlg.getByRole('button', { name: 'Supprimer' }).click()
+    check(await eventually(async () => (await api(page, 'GET', `/api/food/${junk.id}/`)).status === 404, 5000), 'food deleted')
+    for (const f of [bad, never]) await api(page, 'DELETE', `/api/food/${f.id}/`)
+    const autos = (await api(page, 'GET', '/api/automation/?page_size=200')).data
+    for (const a of (autos.results ?? autos).filter((x) => /aaaz/i.test(x.param_1 || ''))) await api(page, 'DELETE', `/api/automation/${a.id}/`)
+  },
+
+  // names left over by imports: one list, merge into the existing food or rename, all at once
+  async foodnames(page) {
+    const make = async (name) => (await api(page, 'POST', '/api/food/', { name })).data
+    const huile = await make('Zzhuile')
+    const created = [await make("à soupe d'zzhuile"), await make('à café zzcumin moulu'), await make('à soupe zzcumin moulu')]
+    const kept = await make('de la zzcrème')
+    await page.goto(base + '/foods', { waitUntil: 'networkidle' })
+    check(await eventually(() => page.getByText(/4 noms d'aliments à corriger/).isVisible()), 'foods page announces the names to fix')
+    await page.getByText(/noms d'aliments à corriger/).click()
+    await eventually(() => page.locator('.fork-names__row').first().isVisible())
+    const rows = page.locator('.fork-names__row', { hasText: /zz/i })
+    check((await rows.count()) === 4, 'the four names are listed')
+    // a name to keep as it is
+    await page.locator('.fork-names__row', { hasText: 'de la zzcrème' }).getByRole('button', { name: 'Options' }).click()
+    await page.getByText('Garder ce nom').click()
+    check(await eventually(async () => (await rows.count()) === 3, 4000), '"keep this name" removes it from the list')
+    await page.reload({ waitUntil: 'networkidle' })
+    await eventually(() => page.locator('.fork-names__row').first().isVisible())
+    check((await rows.count()) === 3, 'and it stays out after a reload')
+    check(await page.locator('.fork-names__row', { hasText: "à soupe d'zzhuile" }).getByText('fusion avec « Zzhuile »').isVisible(), 'merge into the existing food proposed')
+    await shot(page, 'food-names')
+    await page.getByRole('button', { name: /Tout corriger/ }).click()
+    await page.locator('.v-dialog').getByRole('button', { name: 'Corriger' }).click()
+    check(await eventually(() => page.getByText('Aucun nom à corriger.').isVisible(), 15000), 'all fixed')
+    const status = async (f) => (await api(page, 'GET', `/api/food/${f.id}/`)).status
+    check((await status(created[0])) === 404 && (await status(huile)) === 200, '"à soupe d\'zzhuile" merged into Zzhuile')
+    const cumin = (await api(page, 'GET', '/api/food/?query=zzcumin&page_size=10')).data.results
+    check(cumin.length === 1 && cumin[0].name === 'zzcumin moulu', `one "zzcumin moulu" left (${cumin.map((f) => f.name).join(', ')})`)
+    const autos = (await api(page, 'GET', '/api/automation/?page_size=200')).data
+    const aliases = (autos.results ?? autos).filter((x) => x.type === 'FOOD_ALIAS' && /zz/i.test(x.param_1 || ''))
+    check(aliases.length === 3, `old names kept as aliases (${aliases.length})`)
+    for (const a of aliases) await api(page, 'DELETE', `/api/automation/${a.id}/`)
+    for (const f of [huile, kept, ...cumin]) await api(page, 'DELETE', `/api/food/${f.id}/`)
   },
 
   // M3: generic aisle order, set once, followed by the shopping list
@@ -585,6 +711,30 @@ const FLOWS = {
     check(alias && /zzflow/i.test(alias.param_2), `FOOD_ALIAS created (${alias?.param_1} -> ${alias?.param_2})`)
     if (alias) await api(page, 'DELETE', `/api/automation/${alias.id}/`)
     for (const f of [a, b]) await api(page, 'DELETE', `/api/food/${f.id}/`)
+
+    // neither name fits: both merged under a third one
+    const c = (await api(page, 'POST', '/api/food/', { name: 'zzognion' })).data
+    const d = (await api(page, 'POST', '/api/food/', { name: 'Zzognions' })).data
+    await page.reload({ waitUntil: 'networkidle' })
+    const pair = page.locator('.v-card', { hasText: /zzognion/i })
+    check(await eventually(() => pair.first().isVisible()), 'second pair proposed')
+    await pair.first().getByRole('button', { name: 'Autre nom…' }).click()
+    await page.locator('.v-dialog').getByLabel('Nouveau nom').fill('Zzoignon')
+    await shot(page, 'duplicates-other-name')
+    await page.locator('.v-dialog').getByRole('button', { name: 'Fusionner' }).click()
+    check(await eventually(async () => !(await pair.count()), 6000), 'pair gone')
+    const now = (await api(page, 'GET', '/api/food/?query=zzo&page_size=10')).data.results
+    check(now.length === 1 && now[0].name === 'Zzoignon', `one food under the new name (${now.map((f) => f.name).join(', ')})`)
+    const autos2 = (await api(page, 'GET', '/api/automation/?page_size=200')).data
+    const aliases = (autos2.results ?? autos2).filter((x) => x.type === 'FOOD_ALIAS' && /zzognion/i.test(x.param_1 || ''))
+    check(aliases.length === 2 && aliases.every((x) => x.param_2 === 'Zzoignon'), `both old names point to it (${aliases.map((x) => x.param_1 + '->' + x.param_2).join(', ')})`)
+    for (const x of aliases) await api(page, 'DELETE', `/api/automation/${x.id}/`)
+    for (const f of now) await api(page, 'DELETE', `/api/food/${f.id}/`)
+
+    // merge everything: asks first (the demo duplicates are kept: cancelled)
+    await page.getByRole('button', { name: /Tout fusionner/ }).click()
+    check(await eventually(() => page.locator('.v-dialog').getByText(/Fusionner \d+ doublons? \?/).isVisible(), 3000), '"merge all" asks first, with the count')
+    await page.locator('.v-dialog').getByRole('button', { name: 'Annuler' }).click()
   },
 
   // M3 + M4: URL import review: French recognition, closest existing food proposed; choosing it creates a FOOD_ALIAS

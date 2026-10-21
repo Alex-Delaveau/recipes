@@ -16,7 +16,12 @@
             <p>{{ $t('Fork_No_Duplicates') }}</p>
         </div>
 
-        <v-row v-else dense>
+        <template v-else>
+        <v-btn color="primary" variant="flat" size="large" block class="mb-4" :loading="mergingAll" @click="confirmAll = true">
+            {{ $t('Fork_Merge_All', {n: pairs.length}) }}
+            <template #loader>{{ $t('Fork_Progress', {done: progress, n: progressTotal}) }}</template>
+        </v-btn>
+        <v-row dense>
             <v-col cols="12" md="6" v-for="pair in pairs" :key="pair.drop.id + '-' + pair.keep.id">
                 <v-card class="h-100">
                     <v-card-text>
@@ -31,14 +36,15 @@
                         <div class="text-body-2 text-medium-emphasis">{{ $t('Fork_Duplicate_Reason_' + pair.reason) }}</div>
                         <div class="text-body-2 mt-2">{{ preview(pair) }}</div>
                     </v-card-text>
-                    <v-card-actions class="px-4 pb-4 ga-2">
+                    <v-card-actions class="px-4 pb-4 ga-2 flex-wrap justify-end">
                         <v-btn variant="text" size="large" @click="dismiss(pair)">{{ $t('Fork_Not_Duplicate') }}</v-btn>
-                        <v-spacer></v-spacer>
+                        <v-btn variant="text" size="large" @click="openOtherName(pair)">{{ $t('Fork_Other_Name') }}</v-btn>
                         <v-btn color="primary" variant="flat" size="large" @click="confirming = pair">{{ $t('Merge') }}</v-btn>
                     </v-card-actions>
                 </v-card>
             </v-col>
         </v-row>
+        </template>
     </v-container>
 
     <v-dialog :model-value="confirming != null" max-width="480" @update:model-value="(v: boolean) => { if (!v) confirming = null }">
@@ -54,6 +60,36 @@
             </v-card-actions>
         </v-card>
     </v-dialog>
+
+    <!-- all at once, as shown (swap a pair first to keep the other name) -->
+    <v-dialog v-model="confirmAll" max-width="480">
+        <v-card :title="$t('Fork_Merge_All_Title', {n: pairs.length}, pairs.length)">
+            <v-card-text class="pt-1">{{ $t('Fork_Merge_All_Text') }}</v-card-text>
+            <v-card-actions class="pa-4">
+                <v-spacer></v-spacer>
+                <v-btn variant="text" size="large" @click="confirmAll = false">{{ $t('Cancel') }}</v-btn>
+                <v-btn color="primary" variant="flat" size="large" @click="mergeAll()">{{ $t('Merge') }}</v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
+
+    <!-- neither name fits: both merged under a third one ("ognion" + "Ognions" -> "Oignon") -->
+    <v-dialog :model-value="naming != null" max-width="480" @update:model-value="(v: boolean) => { if (!v) naming = null }">
+        <v-card v-if="naming" :title="$t('Fork_Other_Name')">
+            <v-card-text class="pt-1">
+                <p class="mb-4">{{ $t('Fork_Other_Name_Pair', {a: naming.drop.name, b: naming.keep.name}) }}</p>
+                <v-form @submit.prevent="mergeUnder()">
+                    <v-text-field v-model="otherName" :label="$t('Fork_New_Name')" autofocus hide-details="auto" autocomplete="off"
+                                  :hint="$t('Fork_Other_Name_Help')" persistent-hint></v-text-field>
+                </v-form>
+            </v-card-text>
+            <v-card-actions class="pa-4">
+                <v-spacer></v-spacer>
+                <v-btn variant="text" size="large" @click="naming = null">{{ $t('Cancel') }}</v-btn>
+                <v-btn color="primary" variant="flat" size="large" :disabled="!otherName.trim()" :loading="merging" @click="mergeUnder()">{{ $t('Merge') }}</v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -62,7 +98,7 @@ import {useI18n} from "vue-i18n";
 import {ApiApi, Food} from "@/openapi";
 import {ErrorMessageType, PreparedMessage, useMessageStore} from "@/stores/MessageStore";
 import {dismissDuplicate, KitchenDuplicate, listDuplicates} from "@/fork/api";
-import {createFoodAlias} from "@/fork/foods";
+import {createFoodAlias, mergeFood, renameOrMergeFood} from "@/fork/foods";
 
 const {t} = useI18n()
 
@@ -102,6 +138,63 @@ async function merge(pair: KitchenDuplicate) {
         // the merge is done: an alias failure is reported but does not undo it
         await createFoodAlias(pair.drop.name, pair.keep.name, t)
         useMessageStore().addPreparedMessage(PreparedMessage.MERGE_SUCCESS)
+    } catch (err) {
+        useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
+    } finally {
+        merging.value = false
+    }
+}
+
+const confirmAll = ref(false)
+const mergingAll = ref(false)
+const progress = ref(0)
+const progressTotal = ref(0)
+const naming = ref<KitchenDuplicate | null>(null)
+const otherName = ref('')
+
+/** every pair as shown, one after the other; a food already merged away in this run is skipped */
+async function mergeAll() {
+    confirmAll.value = false
+    mergingAll.value = true
+    const todo = [...pairs.value]
+    const gone = new Set<number>()
+    progress.value = 0
+    progressTotal.value = todo.length
+    try {
+        for (const pair of todo) {
+            if (!gone.has(pair.drop.id) && !gone.has(pair.keep.id)) {
+                await mergeFood(pair.drop, pair.keep, t)
+                gone.add(pair.drop.id)
+            }
+            progress.value++
+        }
+        useMessageStore().addPreparedMessage(PreparedMessage.MERGE_SUCCESS)
+    } catch (err) {
+        useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
+    } finally {
+        mergingAll.value = false
+        load()
+    }
+}
+
+function openOtherName(pair: KitchenDuplicate) {
+    otherName.value = pair.keep.name
+    naming.value = pair
+}
+
+/** both foods under a new name: merged together, then renamed (or merged into the food that has that name) */
+async function mergeUnder() {
+    const pair = naming.value
+    const name = otherName.value.trim()
+    if (!pair || !name) return
+    merging.value = true
+    try {
+        await new ApiApi().apiFoodMergeUpdate({id: pair.drop.id, target: pair.keep.id, food: {} as Food})
+        if (pair.drop.name.toLowerCase() != name.toLowerCase()) await createFoodAlias(pair.drop.name, name, t).catch(() => {})
+        await renameOrMergeFood(pair.keep, name, t)
+        naming.value = null
+        useMessageStore().addPreparedMessage(PreparedMessage.MERGE_SUCCESS)
+        load()
     } catch (err) {
         useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
     } finally {

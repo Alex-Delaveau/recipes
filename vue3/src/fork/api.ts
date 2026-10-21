@@ -88,6 +88,39 @@ export interface KitchenToSortItem {
     name: string
     suggested: KitchenCategory | null
     source: string
+    recipes: number
+    shopping: number
+    children: number
+}
+
+/** a food name left over by an import, with its fix: merge into `target`, else rename to `clean` */
+export interface KitchenNameFix {
+    id: number
+    name: string
+    clean: string
+    target: { id: number, name: string, renamed: boolean } | null
+    recipes: number
+    shopping: number
+}
+
+export async function listNamesToFix(): Promise<{ count: number, results: KitchenNameFix[] }> {
+    return kitchenFetch('foods/names/')
+}
+
+/** keep this name: it leaves the "names to fix" list */
+export function keepFoodName(foodId: number) {
+    return kitchenFetch(`foods/${foodId}/keep-name/`, {method: 'POST'})
+}
+
+/** delete a food no recipe uses and that is not a family; the server checks at delete time */
+export async function deleteUnusedFood(foodId: number): Promise<'family' | 'used' | null> {
+    const response = await fetch(`/api/kitchen/foods/${foodId}/delete/`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') ?? ''},
+    })
+    if (response.status == 409) return (await response.json()).reason
+    if (!response.ok) throw new Error(`kitchen delete: HTTP ${response.status}`)
+    return null
 }
 
 export interface KitchenDuplicateSide {
@@ -109,10 +142,11 @@ export interface KitchenFoodMatch {
     closest: { id: number, name: string, score: number, reason: string } | null
 }
 
-export async function listKitchenFoods(): Promise<{ foods: KitchenFoodItem[], toSort: number }> {
+export async function listKitchenFoods(): Promise<{ foods: KitchenFoodItem[], toSort: number, namesToFix: number }> {
     const data = await kitchenFetch('foods/')
     return {
         toSort: data.to_sort,
+        namesToFix: data.names_to_fix ?? 0,
         foods: data.foods.map((f: any) => ({
             id: f.id, name: f.name, pluralName: f.plural_name, depth: f.depth, numchild: f.numchild, family: f.family,
             category: f.category, ignoreShopping: f.ignore_shopping, isFamily: f.is_family, aisleConfirmed: f.aisle_confirmed,

@@ -287,6 +287,75 @@ def find_duplicates(space, limit=200):
     return result[:limit]
 
 
+def names_to_fix(space, limit=500):
+    """
+    Foods whose name kept a piece of an ingredient line ("à soupe d'huile", "d'eau + 30 ml"), with the fix:
+    - `target`: an existing food with the clean name (plural, case and accents aside): merge into it;
+    - otherwise rename to `clean`. Several foods cleaning to the same new name: the most used is renamed, the others
+      are merged into it (their target is that food, `target.renamed` is true).
+    """
+    from kitchen.french import clean_food_name
+    foods = list(Food.objects.filter(space=space).values_list('id', 'name', 'plural_name'))
+    kept = dict(KitchenFood.objects.filter(space=space).exclude(kept_name='').values_list('food_id', 'kept_name'))
+    dirty = {}
+    for fid, name, _plural in foods:
+        if kept.get(fid) == name:
+            continue
+        clean = clean_food_name(name)
+        if clean != name and normalize(clean):
+            dirty[fid] = (name, clean)
+    if not dirty:
+        return []
+    existing = {}
+    for fid, name, plural in foods:
+        if fid in dirty:
+            continue
+        for n in (name, plural):
+            if n:
+                existing.setdefault(normalize(n), (fid, name))
+    counts = usage_counts(list(dirty))
+    renamed = {}  # normalized clean name -> (id, clean name) of the food renamed to it
+    result = []
+    for fid in sorted(dirty, key=lambda x: (-sum(counts[x]), dirty[x][0])):
+        name, clean = dirty[fid]
+        key = normalize(clean)
+        target = None
+        if key in existing:
+            target = {'id': existing[key][0], 'name': existing[key][1], 'renamed': False}
+        elif key in renamed:
+            target = {'id': renamed[key][0], 'name': renamed[key][1], 'renamed': True}
+        else:
+            renamed[key] = (fid, clean)
+        result.append({'id': fid, 'name': name, 'clean': clean, 'target': target,
+                       'recipes': counts[fid][0], 'shopping': counts[fid][1]})
+    # renames first, so that the merges into a renamed food find it under its new name
+    result.sort(key=lambda r: (r['target'] is not None, r['clean'].lower()))
+    return result[:limit]
+
+
+def keep_food_name(food):
+    """the user keeps this name: no longer proposed on the "names to fix" screen (until it changes)"""
+    state = kitchen_food(food)
+    state.kept_name = food.name
+    state.save(update_fields=['kept_name'])
+
+
+def delete_unused_food(food):
+    """
+    Delete a food only when nothing in a recipe depends on it. Upstream deletes the ingredient lines of a deleted food
+    (and of its children, the tree deletes them too), so a family or a food used in a recipe is refused.
+    Returns None when deleted, else the reason: 'family' or 'used'.
+    """
+    with transaction.atomic():
+        food = Food.objects.select_for_update().get(pk=food.pk)
+        if food.numchild > 0:
+            return 'family'
+        if Ingredient.objects.filter(food=food).exists():
+            return 'used'
+        food.delete()
+    return None
+
+
 def dismiss_duplicate(space, id_a, id_b):
     a, b = min(id_a, id_b), max(id_a, id_b)
     NotDuplicate.objects.get_or_create(space=space, food_a_id=a, food_b_id=b)

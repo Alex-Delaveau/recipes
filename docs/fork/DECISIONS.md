@@ -3,6 +3,48 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — Nettoyage des aliments : noms abîmés, « À ranger », doublons
+**Contexte** : Alex a 439 aliments « sans famille ». Beaucoup sont des noms abîmés par d'anciens imports (« à café
+coriandre en poudre », « à soupe d'huile », « d'eau + 30 ml »). « À ranger » n'offre pas d'issue pour un aliment qui ne
+se range pas (« nouveaux »). Les doublons doivent pouvoir être fusionnés en masse, ou sous un troisième nom.
+**Choix** :
+- **Noms à corriger** : nouvel écran, `kitchen.french.clean_food_name` ; la carte de la page Aliments le signale.
+  - Il retire les restes d'unité (« à soupe », « à café »), la quantité suivie d'une unité, « + 30 ml » et l'article.
+  - Il garde les vrais noms : « 4 épices », « 7 Up », « 100% cacao », « Du Barry », et « en poudre ».
+  - Fusion avec l'aliment existant (pluriel, accents et casse ignorés), sinon renommage. Quand plusieurs noms donnent
+    le même nom, le plus utilisé est renommé et les autres y sont fusionnés, par identifiant.
+  - L'ancien nom devient un alias. « Garder ce nom » est mémorisé dans `kitchen` (champ `KitchenFood.kept_name`,
+    migration `kitchen 0002`) tant que le nom ne change pas.
+- **Le parseur** lit aussi « c.s. », « c.c. » et « cuillerée(s) ». « + 30 ml » va dans la note, plus dans le nom.
+- **À ranger** : « Renommer » (fusionne si le nom existe), « Jamais en courses », « Supprimer ».
+  - Supprimer passe par `kitchen` (`foods/<id>/delete/`), qui refuse au moment de supprimer une famille ou un aliment
+    utilisé dans une recette. Chez Tandoor, supprimer un aliment supprime ses lignes d'ingrédients et ses
+    sous-aliments.
+- **Doublons** : « Tout fusionner » (confirmation, paires telles qu'affichées) et « Autre nom… ». Ce dernier fusionne
+  les deux aliments, puis renomme ou fusionne avec l'aliment de ce nom ; les deux anciens noms deviennent des alias.
+- Une fusion ne s'annule pas (upstream) : chaque action de masse demande une confirmation qui le dit.
+
+**Alternative écartée** :
+- Corriger les noms sans écran de validation : risque sur les vrais noms.
+- Supprimer par l'API upstream : elle efface des lignes de recettes.
+- Pour « Garder ce nom », réutiliser `NotDuplicate` : détourné de son sens.
+
+**Réversible ?** Oui. Le champ `kept_name` se retire avec `migrate kitchen 0001`.
+
+## 2026-10-21 — hors jalon — « Vider la liste de courses »
+**Contexte** : Alex demande une fonction pour vider la liste de courses.
+**Choix** : deux entrées dans le menu « ⋮ » de la liste :
+- « Retirer les articles du panier » (ce qui est coché) ;
+- « Vider la liste » (tout).
+
+Chacune demande une confirmation qui donne le nombre d'articles, puis peut être annulée : bandeau « Annuler », et le
+bouton ↶ garde les deux actions. On ne supprime que ce que l'appareil affiche (listes sélectionnées). Les entrées sont
+supprimées une à une par l'API upstream, sans changement backend ni dans `ShoppingStore`. Les actions sont grisées
+hors ligne.
+**Alternative écartée** : seulement « tout vider » (on perd ce qui reste à acheter quand on veut juste ranger le
+panier) ; un endpoint de suppression groupée dans `kitchen/` (inutile pour une liste de quelques dizaines d'articles).
+**Réversible ?** Oui.
+
 ## 2026-10-21 — M6 — Branche et libellé de la porte finale
 **Contexte** : comme en M5, la session cloud impose la branche `claude/zen-ramanujan-cnfub4` (au lieu de
 `fork/m6-livraison`), et la consigne demande `verify.sh --ui m1 --publish`.

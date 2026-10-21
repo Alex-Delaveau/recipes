@@ -304,3 +304,95 @@ def test_other_space_food_cannot_be_changed(setup_space, u1_s2):
         food = Food.objects.create(name='Navet', space=setup_space)
     assert u1_s2.post(reverse('kitchen:food-aisle', args=[food.id]), {'category': None}, content_type='application/json').status_code == 404
     assert u1_s2.post(reverse('kitchen:food-family', args=[food.id]), {'is_family': True}, content_type='application/json').status_code == 404
+
+
+# ---------------------------------------------------------------- names left over by imports
+
+CLEAN_NAMES = [
+    ('à café coriandre en poudre', 'coriandre en poudre'),
+    ("à café d'huile d'olive", "huile d'olive"),
+    ('à soupe beurre de cacahuète nature', 'beurre de cacahuète nature'),
+    ("à soupe d'huile", 'huile'),
+    ('à soupe de maïzena', 'maïzena'),
+    ("d'eau + 30 ml", 'eau'),
+    ('200 g de farine', 'farine'),
+    ('c. à soupe rase de sucre', 'sucre'),
+    ('2 c. à s. de miel', 'miel'),
+    ('de la crème', 'crème'),
+]
+KEEP_NAMES = ['nouveaux', 'Abricot', 'aiguillettes de poulet', 'Pomme de terre', 'Crème fraîche', "Huile d'olive", 'Ail',
+              'Pâte de curry', 'Sauce à la crème', '4 épices', '5 baies', '3 fromages', '7 Up', '2 en 1', '100% cacao',
+              'Du Barry', 'Des de jambon']
+
+
+@pytest.mark.parametrize('name,clean', CLEAN_NAMES)
+def test_clean_food_name(name, clean):
+    from kitchen.french import clean_food_name
+    assert clean_food_name(name) == clean
+
+
+@pytest.mark.parametrize('name', KEEP_NAMES)
+def test_clean_food_name_keeps_real_names(name):
+    from kitchen.french import clean_food_name
+    assert clean_food_name(name) == name
+
+
+def test_names_to_fix_proposes_merge_or_rename(setup_space, u1_s1):
+    with scopes_disabled():
+        huile = Food.objects.create(name='Huile', space=setup_space)
+        a = Food.objects.create(name="à soupe d'huile", space=setup_space)
+        b = Food.objects.create(name='à café coriandre en poudre', space=setup_space)
+        c = Food.objects.create(name='à soupe coriandre en poudre', space=setup_space)
+        Food.objects.create(name='nouveaux', space=setup_space)
+    data = u1_s1.get(reverse('kitchen:foods-names')).json()
+    by_id = {r['id']: r for r in data['results']}
+    assert data['count'] == 3 and set(by_id) == {a.id, b.id, c.id}
+    assert by_id[a.id]['target'] == {'id': huile.id, 'name': 'Huile', 'renamed': False}
+    # two foods cleaning to the same new name: one is renamed, the other merges into it
+    renamed = [r for r in (by_id[b.id], by_id[c.id]) if r['target'] is None]
+    merged = [r for r in (by_id[b.id], by_id[c.id]) if r['target'] is not None]
+    assert len(renamed) == 1 and renamed[0]['clean'] == 'coriandre en poudre'
+    assert merged[0]['target'] == {'id': renamed[0]['id'], 'name': 'coriandre en poudre', 'renamed': True}
+    # renames come first
+    assert data['results'][0]['target'] is None
+    assert u1_s1.get(reverse('kitchen:foods')).json()['names_to_fix'] == 3
+
+
+def test_to_sort_tells_usage(setup_space, u1_s1):
+    with scopes_disabled():
+        Food.objects.create(name='nouveaux', space=setup_space)
+    item = u1_s1.get(reverse('kitchen:foods-to-sort')).json()['results'][0]
+    assert item['name'] == 'nouveaux' and item['recipes'] == 0 and item['shopping'] == 0
+
+
+def test_kept_name_is_not_proposed_again(setup_space, u1_s1):
+    with scopes_disabled():
+        food = Food.objects.create(name='de la crème', space=setup_space)
+    assert u1_s1.get(reverse('kitchen:foods-names')).json()['count'] == 1
+    assert u1_s1.post(reverse('kitchen:food-keep-name', args=[food.id])).status_code == 200
+    assert u1_s1.get(reverse('kitchen:foods-names')).json()['count'] == 0
+    with scopes_disabled():  # renamed later: checked again
+        food.name = 'de la crème liquide'
+        food.save()
+    assert u1_s1.get(reverse('kitchen:foods-names')).json()['count'] == 1
+
+
+def test_delete_only_unused_foods_that_are_not_families(setup_space, u1_s1, recipe_1_s1):
+    with scopes_disabled():
+        family = Food.add_root(name='Zzoignon', space=setup_space)
+        child = family.add_child(name='Zzoignon rouge', space=setup_space)
+        ingredient = Ingredient.objects.filter(step__recipe=recipe_1_s1).first()
+        ingredient.food = child
+        ingredient.save()
+        free = Food.objects.create(name='nouveaux', space=setup_space)
+        lines = Ingredient.objects.count()
+    # a family: its children (and their recipe lines) would go with it
+    response = u1_s1.post(reverse('kitchen:food-delete', args=[family.id]))
+    assert response.status_code == 409 and response.json()['reason'] == 'family'
+    response = u1_s1.post(reverse('kitchen:food-delete', args=[child.id]))
+    assert response.status_code == 409 and response.json()['reason'] == 'used'
+    assert u1_s1.post(reverse('kitchen:food-delete', args=[free.id])).status_code == 204
+    with scopes_disabled():
+        assert Food.objects.filter(id__in=[family.id, child.id]).count() == 2
+        assert not Food.objects.filter(id=free.id).exists()
+        assert Ingredient.objects.count() == lines
