@@ -34,15 +34,62 @@
                 </v-btn>
             </div>
             <v-btn variant="text" size="large" block class="mt-2" @click="later()">{{ $t('Fork_Later') }}</v-btn>
+            <!-- not something to sort: a bad name, never bought, or not a food at all -->
+            <div class="fork-sort__other">
+                <v-btn variant="text" size="large" prepend-icon="fa-solid fa-pen" @click="openRename()">{{ $t('Fork_Rename') }}</v-btn>
+                <v-btn variant="text" size="large" prepend-icon="fa-solid fa-ban" :loading="saving == -1" @click="neverShopping()">{{ $t('Fork_Never_In_Shopping') }}</v-btn>
+                <v-btn variant="text" size="large" prepend-icon="fa-solid fa-trash-can" color="error" @click="deleting = true">{{ $t('Delete') }}</v-btn>
+            </div>
             </div>
         </template>
     </v-container>
+
+    <v-dialog v-model="renaming" max-width="440">
+        <v-card v-if="current" :title="$t('Fork_Rename')">
+            <v-card-text class="pt-1">
+                <v-form @submit.prevent="rename()">
+                    <v-text-field v-model="newName" :label="$t('Fork_New_Name')" autofocus hide-details="auto" autocomplete="off"
+                                  :hint="$t('Fork_Other_Name_Help')" persistent-hint></v-text-field>
+                </v-form>
+            </v-card-text>
+            <v-card-actions class="pa-4">
+                <v-spacer></v-spacer>
+                <v-btn variant="text" size="large" @click="renaming = false">{{ $t('Cancel') }}</v-btn>
+                <v-btn color="primary" variant="flat" size="large" :disabled="!newName.trim()" :loading="saving == -2" @click="rename()">{{ $t('Save') }}</v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
+
+    <!-- deleting a food deletes its ingredient lines upstream: only offered for a food no recipe uses -->
+    <v-dialog v-model="deleting" max-width="440">
+        <v-card v-if="current" class="fork-sort__delete">
+            <v-card-title class="text-wrap">{{ $t('Fork_Delete_Food_Title', {name: current.name}) }}</v-card-title>
+            <v-card-text class="pt-1">
+                <template v-if="current.recipes > 0">{{ $t('Fork_Food_Used', {n: current.recipes}, current.recipes) }}</template>
+                <template v-else>
+                    {{ $t('Fork_Delete_Food_Text') }}
+                    <template v-if="current.shopping > 0">{{ $t('Fork_Delete_Food_Shopping', {n: current.shopping}, current.shopping) }}</template>
+                </template>
+            </v-card-text>
+            <v-card-actions class="pa-4">
+                <v-spacer></v-spacer>
+                <v-btn variant="text" size="large" @click="deleting = false">{{ $t('Cancel') }}</v-btn>
+                <v-btn v-if="current.recipes == 0" color="error" variant="flat" size="large" :loading="saving == -3" @click="remove()">{{ $t('Delete') }}</v-btn>
+                <v-btn v-else color="primary" variant="flat" size="large" @click="deleting = false; openRename()">{{ $t('Fork_Rename') }}</v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
 </template>
 
 <script setup lang="ts">
 import {computed, onMounted, ref} from "vue";
+import {useI18n} from "vue-i18n";
+import {ApiApi} from "@/openapi";
 import {KitchenAisle, KitchenToSortItem, listAisles, listToSort, setFoodAisle} from "@/fork/api";
+import {renameOrMergeFood} from "@/fork/foods";
 import {ErrorMessageType, useMessageStore} from "@/stores/MessageStore";
+
+const {t} = useI18n()
 
 const queue = ref<KitchenToSortItem[]>([])
 const aisles = ref<KitchenAisle[]>([])
@@ -58,9 +105,66 @@ function assign(categoryId: number) {
     if (!food || saving.value != null) return
     saving.value = categoryId
     setFoodAisle(food.id, categoryId).then(() => {
-        queue.value = queue.value.filter(f => f.id != food.id)
+        done(food.id)
     }).catch(err => {
         useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
+    }).finally(() => {
+        saving.value = null
+    })
+}
+
+const renaming = ref(false)
+const deleting = ref(false)
+const newName = ref('')
+
+function done(foodId: number) {
+    queue.value = queue.value.filter(f => f.id != foodId)
+}
+
+function openRename() {
+    newName.value = current.value?.name ?? ''
+    renaming.value = true
+}
+
+/** a bad name ("d'eau + 30 ml"): renamed, or merged into the food that already has this name (it leaves the queue) */
+function rename() {
+    const food = current.value
+    if (!food || !newName.value.trim() || saving.value != null) return
+    saving.value = -2
+    renameOrMergeFood(food, newName.value, t).then(r => {
+        if (r.merged) done(food.id)
+        else food.name = r.name
+        renaming.value = false
+    }).catch(err => {
+        useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
+    }).finally(() => {
+        saving.value = null
+    })
+}
+
+/** never bought (water, salt from the garden...): no aisle needed */
+function neverShopping() {
+    const food = current.value
+    if (!food || saving.value != null) return
+    saving.value = -1
+    new ApiApi().apiFoodPartialUpdate({id: food.id, patchedFood: {ignoreShopping: true}}).then(() => {
+        done(food.id)
+    }).catch(err => {
+        useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
+    }).finally(() => {
+        saving.value = null
+    })
+}
+
+function remove() {
+    const food = current.value
+    if (!food || food.recipes > 0 || saving.value != null) return
+    saving.value = -3
+    new ApiApi().apiFoodDestroy({id: food.id}).then(() => {
+        done(food.id)
+        deleting.value = false
+    }).catch(err => {
+        useMessageStore().addError(ErrorMessageType.DELETE_ERROR, err)
     }).finally(() => {
         saving.value = null
     })
@@ -125,6 +229,14 @@ onMounted(() => {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--fork-space-2);
+}
+
+.fork-sort__other {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--fork-space-1);
+    margin-top: var(--fork-space-2);
 }
 
 .fork-sort__aisle {
