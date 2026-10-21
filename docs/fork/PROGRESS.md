@@ -427,3 +427,14 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
   remises en place).
 - Maquettes des 4 pistes d'accueil pour comparaison : https://claude.ai/artifact/1jE7ee7MLBGGFvTv8inbX3.
   **En attente** : choix d'Alex.
+- `reviewer` (tirage → menu) : aucun point bloquant. Majeurs corrigés :
+  - un échec en cours de route : l'écran dit « k sur n faits », et réessayer n'envoie que le reste, sans doublon ;
+  - deux taps rapides : une seule modification de la liste à la fois, et une recette n'y entre jamais deux fois.
+  Mineurs corrigés :
+  - l'heure du repas est fixée par l'appli, quel que soit le fuseau du serveur ;
+  - une erreur de chargement n'est plus confondue avec « aucun type de repas » ;
+  - avertissement si les recettes sont déjà dans les courses ;
+  - textes au pluriel ; les boutons ne sont plus imbriqués dans un lien ;
+  - une seule barre de message à la fois ;
+  - parcours renforcé (échec simulé, premier jour, heure, articles créés).
+  Non traité : « Ajouter aux courses » échoue dans un espace de démo Tandoor (refus upstream), sans objet ici.
