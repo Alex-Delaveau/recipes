@@ -110,7 +110,38 @@ Découle de SPEC.md, section « Création de recettes — attendu ».
 - [x] Une recette existante se modifie sur mobile avec le même découpage en écrans.
 - [x] Pages refaites en `strict`. `verify.sh --ui m4` OK.
 
-## M5 — Livraison sur le homelab [ ]
+## M5 — Cuisine et courses au quotidien (idées kitshn) [ ]
+Découle de `docs/fork/AUDIT-KITSHN.md` (audit du 2026-10-21). Aucun changement backend attendu : tout passe par l'API
+upstream existante (`/api/cook-log/`, `/api/meal-plan/`, courses) et par le front du fork.
+- [ ] Minuteurs dans les étapes :
+  - les durées du texte des étapes sont repérées en français et deviennent touchables, dans le mode cuisine et dans la
+    vue recette : « 10 min », « 1 h 30 », « 1 heure et demie », « 45 s », plages « 20 à 25 minutes » et « 2-3 min » ;
+  - la puce du temps de l'étape (`step.time`) lance aussi un minuteur ;
+  - une plage propose de choisir la durée (bas, haut ou entre les deux) ;
+  - plusieurs minuteurs en même temps, visibles dans une barre compacte qui suit d'une page à l'autre (mode cuisine,
+    recette), avec pause, +1 min et arrêt ;
+  - les minuteurs reposent sur leur heure de fin et survivent à un rechargement ;
+  - à la fin : son, vibration si disponible, et notification système si elle est autorisée (jamais exigée) ;
+  - la détection est une fonction pure, testée automatiquement par `verify.sh` (pas de vitest dans `vue3` : petit test
+    node ou test de parcours, choix noté dans DECISIONS.md) sur au moins 20 phrases françaises
+    réelles (dont des faux positifs à éviter : « 4 personnes », « 180 °C », « farine T55 », « 2 œufs »).
+- [ ] Fin de cuisine : le bouton « Terminé » du mode cuisine ouvre un écran « Bon appétit » avec une note (étoiles) et
+      un commentaire facultatifs, puis « Enregistrer » ou « Passer ». Les deux créent un `CookLog` (portions incluses),
+      ce qui nourrit « récentes » et « pas faites depuis longtemps » sur l'accueil. Retour à la recette ensuite.
+- [ ] Courses en magasin :
+  - l'écran reste allumé sur la liste de courses (réglable, actif par défaut), relâché en quittant la page ;
+  - les coches faites sans réseau sont conservées sur l'appareil, même après fermeture de l'app, puis envoyées au
+    retour du réseau ; un indicateur affiche « N modifications en attente » ;
+  - la liste s'affiche hors ligne avec le dernier état connu ;
+  - la correction de la file de synchro reste au plus près de `ShoppingStore` (diff minimal, noté dans DECISIONS.md).
+- [ ] « Au menu » sur l'accueil téléphone : carte compacte affichée seulement s'il y a un repas prévu, « Aujourd'hui » (ou
+      « Demain » après 21 h) ; un tap ouvre la recette (ou montre le titre si l'entrée n'a pas de recette).
+- [ ] Partage vers l'app : un lien partagé à la PWA (`share_target` upstream) lance l'import sur la première URL trouvée
+      dans `url`, `text` ou `title` (« Recette de tarte https://… » fonctionne).
+- [ ] Nouvelles chaînes en `fr` et `en`. Pages touchées en `strict`, zones tactiles ≥ 44 px, 360 px sans débordement.
+      Parcours cliqués pour les minuteurs, la fin de cuisine et les coches hors ligne. `verify.sh --ui m5` OK.
+
+## M6 — Livraison sur le homelab [ ]
 - [ ] Workflow GitHub Actions qui construit l'image Docker du fork et la publie sur GHCR (tag = version upstream + suffixe fork).
 - [ ] `docs/fork/DEPLOY.md` : stack compose pour Komodo, sauvegarde de la base avant bascule, test sur une copie, retour arrière vers l'image upstream.
 - [ ] CI GitHub Actions : `verify.sh` complet sur chaque PR vers `main`, la porte reste `VERIFY: OK`.
@@ -122,7 +153,7 @@ Découle de SPEC.md, section « Création de recettes — attendu ».
 ## Propositions M0
 Rédigées par la session M0 à partir de `docs/fork/AUDIT.md`. **Toutes validées par Alex le 2026-10-20.**
 Celles qui changent un critère sont intégrées aux jalons ci-dessus : M1 (coquille, erreurs upstream, captures),
-M2 (synchro) et M5 (CI). Les autres restent ici comme notes d'implémentation, à suivre par les sessions des jalons.
+M2 (synchro) et M6, ex-M5 (CI). Les autres restent ici comme notes d'implémentation, à suivre par les sessions des jalons.
 
 **M1 — Fondations visuelles**
 - Ajouter à `screenshots.mjs` une capture « écran visible » (viewport seul) en plus de la pleine page. Elle permet de
@@ -163,4 +194,4 @@ M2 (synchro) et M5 (CI). Les autres restent ici comme notes d'implémentation, �
 - Le jeu de 30 lignes peut partir des cas mesurés dans AUDIT.md § 3, qui échouent tous sauf les fractions.
 
 **Outillage**
-- Lancer `verify.sh` complet en CI GitHub Actions sur chaque PR, avec la même porte `VERIFY: OK` (à rattacher à M5).
+- Lancer `verify.sh` complet en CI GitHub Actions sur chaque PR, avec la même porte `VERIFY: OK` (à rattacher à M6, ex-M5).

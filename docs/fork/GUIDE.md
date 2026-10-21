@@ -80,9 +80,9 @@ sessions pour toi, avec une vue d'ensemble de ce qui attend ta relecture.
 À chaque nouvelle release (onglet Releases du dépôt Tandoor) : prompt 5. Tu peux aussi en faire une tâche planifiée
 mensuelle (routine) depuis claude.ai/code.
 
-## 6. Mettre en production (M5)
+## 6. Mettre en production (M6)
 
-M5 prépare l'image Docker sur GHCR et `DEPLOY.md`. La bascule sur le homelab reste manuelle et à faire toi-même :
+M6 prépare l'image Docker sur GHCR et `DEPLOY.md`. La bascule sur le homelab reste manuelle et à faire toi-même :
 sauvegarde de la base, essai sur une copie, puis changement d'image dans la stack Komodo. Les ajouts du fork vivent
 dans leurs propres tables (`kitchen/`) : revenir à l'image upstream reste possible.
 
