@@ -444,3 +444,5 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
   - toutes les recettes en lignes compactes, triées par nom ;
   - tuiles colorées pour les recettes sans photo.
   Nouveau parcours `week` ; `p1` et `draw` adaptés.
+- « Toutes les recettes » : aperçu de 6 sur l'accueil + page `/recipes/all` (grille ou liste, groupée par lettre, barre de
+  lettres, recherche). Parcours `allrecipes`.

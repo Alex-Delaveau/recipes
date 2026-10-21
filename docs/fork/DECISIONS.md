@@ -3,6 +3,20 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — « Toutes les recettes » : aperçu sur l'accueil, page dédiée pour parcourir
+**Contexte** : Alex trouve pénible de parcourir toutes les recettes en défilant une par ligne sur l'accueil.
+**Choix** :
+- L'accueil n'en montre plus que 6 (par nom), avec « Tout voir » et « Voir les N recettes ».
+- La page `/recipes/all` est faite pour parcourir :
+  - grille de vignettes par défaut : 2 colonnes sur téléphone, 3 sur tablette, 5 sur ordinateur ;
+  - bascule grille / liste, gardée sur l'appareil ;
+  - recettes regroupées par lettre, avec une barre de lettres qui reste en haut et saute à la lettre d'un tap ;
+  - recherche instantanée.
+- Toutes les recettes sont chargées d'un coup (100 par page, jusqu'à 2 000).
+**Alternative écartée** : un « Charger plus » sur l'accueil (toujours une ligne par recette) ; une grille directement
+sur l'accueil (elle repousse les étagères loin vers le bas).
+**Réversible ?** Oui.
+
 ## 2026-10-21 — hors jalon — Règles des étagères « En moins de 30 min » et « Pas faites depuis longtemps »
 **Contexte** : Alex demande comment ces catégories sont calculées. En relisant, deux défauts sont apparus :
 - une recette sans durée comptait comme « 0 min », donc « rapide » ;
