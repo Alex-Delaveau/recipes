@@ -93,30 +93,30 @@ const FLOWS = {
   async p1(page) {
     await page.goto(base + '/', { waitUntil: 'networkidle' })
     check(await page.getByPlaceholder('Rechercher une recette').isVisible(), 'search field visible on the home screen')
-    const all = await eventually(async () => (await texts(page, '.fork-recipe-card__title')).length >= 4 && texts(page, '.fork-recipe-card__title'))
+    const all = await eventually(async () => (await texts(page, '.fork-recipe-row__title')).length >= 4 && texts(page, '.fork-recipe-row__title'))
     check(all && all.length >= 4, `photo cards listed (${all?.length})`)
 
     await page.getByPlaceholder('Rechercher une recette').fill('curry')
-    const found = await eventually(async () => { const t = await texts(page, '.fork-recipe-card__title'); return t.length === 1 && t })
+    const found = await eventually(async () => { const t = await texts(page, '.fork-recipe-row__title'); return t.length === 1 && t })
     check(found && found[0].includes('Curry'), 'text search narrows the list')
     await page.getByPlaceholder('Rechercher une recette').fill('')
 
     await page.getByRole('button', { name: 'Filtres' }).click()
     await page.locator('.v-bottom-sheet .v-chip', { hasText: '≤ 30 min' }).click()
-    const quick = await eventually(async () => { const t = await texts(page, '.fork-recipe-card__title'); return t.length === 3 && t })
+    const quick = await eventually(async () => { const t = await texts(page, '.fork-recipe-row__title'); return t.length === 3 && t })
     check(quick && !quick.some((t) => t.includes('Curry')), 'total time ≤ 30 min drops the 35 min curry')
     await page.locator('.v-bottom-sheet .v-chip', { hasText: '≤ 30 min' }).click() // off again
 
     await page.locator('.v-bottom-sheet .v-autocomplete input').first().fill('Courg')
     await page.locator('.v-overlay .v-list-item', { hasText: 'Courgette' }).first().click()
     await page.keyboard.press('Escape')
-    const ranked = await eventually(async () => { const t = await texts(page, '.fork-recipe-card__title'); return t.length === 1 && t })
+    const ranked = await eventually(async () => { const t = await texts(page, '.fork-recipe-row__title'); return t.length === 1 && t })
     check(ranked && ranked[0].includes('Poêlée'), 'ingredient on hand lists the recipes using it')
-    check(await page.locator('.fork-recipe-card', { hasText: '1/4 ingrédients' }).count() === 1, 'card shows how many ingredients are on hand')
+    check(await page.locator('.fork-recipe-row', { hasText: '1/4 ingrédients' }).count() === 1, 'card shows how many ingredients are on hand')
     await page.goto(base + '/', { waitUntil: 'networkidle' }) // module state survives SPA navigation only
 
     await page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Pas faites depuis longtemps' }).click()
-    const forgotten = await eventually(async () => { const t = await texts(page, '.fork-recipe-card__title'); return t.length >= 4 && t })
+    const forgotten = await eventually(async () => { const t = await texts(page, '.fork-recipe-row__title'); return t.length >= 4 && t })
     check(forgotten && forgotten.length >= 4, 'shortcut "pas faites depuis longtemps" lists recipes')
     await page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Récentes' }).click()
     await page.waitForTimeout(800)
@@ -127,12 +127,46 @@ const FLOWS = {
     check(await eventually(async () => (await recent.getAttribute('aria-pressed')) === 'false', 3000), 'tapping it again switches it off')
   },
 
+  // home "this week" card: the drawn dishes first, folds to one line (kept on the device), replace / remove / undo
+  async week(page) {
+    await page.goto(base + '/', { waitUntil: 'networkidle' })
+    await page.evaluate(() => { localStorage.removeItem('fork_recipe_draw'); localStorage.setItem('fork_recipe_draw_size', '3'); localStorage.removeItem('fork_week_open') })
+    await page.reload({ waitUntil: 'networkidle' })
+    const card = page.locator('.fork-week')
+    check(await eventually(() => card.getByRole('button', { name: 'Tirer 3 recettes' }).isVisible(), 5000), 'empty week: one button draws the dishes')
+    await card.getByRole('button', { name: 'Tirer 3 recettes' }).click()
+    const rows = card.locator('.fork-week__row')
+    check(await eventually(async () => (await rows.count()) === 3, 5000), '3 dishes drawn on the home')
+    check(await page.locator('.fork-shelf').count() >= 1 && (await page.locator('.fork-recipe-row').count()) >= 4, 'then the shelves and every recipe, one per line')
+    await shot(page, 'home-week')
+    const toggle = card.locator('.fork-week__toggle')
+    await toggle.click()
+    check(await eventually(async () => (await toggle.getAttribute('aria-expanded')) === 'false' && !(await rows.count()), 3000), 'folds to one line')
+    check((await card.locator('.fork-week__strip .fork-thumb').count()) === 3, 'folded: the dishes stay visible as thumbnails')
+    await shot(page, 'home-week-folded')
+    await page.reload({ waitUntil: 'networkidle' })
+    check(await eventually(async () => (await card.locator('.fork-week__toggle').getAttribute('aria-expanded')) === 'false', 4000), 'stays folded after a reload')
+    await card.locator('.fork-week__toggle').click()
+    await eventually(async () => (await rows.count()) === 3, 3000)
+    const names = async () => texts(page, '.fork-week__recipe')
+    const before = await names()
+    await rows.first().getByRole('button', { name: /Retirer/ }).click()
+    check(await eventually(async () => (await rows.count()) === 2, 3000), 'remove from the home')
+    await page.locator('.v-snackbar').getByRole('button', { name: 'Annuler' }).click()
+    check(await eventually(async () => (await rows.count()) === 3, 3000), 'undo')
+    await rows.first().getByRole('button', { name: /Remplacer/ }).click()
+    check(await eventually(async () => (await names())[0] !== before[0], 5000), 'replace from the home')
+    await card.getByRole('link', { name: 'Ajouter au menu' }).click()
+    check(await eventually(() => page.locator('.fork-draw__plan').isVisible(), 5000), '"add to the meal plan" opens the plan sheet')
+    await page.evaluate(() => localStorage.removeItem('fork_recipe_draw'))
+  },
+
   // draw X recipes at random: a short list, remove or replace one at a time, kept on the device
   async draw(page) {
     await page.goto(base + '/', { waitUntil: 'networkidle' })
     await page.evaluate(() => { localStorage.removeItem('fork_recipe_draw'); localStorage.setItem('fork_recipe_draw_size', '3') })
     await page.reload({ waitUntil: 'networkidle' }) // the stored values are read when the app starts
-    await page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Tirer au sort' }).click()
+    await page.goto(base + '/recipes/draw', { waitUntil: 'networkidle' })
     await eventually(() => page.getByRole('button', { name: 'Tirer 3 recettes' }).isVisible())
     await page.getByRole('button', { name: 'Une recette de moins' }).click()
     await page.getByRole('button', { name: 'Une recette de plus' }).click()
@@ -161,8 +195,8 @@ const FLOWS = {
     await page.reload({ waitUntil: 'networkidle' })
     check(await eventually(async () => (await rows.count()) === 4, 4000), 'the list stays on the device after a reload')
     await page.goto(base + '/', { waitUntil: 'networkidle' })
-    check(await eventually(() => page.locator('.fork-home__shortcuts .v-chip', { hasText: /Tirer au sort\s*\(4\)/ }).isVisible(), 3000), 'home shortcut shows the list size')
-    await page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Tirer au sort' }).click()
+    check(await eventually(() => page.locator('.fork-week').getByText('4 plats tirés au sort').isVisible(), 3000), 'the home "this week" card shows the list')
+    await page.goto(base + '/recipes/draw', { waitUntil: 'networkidle' })
     await eventually(async () => (await rows.count()) === 4, 4000)
 
     // the drawn list goes to the meal plan (one a day, ingredients to shopping) and to the shopping list alone
