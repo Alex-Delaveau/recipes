@@ -65,7 +65,8 @@
         <v-card v-if="current" class="fork-sort__delete">
             <v-card-title class="text-wrap">{{ $t('Fork_Delete_Food_Title', {name: current.name}) }}</v-card-title>
             <v-card-text class="pt-1">
-                <template v-if="current.recipes > 0">{{ $t('Fork_Food_Used', {n: current.recipes}, current.recipes) }}</template>
+                <template v-if="current.children > 0">{{ $t('Fork_Food_Is_Family') }}</template>
+                <template v-else-if="current.recipes > 0">{{ $t('Fork_Food_Used', {n: current.recipes}, current.recipes) }}</template>
                 <template v-else>
                     {{ $t('Fork_Delete_Food_Text') }}
                     <template v-if="current.shopping > 0">{{ $t('Fork_Delete_Food_Shopping', {n: current.shopping}, current.shopping) }}</template>
@@ -74,7 +75,8 @@
             <v-card-actions class="pa-4">
                 <v-spacer></v-spacer>
                 <v-btn variant="text" size="large" @click="deleting = false">{{ $t('Cancel') }}</v-btn>
-                <v-btn v-if="current.recipes == 0" color="error" variant="flat" size="large" :loading="saving == -3" @click="remove()">{{ $t('Delete') }}</v-btn>
+                <v-btn v-if="current.recipes == 0 && current.children == 0" color="error" variant="flat" size="large" :loading="saving == -3"
+                       @click="remove()">{{ $t('Delete') }}</v-btn>
                 <v-btn v-else color="primary" variant="flat" size="large" @click="deleting = false; openRename()">{{ $t('Fork_Rename') }}</v-btn>
             </v-card-actions>
         </v-card>
@@ -85,7 +87,7 @@
 import {computed, onMounted, ref} from "vue";
 import {useI18n} from "vue-i18n";
 import {ApiApi} from "@/openapi";
-import {KitchenAisle, KitchenToSortItem, listAisles, listToSort, setFoodAisle} from "@/fork/api";
+import {deleteUnusedFood, KitchenAisle, KitchenToSortItem, listAisles, listToSort, setFoodAisle} from "@/fork/api";
 import {renameOrMergeFood} from "@/fork/foods";
 import {ErrorMessageType, useMessageStore} from "@/stores/MessageStore";
 
@@ -158,11 +160,15 @@ function neverShopping() {
 
 function remove() {
     const food = current.value
-    if (!food || food.recipes > 0 || saving.value != null) return
+    if (!food || food.recipes > 0 || food.children > 0 || saving.value != null) return
     saving.value = -3
-    new ApiApi().apiFoodDestroy({id: food.id}).then(() => {
-        done(food.id)
-        deleting.value = false
+    deleteUnusedFood(food.id).then(refused => {
+        if (refused == 'used') food.recipes = Math.max(food.recipes, 1) // used since the page loaded: the dialog says so
+        else if (refused == 'family') food.children = Math.max(food.children, 1)
+        else {
+            done(food.id)
+            deleting.value = false
+        }
     }).catch(err => {
         useMessageStore().addError(ErrorMessageType.DELETE_ERROR, err)
     }).finally(() => {

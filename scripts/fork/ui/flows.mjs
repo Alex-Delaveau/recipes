@@ -640,12 +640,20 @@ const FLOWS = {
     const make = async (name) => (await api(page, 'POST', '/api/food/', { name })).data
     const huile = await make('Zzhuile')
     const created = [await make("à soupe d'zzhuile"), await make('à café zzcumin moulu'), await make('à soupe zzcumin moulu')]
+    const kept = await make('de la zzcrème')
     await page.goto(base + '/foods', { waitUntil: 'networkidle' })
-    check(await eventually(() => page.getByText(/3 noms d'aliments à corriger/).isVisible()), 'foods page announces the names to fix')
+    check(await eventually(() => page.getByText(/4 noms d'aliments à corriger/).isVisible()), 'foods page announces the names to fix')
     await page.getByText(/noms d'aliments à corriger/).click()
     await eventually(() => page.locator('.fork-names__row').first().isVisible())
     const rows = page.locator('.fork-names__row', { hasText: /zz/i })
-    check((await rows.count()) === 3, 'the three names are listed')
+    check((await rows.count()) === 4, 'the four names are listed')
+    // a name to keep as it is
+    await page.locator('.fork-names__row', { hasText: 'de la zzcrème' }).getByRole('button', { name: 'Options' }).click()
+    await page.getByText('Garder ce nom').click()
+    check(await eventually(async () => (await rows.count()) === 3, 4000), '"keep this name" removes it from the list')
+    await page.reload({ waitUntil: 'networkidle' })
+    await eventually(() => page.locator('.fork-names__row').first().isVisible())
+    check((await rows.count()) === 3, 'and it stays out after a reload')
     check(await page.locator('.fork-names__row', { hasText: "à soupe d'zzhuile" }).getByText('fusion avec « Zzhuile »').isVisible(), 'merge into the existing food proposed')
     await shot(page, 'food-names')
     await page.getByRole('button', { name: /Tout corriger/ }).click()
@@ -659,7 +667,7 @@ const FLOWS = {
     const aliases = (autos.results ?? autos).filter((x) => x.type === 'FOOD_ALIAS' && /zz/i.test(x.param_1 || ''))
     check(aliases.length === 3, `old names kept as aliases (${aliases.length})`)
     for (const a of aliases) await api(page, 'DELETE', `/api/automation/${a.id}/`)
-    for (const f of [huile, ...cumin]) await api(page, 'DELETE', `/api/food/${f.id}/`)
+    for (const f of [huile, kept, ...cumin]) await api(page, 'DELETE', `/api/food/${f.id}/`)
   },
 
   // M3: generic aisle order, set once, followed by the shopping list

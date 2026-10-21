@@ -90,6 +90,7 @@ export interface KitchenToSortItem {
     source: string
     recipes: number
     shopping: number
+    children: number
 }
 
 /** a food name left over by an import, with its fix: merge into `target`, else rename to `clean` */
@@ -104,6 +105,22 @@ export interface KitchenNameFix {
 
 export async function listNamesToFix(): Promise<{ count: number, results: KitchenNameFix[] }> {
     return kitchenFetch('foods/names/')
+}
+
+/** keep this name: it leaves the "names to fix" list */
+export function keepFoodName(foodId: number) {
+    return kitchenFetch(`foods/${foodId}/keep-name/`, {method: 'POST'})
+}
+
+/** delete a food no recipe uses and that is not a family; the server checks at delete time */
+export async function deleteUnusedFood(foodId: number): Promise<'family' | 'used' | null> {
+    const response = await fetch(`/api/kitchen/foods/${foodId}/delete/`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') ?? ''},
+    })
+    if (response.status == 409) return (await response.json()).reason
+    if (!response.ok) throw new Error(`kitchen delete: HTTP ${response.status}`)
+    return null
 }
 
 export interface KitchenDuplicateSide {

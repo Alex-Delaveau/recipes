@@ -29,10 +29,11 @@ export async function mergeFood(drop: { id: number, name: string }, keep: { id: 
     await createFoodAlias(drop.name, keep.name, t).catch(() => {})
 }
 
-/** existing food named exactly `name` (case aside), other than `exceptId` */
+/** existing food named `name` or with that plural (case and accents aside), other than `exceptId` */
 export async function findFoodByName(name: string, exceptId?: number): Promise<{ id: number, name: string } | null> {
     const r = await new ApiApi().apiFoodList({query: name, pageSize: 50})
-    const found = r.results.find(f => f.id != exceptId && f.name.trim().toLowerCase() == name.trim().toLowerCase())
+    const key = searchKey(name)
+    const found = r.results.find(f => f.id != exceptId && (searchKey(f.name) == key || (f.pluralName && searchKey(f.pluralName) == key)))
     return found ? {id: found.id!, name: found.name} : null
 }
 

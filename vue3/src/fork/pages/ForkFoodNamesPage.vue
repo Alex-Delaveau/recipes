@@ -31,8 +31,14 @@
                     </v-list-item-title>
                     <v-list-item-subtitle class="fork-names__how">{{ how(row) }}</v-list-item-subtitle>
                     <template #append>
-                        <v-btn icon variant="text" size="44" :aria-label="$t('Fork_Other_Name')" @click="openOtherName(row)">
-                            <v-icon icon="fa-solid fa-pen" size="14"></v-icon>
+                        <v-btn icon variant="text" size="44" :aria-label="$t('Options')" :disabled="fixingAll">
+                            <v-icon icon="fa-solid fa-ellipsis-vertical" size="16"></v-icon>
+                            <v-menu activator="parent">
+                                <v-list>
+                                    <v-list-item prepend-icon="fa-solid fa-pen" :title="$t('Fork_Other_Name')" min-height="48" @click="openOtherName(row)"></v-list-item>
+                                    <v-list-item prepend-icon="fa-solid fa-check" :title="$t('Fork_Keep_Name')" min-height="48" @click="keep(row)"></v-list-item>
+                                </v-list>
+                            </v-menu>
                         </v-btn>
                         <v-btn variant="tonal" color="primary" size="large" :loading="busy == row.id" :disabled="fixingAll" @click="fixOne(row)">
                             {{ $t('Fork_Fix') }}
@@ -79,7 +85,7 @@
 import {onMounted, ref} from "vue";
 import {useI18n} from "vue-i18n";
 import {ErrorMessageType, useMessageStore} from "@/stores/MessageStore";
-import {KitchenNameFix, listNamesToFix} from "@/fork/api";
+import {keepFoodName, KitchenNameFix, listNamesToFix} from "@/fork/api";
 import {mergeFood, renameOrMergeFood} from "@/fork/foods";
 
 const {t} = useI18n()
@@ -96,7 +102,7 @@ const editing = ref<KitchenNameFix | null>(null)
 const otherName = ref('')
 
 function newName(row: KitchenNameFix) {
-    return row.target && !row.target.renamed ? row.target.name : row.clean
+    return row.target ? row.target.name : row.clean
 }
 
 function how(row: KitchenNameFix) {
@@ -104,10 +110,20 @@ function how(row: KitchenNameFix) {
     return `${row.target ? t('Fork_Fix_Merge', {name: newName(row)}) : t('Fork_Fix_Rename')} · ${usage}`
 }
 
-/** merge into the existing food, else rename (merged into a food renamed just before, if any) */
+/**
+ * merge into the target by id (it may be renamed in the same run: its id stays, the alias uses its clean name),
+ * else rename (merged into a food that already has the name, if any)
+ */
 function apply(row: KitchenNameFix) {
-    if (row.target && !row.target.renamed) return mergeFood(row, row.target, t)
+    if (row.target) return mergeFood(row, {id: row.target.id, name: newName(row)}, t)
     return renameOrMergeFood(row, row.clean, t)
+}
+
+/** a real name ("4 épices"): kept, never proposed again while it stays the same */
+function keep(row: KitchenNameFix) {
+    keepFoodName(row.id).then(() => {
+        rows.value = rows.value.filter(r => r.id != row.id)
+    }).catch(err => useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err))
 }
 
 async function fixOne(row: KitchenNameFix) {
