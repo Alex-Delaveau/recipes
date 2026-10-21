@@ -450,3 +450,8 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
   dernière étape) et dans l'assistant de saisie ; coupe faite par le serveur (`kitchen/images.py`). Tests pytest
   (`test_images.py`), parcours `importcrop` et `wizard` étendu (photo recadrée en carré vérifiée).
 - Page « Tirer au sort » : grille de grandes photos (2 colonnes sur téléphone), boutons remplacer / retirer posés sur la photo.
+
+## 2026-10-21 — Cadrage M7 (estimation du prix des courses)
+- Jalon M7 ajouté à ROADMAP.md : niveau 2 retenu par Alex (prix par aliment dans la propriété Prix upstream, prix au
+  paquet, dictionnaire de prix moyens marqués « estimés », écran « Aliments sans prix », prix affiché sur la recette,
+  la semaine et la liste de courses), plus l'ajustement après les courses par le total payé. Prochain jalon : M7.
