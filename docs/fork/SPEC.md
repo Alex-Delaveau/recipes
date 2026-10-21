@@ -136,6 +136,19 @@ Ce fichier est la source de vérité produit : en cas de doute pendant un jalon,
 4. **Bouton « Ajouter »** de la barre du bas : une feuille à deux choix, « Depuis un site (URL) » ou « Saisir une recette ».
 5. Modifier une recette existante sur téléphone reste possible avec le même découpage en écrans.
 
+## Cuisine et courses au quotidien — attendu
+Ajouté le 2026-10-21 après l'audit de kitshn (`docs/fork/AUDIT-KITSHN.md`), **à relire par Alex**. Jalon M5.
+1. **Minuteurs** : les durées écrites dans les étapes (« cuire 20 à 25 minutes ») se touchent pour lancer un minuteur,
+   en mode cuisine et dans la recette. Plusieurs minuteurs à la fois, son et vibration à la fin.
+2. **Fin de cuisine** : « Terminé » propose une note et un commentaire facultatifs, et enregistre toujours le passage en
+   cuisine (journal upstream). C'est ce qui alimente « récentes » et « pas faites depuis longtemps » (P1) ; cela couvre
+   aussi l'étape 4 de P2.
+3. **Courses en magasin** (P4) : l'écran reste allumé ; les coches faites sans réseau ne se perdent pas, même si l'app
+   est fermée, et partent au retour du réseau.
+4. **« Au menu »** : sur l'accueil du téléphone, le repas prévu aujourd'hui (ou demain, le soir), s'il y en a un. Le plan
+   se fait sur l'ordinateur, la cuisine depuis le téléphone.
+5. **Partage** : partager un lien de recette vers l'application lance l'import, même si le lien est noyé dans du texte.
+
 ## Hors périmètre
 Les fonctions upstream suivantes restent intactes et accessibles via « Plus », mais le fork ne les refait pas :
 - garde-manger / inventaire, stock (`food_onhand`) ;

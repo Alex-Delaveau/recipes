@@ -14,6 +14,9 @@ Questions ouvertes (non bloquantes, le travail a continué avec le choix indiqu�
   choix de langue). Un téléphone réglé en anglais n'en profiterait pas. Faut-il plutôt l'activer pour tout l'espace ?
 - M2 — Éditeur de recette upstream sur mobile : le bouton flottant « Enregistrer » peut recouvrir le bouton
   « Supprimer » de l'image selon le défilement. Non corrigé en M2 : l'éditeur mobile est refait en M4.
+- Audit kitshn — Nouveau jalon M5 « Cuisine et courses au quotidien » (minuteurs, fin de cuisine, courses hors ligne,
+  « Au menu », partage), inséré avant la livraison, devenue M6. À valider avant de lancer M5 (AUDIT-KITSHN.md,
+  DECISIONS.md, SPEC.md § « Cuisine et courses au quotidien »).
 
 ## 2026-10-20 — Cadrage
 - Entretien de cadrage terminé : SPEC.md rempli, DESIGN.md validé, critères M3 et M4 réécrits.
@@ -274,3 +277,13 @@ Branche : `fork/m4-recettes`, partie de `fork/m3-aliments` (PR M3 ouverte, non f
   l'appareil. Liste unique d'ingrédients pour les recettes créées ; les recettes découpées gardent leur découpage.
 - « Ajouter › Saisir une recette » et « Modifier » ouvrent l'assistant ; l'éditeur complet reste accessible.
 - Prochain jalon : M5 (livraison sur le homelab), après fusion de M2 → M3 → M4.
+  (Mis à jour le 2026-10-21 : la livraison devient M6, voir « Audit kitshn » ci-dessous.)
+
+## 2026-10-21 — Audit kitshn
+- kitshn (client natif Kotlin de Tandoor) audité : README, documentation des fonctions, code `shared/`. Rien de copié
+  (GPL-3.0, autre stack) : seulement des idées. Résultat dans `docs/fork/AUDIT-KITSHN.md`.
+- Constat principal : le mode cuisine du fork ne crée jamais de `CookLog`, donc « récentes » et « pas faites depuis
+  longtemps » ne sont pas nourris ; et la file de coches des courses est en mémoire (perdue si l'app est fermée hors
+  ligne). Le partage vers l'app échoue quand l'URL est noyée dans du texte.
+- Nouveau jalon M5 « Cuisine et courses au quotidien » ajouté à ROADMAP.md ; la livraison devient M6.
+- Prochain jalon : M5 (branche `fork/m5-quotidien`), puis M6 (livraison).

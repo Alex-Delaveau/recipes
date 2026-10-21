@@ -3,6 +3,29 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — audit kitshn — Nouveau jalon M5, livraison décalée en M6
+**Contexte** : avant la livraison, Alex a demandé d'auditer [kitshn](https://github.com/kitshn-app/kitshn) (client natif
+de Tandoor) et d'en tirer un jalon pour les fonctions utiles. Détail dans `docs/fork/AUDIT-KITSHN.md`.
+**Choix** :
+- Jalon « M5 — Cuisine et courses au quotidien » inséré **avant** la livraison, qui devient M6 (critères inchangés).
+  Ainsi la première image déployée contient déjà ces fonctions, et les jalons restent dans l'ordre d'exécution.
+- Retenu : minuteurs détectés dans les étapes, écran de fin de cuisine qui crée un `CookLog`, écran allumé et coches
+  conservées hors ligne sur la liste de courses, carte « Au menu » sur l'accueil téléphone, correctif du partage vers
+  l'app. Tout passe par l'API upstream : aucun changement backend prévu.
+- Écarté : accueil dynamique par mots-clés (trop peu de recettes), répartition des ingrédients par étape (contraire à la
+  liste unique), import IA et réseaux sociaux (SPEC), favoris par livre (livres hors périmètre), fonctions propres à
+  une app native. Les favoris et l'accueil par moment de la journée sont gardés « en réserve ».
+- La carte « Au menu » sur téléphone **complète** la décision M2 « bandeau du plan de repas : desktop seulement » : le
+  bandeau de la semaine reste réservé au desktop ; le téléphone n'affiche qu'une carte compacte, et seulement s'il y a
+  un repas prévu.
+- Minuteurs : une PWA n'a pas accès au minuteur du système. Le fork tient donc lui-même les minuteurs, à partir de leur
+  heure de fin. L'alarme est garantie en mode cuisine (écran allumé) ; ailleurs, l'app affiche « terminé » au retour, et
+  la notification système reste un bonus.
+
+**Alternative écartée** : ajouter ces fonctions à la fin, après la livraison (M6) ; ou garder la numérotation avec un
+« M4b ».
+**Réversible ?** Oui : le jalon n'est pas commencé ; on peut retirer une fonction ou réordonner les jalons.
+
 ## 2026-10-20 — M4 — Reconnaissance française : enveloppe du parseur upstream, selon la langue
 **Contexte** : ne pas modifier `cookbook/helper/ingredient_parser.py`, mais servir l'import URL, le collage
 multi-ligne de l'éditeur, le texte libre des courses et l'assistant du fork.
