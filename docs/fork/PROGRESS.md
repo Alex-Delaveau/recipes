@@ -303,7 +303,7 @@ Branche : `claude/clever-fermat-h1cce1` (imposée par la session cloud, au lieu 
 5. [ ] Courses en magasin : écran allumé (réglable, actif par défaut), file de coches persistée et rejouée au retour du
    réseau, indicateur « N modifications en attente », dernier état connu affiché hors ligne. Diff minimal dans
    `ShoppingStore` (logique dans `vue3/src/fork/`). Vérif : flow hors ligne (Playwright `setOffline`).
-6. [ ] Carte « Au menu » sur l'accueil téléphone (aujourd'hui, ou demain après 21 h), seulement s'il y a un repas prévu.
+6. [x] Carte « Au menu » sur l'accueil téléphone (aujourd'hui, ou demain après 21 h), seulement s'il y a un repas prévu.
    Vérif : flow (repas créé puis supprimé).
 7. [x] Partage vers l'app : première URL de `url`, `text` ou `title` (`vue3/src/fork/share.ts`, testé par node), branchée
    dans `RecipeImportPage.vue`. Vérif : test node + flow `/recipe/import?text=…`.

@@ -292,6 +292,57 @@ const FLOWS = {
     }
   },
 
+  // M5: "Au menu" card on the phone home, only when a meal is planned (today, or tomorrow after 21:00)
+  async menu(page, ctx) {
+    const card = page.locator('.fork-menu')
+    const clean = async () => {
+      const d = (await api(page, 'GET', '/api/meal-plan/?page_size=100')).data
+      for (const p of (d.results ?? d).filter((p) => (p.title || '').startsWith('[flow]') || p.note === '[flow]')) await api(page, 'DELETE', `/api/meal-plan/${p.id}/`)
+    }
+    await page.goto(base + '/', { waitUntil: 'networkidle' })
+    await clean()
+    const day = await page.evaluate(() => {
+      const d = new Date()
+      if (d.getHours() >= 21) d.setDate(d.getDate() + 1)
+      return { iso: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, tomorrow: new Date().getHours() >= 21 }
+    })
+    const existing = (await api(page, 'GET', `/api/meal-plan/?from_date=${day.iso}&to_date=${day.iso}`)).data
+    if (!(existing.results ?? existing).length) {
+      await page.reload({ waitUntil: 'networkidle' })
+      await page.waitForTimeout(800)
+      check(!(await card.count()), 'no card when nothing is planned')
+    }
+    const types = (await api(page, 'GET', '/api/meal-type/?page_size=10')).data
+    let mealType = (types.results ?? types)[0]
+    let createdType = null
+    if (!mealType) {
+      createdType = (await api(page, 'POST', '/api/meal-type/', { name: 'Dîner', order: 0 })).data
+      mealType = createdType
+    }
+    const curry = (await api(page, 'GET', `/api/recipe/${ctx.curry}/`)).data
+    const plan = await api(page, 'POST', '/api/meal-plan/', {
+      recipe: { id: curry.id, name: curry.name, keywords: [] }, servings: 4, note: '[flow]', from_date: day.iso, to_date: day.iso,
+      meal_type: { id: mealType.id, name: mealType.name }, title: '',
+    })
+    const titled = await api(page, 'POST', '/api/meal-plan/', {
+      title: '[flow] Restes', servings: 2, from_date: day.iso, to_date: day.iso, meal_type: { id: mealType.id, name: mealType.name },
+    })
+    try {
+      check(plan.status === 201 && titled.status === 201, `meal plan entries created (${plan.status}, ${titled.status})`)
+      await page.reload({ waitUntil: 'networkidle' })
+      check(await eventually(() => card.isVisible()), 'card shown on the phone home when a meal is planned')
+      check((await card.innerText()).includes(day.tomorrow ? 'Au menu demain' : "Au menu aujourd'hui"), 'card says today (or tomorrow after 21:00)')
+      check(await card.locator('.fork-menu__row', { hasText: '[flow] Restes' }).isVisible(), 'an entry without recipe shows its title')
+      await shot(page, 'home-menu')
+      await card.locator('a.fork-menu__row', { hasText: 'Curry' }).click()
+      await page.waitForURL(/\/recipe\/\d+\?servings=4/)
+      check(true, 'a tap opens the recipe at the planned servings')
+    } finally {
+      for (const p of [plan, titled]) if (p.data?.id) await api(page, 'DELETE', `/api/meal-plan/${p.data.id}/`)
+      if (createdType) await api(page, 'DELETE', `/api/meal-type/${createdType.id}/`)
+    }
+  },
+
   // P3: add to shopping, untick what you have
   async p3(page, ctx) {
     await page.goto(`${base}/recipe/${ctx.curry}?servings=6`, { waitUntil: 'networkidle' })
