@@ -3,6 +3,38 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — « Tirer au sort » remplace le chip « Au hasard »
+**Contexte** : Alex veut tirer X recettes au hasard, puis en retirer au cas par cas. Le chip « Au hasard » restait
+sélectionné (un nouveau clic relançait le tirage au lieu de le désélectionner). Les chips choisis montraient deux
+icônes côte à côte.
+**Choix** :
+- Page `/recipes/draw`. On choisit X (1 à 14, 5 par défaut), on tire, puis on retire, remplace, ajoute une recette ou
+  refait le tirage, avec annulation.
+- Le tirage suit les filtres de l'accueil. La liste est gardée sur l'appareil (`localStorage`), pas partagée avec le
+  foyer.
+- Le chip « Au hasard » devient « Tirer au sort » (lien vers la page, avec le nombre de recettes tirées).
+- « Récentes » et « Pas faites depuis longtemps » se désélectionnent par un deuxième clic. Un chip choisi est rempli
+  de couleur, sans la coche Vuetify.
+
+**Alternative écartée** :
+- Garder un tri « au hasard » de la liste complète : il ne répond pas à « quoi manger cette semaine ».
+- Partager le tirage avec le foyer : il faudrait un modèle `kitchen`. On le fera si le tirage alimente le menu de la
+  semaine.
+
+**Réversible ?** Oui.
+
+## 2026-10-21 — hors jalon — Accueil des recettes : réflexion, pas encore de refonte
+**Contexte** : l'accueil est jugé fatigant (« plein de plats dans lesquels on se perd »).
+**Choix** : analyse et recommandation dans `docs/fork/RECETTES-ACCUEIL.md` :
+- la décision d'abord (le tirage) ;
+- des étagères thématiques ;
+- la liste complète en lignes compactes.
+
+L'écran n'est pas refait avant validation par Alex : c'est un choix produit qui change le parcours P1 de SPEC.md.
+**Alternative écartée** : refaire tout de suite en grille dense (piste A). Elle réduit le défilement, mais pas
+l'effet « liste plate ».
+**Réversible ?** Oui.
+
 ## 2026-10-21 — hors jalon — Doublons : variétés d'un nom composé
 **Contexte** : « Pomme de terre », « Pomme de terre à chair ferme » et « Pomme de terre Yukon Gold » n'étaient pas
 proposés comme doublons. La règle « mêmes mots + au plus 2 de plus » était coupée dès que le nom long contenait une

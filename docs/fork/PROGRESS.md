@@ -414,3 +414,11 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
   fusions par nom au lieu de l'identifiant. Mineurs corrigés : pluriel dans la recherche par nom, décisions notées.
   Mineurs non traités : un double échec de fusion dans « Autre nom… » laisse la paire à moitié fusionnée (sans perte
   de données, erreur affichée) ; le compte des noms à corriger est recalculé à chaque chargement de la page Aliments.
+
+## 2026-10-21 — Accueil des recettes : tirage au sort et réflexion (demande d'Alex)
+- « Tirer au sort » : X recettes au hasard (suivant les filtres), retirer / remplacer / une de plus / nouveau tirage,
+  annulation, liste gardée sur l'appareil. Remplace le chip « Au hasard ». Les chips se désélectionnent et n'ont plus
+  qu'une icône.
+- Réflexion sur l'accueil : `docs/fork/RECETTES-ACCUEIL.md` (diagnostic, 4 pistes, recommandation D + C + B).
+  **En attente** : choix de la direction par Alex avant la refonte.
+- Doublons : variétés d'un nom composé (« Pomme de terre à chair ferme » ~ « Pomme de terre »).
