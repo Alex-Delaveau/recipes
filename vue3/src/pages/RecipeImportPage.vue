@@ -602,6 +602,7 @@ import bookmarkletJs from '@/assets/bookmarklet_v3?url'
 import StepIngredientSorterDialog from "@/components/dialogs/StepIngredientSorterDialog.vue";
 import {mergeAllSteps, splitAllSteps, splitStep} from "@/utils/step_utils.ts";
 import VModelSelect from "@/components/inputs/VModelSelect.vue";
+import {extractSharedUrl} from "@/fork/share";
 
 function doListImport() {
     urlList.value = urlListImportInput.value.split('\n')
@@ -706,12 +707,10 @@ onMounted(() => {
     loadOrCreateBookmarkletToken()
 
     // handle manifest share intend passing url to import page
-    if (params.url && typeof params.url === "string") {
-        importUrl.value = params.url
-        loadRecipeFromUrl({url: importUrl.value})
-    }
-    if (params.text && typeof params.text === "string") {
-        importUrl.value = params.text
+    // fork: shared text is often "Recipe title https://…" and `text` used to override `url`: import the first URL found
+    const sharedUrl = extractSharedUrl(params.url, params.text, params.title)
+    if (sharedUrl) {
+        importUrl.value = sharedUrl
         loadRecipeFromUrl({url: importUrl.value})
     }
 

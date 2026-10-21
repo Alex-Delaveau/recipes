@@ -78,10 +78,13 @@ const texts = (page, selector) => page.locator(selector).allInnerTexts()
 
 // screens that only a click-through reaches (wizard screens 2-4...): published with the route captures
 const SHOTS = join(ROOT, '.fork/screens/flows')
-async function shot(page, name) {
+async function shot(page, name, scheme = 'light') {
   mkdirSync(SHOTS, { recursive: true })
+  if (scheme === 'dark') await page.emulateMedia({ colorScheme: 'dark' })
   await page.waitForTimeout(400)
-  await page.screenshot({ path: join(SHOTS, `${name}-mobile-screen.jpg`), type: 'jpeg', quality: 80 }).catch(() => {})
+  const suffix = scheme === 'dark' ? 'dark' : 'mobile'
+  await page.screenshot({ path: join(SHOTS, `${name}-${suffix}-screen.jpg`), type: 'jpeg', quality: 80 }).catch(() => {})
+  if (scheme === 'dark') { await page.emulateMedia({ colorScheme: 'light' }); await page.waitForTimeout(200) }
 }
 
 // ---- flows ----
@@ -158,6 +161,201 @@ const FLOWS = {
     check(true, 'leaving cook mode returns to the recipe with the chosen servings')
   },
 
+  // M5: durations in the step text start timers; several timers, pause, +1 min, stop; they survive a reload
+  async timers(page, ctx) {
+    const timerRows = page.locator('.fork-timers__row')
+    const curry = (await api(page, 'GET', `/api/recipe/${ctx.curry}/`)).data
+    const step = curry.steps[1]
+    await api(page, 'PATCH', `/api/step/${step.id}/`, { time: 20 }) // step.time chip, restored below
+    try {
+      await page.goto(`${base}/recipe/${ctx.curry}`, { waitUntil: 'networkidle' })
+      await page.evaluate(() => localStorage.removeItem('fork_timers'))
+      await page.reload({ waitUntil: 'networkidle' })
+      const link = page.locator('.fork-recipe__instructions .fork-timer-link', { hasText: '15 min' })
+      check(await eventually(() => link.isVisible()), '"15 min" in the step text is tappable (recipe view)')
+      await link.click()
+      check(await eventually(() => timerRows.first().isVisible(), 3000), 'tapping it starts a timer shown in the timers bar')
+      const time = () => timerRows.first().locator('.fork-timers__time').innerText()
+      check(/^1[45]:\d\d$/.test(await time()), `countdown from 15:00 (${await time()})`)
+      check((await timerRows.first().innerText()).includes('Mijoter · 15 min'), 'timer labelled with its step and duration')
+      await timerRows.first().getByRole('button', { name: 'Mettre en pause' }).click()
+      const paused = await time()
+      await page.waitForTimeout(1500)
+      check(await time() === paused && await timerRows.first().getByRole('button', { name: 'Reprendre' }).isVisible(), 'pause freezes the countdown')
+      await timerRows.first().getByRole('button', { name: 'Ajouter une minute' }).click()
+      check(/^1[56]:\d\d$/.test(await time()), `+1 min adds a minute (${await time()})`)
+      await timerRows.first().getByRole('button', { name: 'Reprendre' }).click()
+
+      await page.locator('.fork-recipe__time-chip').first().click()
+      check(await eventually(async () => (await timerRows.count()) === 2, 3000), 'the step time chip starts a second timer')
+
+      // a range asks which duration
+      const poulet = (await api(page, 'GET', '/api/recipe/?query=poulet&page_size=1')).data.results[0]
+      await page.goto(`${base}/recipe/${poulet.id}`, { waitUntil: 'networkidle' })
+      check(await eventually(async () => (await timerRows.count()) === 2), 'timers follow to another page')
+      await page.locator('.fork-timer-link', { hasText: '16 à 18 min' }).click()
+      const sheet = page.locator('.v-bottom-sheet')
+      check(await eventually(() => sheet.getByText('Quelle durée ?').isVisible(), 3000), 'a range opens a duration choice')
+      const options = await sheet.locator('.v-btn', { hasText: 'min' }).allInnerTexts()
+      check(options.join('|') === '16 min|17 min|18 min', `low, middle and high proposed (${options.join(', ')})`)
+      await shot(page, 'timer-range')
+      await sheet.getByRole('button', { name: '17 min' }).click()
+      const summary = page.locator('.fork-timers__summary')
+      check(await eventually(() => summary.isVisible(), 3000) && (await summary.innerText()).includes('3 minuteurs'), 'a third timer collapses the bar into one summary row')
+      await summary.click()
+      check(await eventually(async () => (await page.locator('.fork-timers__row[role="timer"]').count()) === 3, 3000), 'the summary row opens the full list')
+      await shot(page, 'timers-bar')
+      await shot(page, 'timers-bar', 'dark')
+
+      // timers rely on their end time: a reload keeps them; an elapsed one shows as done
+      await page.evaluate(() => {
+        const list = JSON.parse(localStorage.getItem('fork_timers'))
+        list[0].endAt = Date.now() + 1500
+        localStorage.setItem('fork_timers', JSON.stringify(list))
+      })
+      await page.reload({ waitUntil: 'networkidle' })
+      check(await eventually(async () => (await page.locator('.fork-timers__summary').innerText()).includes('3 minuteurs')), 'timers survive a reload')
+      check(await eventually(() => page.locator('.fork-timers__row--done', { hasText: 'Terminé' }).isVisible(), 5000), 'a timer reaching its end time rings as done (shown even when collapsed)')
+
+      // cook mode shows them above its buttons, durations tappable there too
+      await page.goto(`${base}/recipe/${ctx.curry}/cook`, { waitUntil: 'networkidle' })
+      check(await eventually(() => page.locator('.fork-cook__nav .fork-timers__row').first().isVisible()), 'cook mode shows the timers above its buttons')
+      await page.getByRole('button', { name: 'Suivant' }).click()
+      await page.getByRole('button', { name: 'Suivant' }).click()
+      check(await page.locator('.fork-cook__instructions .fork-timer-link', { hasText: '15 min' }).isVisible(), 'durations tappable in cook mode')
+      check(await page.locator('.fork-cook__time').isVisible(), 'step time chip shown in cook mode')
+      await shot(page, 'cook-timers')
+      const stopButtons = page.locator('.fork-timers').getByRole('button', { name: 'Arrêter le minuteur' })
+      for (let i = 0; i < 3; i++) {
+        if (await page.locator('.fork-timers__summary[aria-expanded="false"]').count()) await page.locator('.fork-timers__summary').click()
+        await stopButtons.first().click()
+      }
+      check(await eventually(async () => !(await page.locator('.fork-timers').count()), 3000), 'stop removes the timers')
+    } finally {
+      await api(page, 'PATCH', `/api/step/${step.id}/`, { time: step.time ?? 0 })
+      await page.evaluate(() => localStorage.removeItem('fork_timers')).catch(() => {})
+    }
+  },
+
+  // M5: "Terminé" opens "Bon appétit": rating and comment are optional, Save and Skip both log the cooking
+  async cookdone(page, ctx) {
+    const logs = async () => {
+      const d = (await api(page, 'GET', `/api/cook-log/?recipe=${ctx.curry}&page_size=100`)).data
+      return d.results ?? d
+    }
+    const before = new Set((await logs()).map((l) => l.id))
+    const created = []
+    try {
+      await page.goto(`${base}/recipe/${ctx.curry}?servings=5`, { waitUntil: 'networkidle' })
+      await page.getByRole('link', { name: 'Mode cuisine' }).click()
+      await page.waitForURL(/\/cook/)
+      await eventually(() => page.getByText('Étape 1 sur 4').isVisible())
+      for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Suivant' }).click()
+      await page.getByRole('button', { name: 'Terminé' }).click()
+      check(await eventually(() => page.getByText('Bon appétit !').isVisible(), 3000), '"Terminé" opens the "Bon appétit" screen')
+      check(await page.getByText('Cuisiné pour 5 portions').isVisible(), 'servings recalled')
+      await page.locator('.fork-cook__rating .v-rating__item').nth(3).locator('button, input').first().click()
+      await page.getByLabel('Commentaire (facultatif)').fill('Un peu plus de citron')
+      await shot(page, 'cook-done')
+      await shot(page, 'cook-done', 'dark')
+      await page.getByRole('button', { name: 'Enregistrer' }).click()
+      await page.waitForURL(/\/recipe\/\d+(\?servings=5)?$/)
+      check(!page.url().includes('/cook'), 'back to the recipe after saving')
+      const saved = (await logs()).filter((l) => !before.has(l.id))
+      saved.forEach((l) => created.push(l.id))
+      check(saved.length === 1 && saved[0].rating === 4 && saved[0].servings === 5 && saved[0].comment === 'Un peu plus de citron',
+        `cook log saved with rating, servings and comment (${JSON.stringify(saved.map((l) => [l.rating, l.servings, l.comment]))})`)
+
+      await page.goto(`${base}/recipe/${ctx.curry}/cook`, { waitUntil: 'networkidle' })
+      await eventually(() => page.getByText('Étape 1 sur 4').isVisible())
+      for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Suivant' }).click()
+      await page.getByRole('button', { name: 'Terminé' }).click()
+      await page.getByRole('button', { name: 'Passer' }).click()
+      await page.waitForURL(/\/recipe\/\d+/)
+      const skipped = (await logs()).filter((l) => !before.has(l.id) && !created.includes(l.id))
+      skipped.forEach((l) => created.push(l.id))
+      check(skipped.length === 1 && skipped[0].rating == null && skipped[0].servings === 3, '"Passer" logs the cooking too, without rating')
+
+      const forgotten = (await api(page, 'GET', '/api/kitchen/recipes/?sort=forgotten&page_size=50')).data
+      const names = (forgotten.results ?? forgotten).map((r) => r.name)
+      check(names[names.length - 1]?.includes('Curry'), `"pas faites depuis longtemps" now lists the curry last (${names.join(', ')})`)
+    } finally {
+      for (const id of created) await api(page, 'DELETE', `/api/cook-log/${id}/`)
+    }
+  },
+
+  // M5: a link shared to the PWA (share_target) imports the first URL of url, text or title
+  async share(page) {
+    const sent = []
+    await page.route('**/api/recipe-from-source/', (r) => {
+      sent.push(JSON.parse(r.request().postData() || '{}').url)
+      return r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: true, msg: 'test' }) })
+    })
+    try {
+      const text = encodeURIComponent('Recette de tarte aux pommes https://www.example.org/recettes/tarte-123 à essayer')
+      await page.goto(`${base}/recipe/import?title=Tarte&text=${text}&url=`, { waitUntil: 'networkidle' })
+      check(await eventually(() => sent.length >= 1, 5000), 'opening the share target starts an import')
+      check(sent.length === 1 && sent[0] === 'https://www.example.org/recettes/tarte-123', `only the URL found in the shared text is imported (${sent.join(', ')})`)
+      sent.length = 0
+      await page.goto(`${base}/recipe/import?title=${encodeURIComponent('Tarte https://x.example.org/t')}`, { waitUntil: 'networkidle' })
+      check(await eventually(() => sent[0] === 'https://x.example.org/t', 5000), 'a URL in the title only works too')
+    } finally {
+      await page.unroute('**/api/recipe-from-source/')
+    }
+  },
+
+  // M5: "Au menu" card on the phone home, only when a meal is planned (today, or tomorrow after 21:00)
+  async menu(page, ctx) {
+    const card = page.locator('.fork-menu')
+    const clean = async () => {
+      const d = (await api(page, 'GET', '/api/meal-plan/?page_size=100')).data
+      for (const p of (d.results ?? d).filter((p) => (p.title || '').startsWith('[flow]') || p.note === '[flow]')) await api(page, 'DELETE', `/api/meal-plan/${p.id}/`)
+    }
+    await page.goto(base + '/', { waitUntil: 'networkidle' })
+    await clean()
+    const day = await page.evaluate(() => {
+      const d = new Date()
+      if (d.getHours() >= 21) d.setDate(d.getDate() + 1)
+      return { iso: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, tomorrow: new Date().getHours() >= 21 }
+    })
+    const existing = (await api(page, 'GET', `/api/meal-plan/?from_date=${day.iso}&to_date=${day.iso}`)).data
+    if (!(existing.results ?? existing).length) {
+      await page.reload({ waitUntil: 'networkidle' })
+      await page.waitForTimeout(800)
+      check(!(await card.count()), 'no card when nothing is planned')
+    }
+    const types = (await api(page, 'GET', '/api/meal-type/?page_size=10')).data
+    let mealType = (types.results ?? types)[0]
+    let createdType = null
+    if (!mealType) {
+      createdType = (await api(page, 'POST', '/api/meal-type/', { name: 'Dîner', order: 0 })).data
+      mealType = createdType
+    }
+    const curry = (await api(page, 'GET', `/api/recipe/${ctx.curry}/`)).data
+    const plan = await api(page, 'POST', '/api/meal-plan/', {
+      recipe: { id: curry.id, name: curry.name, keywords: [] }, servings: 4, note: '[flow]', from_date: day.iso, to_date: day.iso,
+      meal_type: { id: mealType.id, name: mealType.name }, title: '',
+    })
+    const titled = await api(page, 'POST', '/api/meal-plan/', {
+      title: 'Restes', note: '[flow]', servings: 2, from_date: day.iso, to_date: day.iso, meal_type: { id: mealType.id, name: mealType.name },
+    })
+    try {
+      check(plan.status === 201 && titled.status === 201, `meal plan entries created (${plan.status}, ${titled.status})`)
+      await page.reload({ waitUntil: 'networkidle' })
+      check(await eventually(() => card.isVisible()), 'card shown on the phone home when a meal is planned')
+      check((await card.innerText()).includes(day.tomorrow ? 'Au menu demain' : "Au menu aujourd'hui"), 'card says today (or tomorrow after 21:00)')
+      check(await card.locator('div.fork-menu__row', { hasText: 'Restes' }).isVisible(), 'an entry without recipe shows its title (no link)')
+      await shot(page, 'home-menu')
+      await shot(page, 'home-menu', 'dark')
+      await card.locator('a.fork-menu__row', { hasText: 'Curry' }).click()
+      await page.waitForURL(/\/recipe\/\d+\?servings=4/)
+      check(true, 'a tap opens the recipe at the planned servings')
+    } finally {
+      for (const p of [plan, titled]) if (p.data?.id) await api(page, 'DELETE', `/api/meal-plan/${p.data.id}/`)
+      if (createdType) await api(page, 'DELETE', `/api/meal-type/${createdType.id}/`)
+    }
+  },
+
   // P3: add to shopping, untick what you have
   async p3(page, ctx) {
     await page.goto(`${base}/recipe/${ctx.curry}?servings=6`, { waitUntil: 'networkidle' })
@@ -226,6 +424,66 @@ const FLOWS = {
     for (let i = 0; i < total; i++) await page.getByRole('button', { name: 'Annuler' }).first().click()
     check(await eventually(async () => (await rowsToCheck.count()) === total, 4000), 'undo restores every item')
     await page.waitForTimeout(1500)
+  },
+
+  // M5: in the shop without network: checks kept on the device (even after a reload), sent when the network is back
+  async offline(page) {
+    const context = page.context()
+    // record wake lock requests (headless Chromium has no real screen to keep on)
+    await context.addInitScript(() => {
+      window.__forkWakeLocks = []
+      if (!navigator.wakeLock) return
+      navigator.wakeLock.request = async (type) => {
+        const lock = Object.assign(new EventTarget(), { type, released: false, release: async () => { lock.released = true; lock.dispatchEvent(new Event('release')) } })
+        window.__forkWakeLocks.push(lock)
+        return lock
+      }
+    })
+    const serverEntry = async (id) => (await (await context.request.get(`${base}/api/shopping-list-entry/${id}/`)).json())
+    await page.goto(base + '/shopping', { waitUntil: 'networkidle' })
+    await page.evaluate(() => { localStorage.removeItem('fork_shopping_sync_queue') })
+    await page.reload({ waitUntil: 'networkidle' })
+    const row = page.locator('.fork-shopping__row:not(.fork-shopping__row--done)', { hasText: 'Citron' })
+    await eventually(() => row.isVisible())
+    const ids = (await api(page, 'GET', '/api/shopping-list-entry/?page_size=200')).data.results
+      .filter((e) => e.food?.name === 'Citron' && !e.checked).map((e) => e.id)
+    check(ids.length > 0, `an unchecked "Citron" entry to work with (${ids.length})`)
+    // the service worker controls the page before going offline (it serves the app shell when reloading offline)
+    // (as on the phone: the upstream service worker caches pages and API answers it has served)
+    await page.evaluate(() => navigator.serviceWorker?.ready.then(() => true)).catch(() => {})
+    await page.reload({ waitUntil: 'networkidle' })
+    check(await page.evaluate(() => !!navigator.serviceWorker?.controller), 'service worker controls the shopping page')
+    check(await eventually(() => page.evaluate(() => window.__forkWakeLocks?.some((l) => !l.released))), 'screen kept on while the list is open')
+    try {
+      await context.setOffline(true)
+      check(await eventually(() => page.getByText('Dernier état connu de la liste').isVisible(), 3000), 'offline banner shown')
+      await row.click()
+      const cart = page.locator('.fork-shopping__row--done', { hasText: 'Citron' })
+      check(await eventually(() => cart.isVisible(), 3000), 'checking works offline')
+      check(await eventually(() => page.getByText('1 modification en attente').isVisible(), 3000), 'indicator "1 modification en attente"')
+      const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fork_shopping_sync_queue') || '[]'))
+      check(stored.some((q) => q.checked && ids.every((id) => q.ids.includes(id))), 'pending check stored on the device')
+      await shot(page, 'shopping-offline')
+      await shot(page, 'shopping-offline', 'dark')
+
+      // closing the app (here: a reload, still offline) loses nothing; the last known list is shown
+      await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {})
+      check(await eventually(() => cart.isVisible(), 10000), 'after an offline reload the list shows, the item still in the cart')
+      check(await eventually(() => page.getByText('1 modification en attente').isVisible(), 3000), 'still 1 change waiting after the reload')
+      check((await serverEntry(ids[0])).checked === false, 'nothing reached the server while offline')
+
+      await context.setOffline(false)
+      check(await eventually(async () => (await serverEntry(ids[0])).checked === true, 15000), 'back online: the check is sent to the server')
+      check(await eventually(async () => !(await page.getByText('modification en attente').count()), 5000), 'indicator gone once sent')
+      await page.locator('.fork-bottom-nav .v-btn', { hasText: 'Recettes' }).click()
+      check(await eventually(() => page.evaluate(() => window.__forkWakeLocks.length > 0 && window.__forkWakeLocks.every((l) => l.released))), 'screen released when leaving the list')
+    } finally {
+      await context.setOffline(false)
+      await context.request.post(`${base}/api/shopping-list-entry/bulk/`, {
+        data: { ids, checked: false }, headers: { 'X-CSRFToken': (await context.cookies()).find((c) => c.name === 'csrftoken')?.value ?? '' },
+      })
+      await page.evaluate(() => localStorage.removeItem('fork_shopping_sync_queue')).catch(() => {})
+    }
   },
 
   // M3: food tree, move in 2 taps, quick edit, "no aisle" filter

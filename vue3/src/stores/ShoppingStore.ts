@@ -27,6 +27,7 @@ import {ErrorMessageType, PreparedMessage, useMessageStore} from "@/stores/Messa
 import {useUserPreferenceStore} from "@/stores/UserPreferenceStore";
 import {isDelayed, isEntryVisible} from "@/utils/logic_utils";
 import {DateTime} from "luxon";
+import {applyPendingChecks, loadShoppingSnapshot, loadSyncQueue, saveShoppingSnapshot, saveSyncQueue} from "@/fork/shoppingOffline";
 
 const _STORE_ID = "shopping_store"
 const UNDEFINED_CATEGORY = 'shopping_undefined_category'
@@ -47,7 +48,7 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
 
     let undoStack = ref([] as ShoppingOperationHistoryEntry[])
     let queueTimeoutId = ref(-1)
-    let itemCheckSyncQueue = shallowRef([] as IShoppingSyncQueueEntry[])
+    let itemCheckSyncQueue = shallowRef(loadSyncQueue()) // fork: kept on the device (src/fork/shoppingOffline.ts)
     let syncQueueRunning = ref(false)
 
     let entriesByGroup = shallowRef([] as IShoppingListCategory[])
@@ -267,6 +268,8 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
                 }
 
                 Promise.allSettled(promises).then(() => {
+                    applyPendingChecks(globalEntriesMap.value, itemCheckSyncQueue.value) // fork: offline checks win
+                    if (!requestParameters.mealplan) saveShoppingSnapshot(globalEntriesMap.value)
                     updateEntriesStructure()
                     currentlyUpdating.value = false
                     initialized.value = true
@@ -275,6 +278,16 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
 
         }).catch((err) => {
             currentlyUpdating.value = false
+            // fork: offline, show the last known list instead of an empty one
+            const offline = err?.name === 'FetchError' || !navigator.onLine // a server error is reported, not hidden
+            const snapshot = offline && requestParameters.page == 1 && !requestParameters.mealplan ? loadShoppingSnapshot() : null
+            if (snapshot) {
+                globalEntriesMap.value = snapshot
+                applyPendingChecks(globalEntriesMap.value, itemCheckSyncQueue.value)
+                updateEntriesStructure()
+                initialized.value = true
+                return
+            }
             useMessageStore().addError(ErrorMessageType.FETCH_ERROR, err)
         })
     }
@@ -293,6 +306,8 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
                     globalEntriesMap.value.set(e.id!, e)
                 })
                 if (r.results.length > 0) {
+                    applyPendingChecks(globalEntriesMap.value, itemCheckSyncQueue.value) // fork
+                    saveShoppingSnapshot(globalEntriesMap.value)
                     updateEntriesStructure()
                 }
                 currentlyUpdating.value = false
@@ -517,6 +532,7 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
             Promise.allSettled(promises).finally(() => {
                 globalEntriesMap.value = new Map([...globalEntriesMap.value, ...updatedEntries])
                 syncQueueRunning.value = false
+                saveSyncQueue(itemCheckSyncQueue.value) // fork
                 //TODO proper function to splice/update structure as needed
                 //useShoppingStore().updateEntriesStructure()
                 if (itemCheckSyncQueue.value.length > 0) {
@@ -555,6 +571,7 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
      */
     function runSyncQueue(timeout: number) {
         clearTimeout(queueTimeoutId.value)
+        saveSyncQueue(itemCheckSyncQueue.value) // fork: survives closing the app offline
 
         queueTimeoutId.value = window.setTimeout(() => {
             _replaySyncQueue()
@@ -734,6 +751,10 @@ export const useShoppingStore = defineStore(_STORE_ID, () => {
             useMessageStore().addError(ErrorMessageType.FETCH_ERROR, err)
         })
     }
+
+    // fork: send what was checked offline as soon as the network is back, or on the next launch
+    window.addEventListener('online', () => runSyncQueue(100))
+    if (itemCheckSyncQueue.value.length > 0) runSyncQueue(1000)
 
     return {
         UNDEFINED_CATEGORY,

@@ -24,6 +24,9 @@
             </v-badge>
         </div>
 
+        <!-- phone: what is planned today; the desktop has the week banner below -->
+        <fork-menu-card v-if="!mdAndUp"></fork-menu-card>
+
         <!-- shortcuts: browse without a filter -->
         <v-chip-group v-model="filters.sort" column selected-class="text-primary" class="mt-2 fork-home__shortcuts">
             <v-chip value="recent" filter variant="outlined" prepend-icon="fa-solid fa-clock-rotate-left">{{ $t('Fork_Shortcut_Recent') }}</v-chip>
@@ -131,6 +134,7 @@ import {KitchenRecipe, listKitchenRecipes} from "@/fork/api";
 import {forkHomeFilters as filters} from "@/fork/homeFilters";
 import ForkRecipeCard from "@/fork/components/ForkRecipeCard.vue";
 import ForkModelAutocomplete from "@/fork/components/ForkModelAutocomplete.vue";
+import ForkMenuCard from "@/fork/components/ForkMenuCard.vue";
 import HorizontalMealPlanWindow from "@/components/display/HorizontalMealPlanWindow.vue";
 import {useUserPreferenceStore} from "@/stores/UserPreferenceStore";
 

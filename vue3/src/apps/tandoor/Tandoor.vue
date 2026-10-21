@@ -72,6 +72,9 @@
                     </div>
                 </transition>
             </router-view>
+            <!-- fork: kitchen timers follow the user from page to page (cook mode shows them above its buttons) -->
+            <fork-timers-bar v-if="useUserPreferenceStore().isAuthenticated && !useUserPreferenceStore().isPrintMode && !forkFullscreen"
+                             class="d-print-none"></fork-timers-bar>
         </v-main>
 
         <!-- completely hide in print mode because setting d-print-node keeps layout -->
@@ -125,6 +128,7 @@ import {useI18n} from "vue-i18n";
 import {THousehold, TSpace} from "@/types/Models.ts";
 import MenuUserInfo from "@/components/display/MenuUserInfo.vue";
 import ForkBottomNav from "@/fork/ForkBottomNav.vue";
+import ForkTimersBar from "@/fork/timers/ForkTimersBar.vue";
 import {forkNavColor} from "@/fork/theme";
 import brandLogo from "@/assets/brand_logo.svg";
 import brandLogoDark from "@/fork/assets/brand_logo_dark.svg";

@@ -287,3 +287,56 @@ Branche : `fork/m4-recettes`, partie de `fork/m3-aliments` (PR M3 ouverte, non f
   ligne). Le partage vers l'app échoue quand l'URL est noyée dans du texte.
 - Nouveau jalon M5 « Cuisine et courses au quotidien » ajouté à ROADMAP.md ; la livraison devient M6.
 - Prochain jalon : M5 (branche `fork/m5-quotidien`), puis M6 (livraison).
+
+## M5 — plan
+Branche : `claude/clever-fermat-h1cce1` (imposée par la session cloud, au lieu de `fork/m5-quotidien`), partie de
+`origin/main` (M4 fusionné). Environnement : `verify.sh --quick` → `VERIFY: OK` avant tout changement (649 erreurs vue-tsc).
+
+1. [x] Détection des durées en français : fonction pure `vue3/src/fork/timers/detect.ts`, testée par `node --test`
+   (`scripts/fork/tests/`), lancé par `verify.sh` (même en `--quick`). Vérif : ≥ 20 phrases réelles, dont faux positifs.
+2. [x] Minuteurs : store Pinia du fork (heure de fin, pause, +1 min, arrêt, persistance sur l'appareil), barre compacte
+   globale montée dans la coquille, alarme (son, vibration, notification si autorisée). Vérif : `--quick --ui wip`, flow.
+3. [x] Durées touchables dans le mode cuisine et la vue recette (balisage du HTML rendu, sans toucher `Instructions`),
+   puce `step.time` qui lance un minuteur, feuille de choix pour une plage. Vérif : flow « minuteurs ».
+4. [x] Écran « Bon appétit » après « Terminé » : étoiles et commentaire facultatifs, « Enregistrer » / « Passer », les deux
+   créent un `CookLog` avec les portions, puis retour à la recette. Vérif : flow (CookLog créé puis supprimé).
+5. [x] Courses en magasin : écran allumé (réglable, actif par défaut), file de coches persistée et rejouée au retour du
+   réseau, indicateur « N modifications en attente », dernier état connu affiché hors ligne. Diff minimal dans
+   `ShoppingStore` (logique dans `vue3/src/fork/`). Vérif : flow hors ligne (Playwright `setOffline`).
+6. [x] Carte « Au menu » sur l'accueil téléphone (aujourd'hui, ou demain après 21 h), seulement s'il y a un repas prévu.
+   Vérif : flow (repas créé puis supprimé).
+7. [x] Partage vers l'app : première URL de `url`, `text` ou `title` (`vue3/src/fork/share.ts`, testé par node), branchée
+   dans `RecipeImportPage.vue`. Vérif : test node + flow `/recipe/import?text=…`.
+8. [x] Chaînes fr/en, routes `strict`, porte `verify.sh --ui m5 --publish`, `reviewer`, `ui-auditor`, PR.
+
+### Avancement M5
+- 1 : détection des durées françaises, 34 phrases réelles testées par `node --test` (étape ajoutée à `verify.sh`), plus le
+  balisage HTML et l'extraction d'URL partagée (52 tests node au total).
+- 2-3 : minuteurs (heure de fin, pause, +1 min, arrêt, persistance, son, vibration, notification), barre globale et
+  barre du mode cuisine, durées touchables et puce `step.time` dans la recette et le mode cuisine, choix d'une plage.
+- 4 : écran « Bon appétit » ; « Enregistrer » et « Passer » créent un `CookLog` avec les portions.
+- 5 : courses hors ligne (file et dernier état sur l'appareil, rejoués au retour du réseau), indicateur, écran allumé.
+- 6 : carte « Au menu » sur l'accueil téléphone. 7 : partage vers l'app sur la première URL trouvée.
+- Parcours cliqués ajoutés : `timers`, `cookdone`, `share`, `menu`, `offline`. Les routes touchées étaient déjà `strict`.
+- 8 : relectures :
+  - `reviewer` : 1 point bloquant, corrigé : balisage des durées qui pouvait laisser sortir du balisage d'un attribut
+    (`>` ou entités dans un attribut) ; le texte n'est plus décodé ni ré-encodé, test de non-régression ajouté.
+    Majeurs corrigés : son après rechargement (débloqué au premier tap), nombres composés (« vingt-cinq »).
+    Mineurs corrigés : heures du jour (« à 20 h »), fausses plages (« 2 et 10 min », « étape 1 - 10 min »), alarme
+    tardive, repas sur plusieurs jours, instantané seulement sur erreur réseau, écriture échouée. Reste (dans la PR) :
+    file et instantané des courses non cloisonnés par compte sur un appareil partagé.
+  - `ui-auditor` : « FIX FIRST », corrigés : libellés des minuteurs (étape · durée), barre repliée dès 3 minuteurs,
+    style des durées (soulignement plein et icône, sans fausse alerte orthographique), bannière hors ligne aux tokens,
+    écran de fin (sous-titre « Terminé », champ), feuille de plage (milieu mis en avant, « Annuler »), captures sombres.
+
+## M5 — summary
+- Minuteurs dans les étapes : durées françaises repérées et touchables (plages comprises), puce du temps de l'étape,
+  plusieurs minuteurs dans une barre qui suit d'une page à l'autre, fondés sur l'heure de fin, avec son, vibration et
+  notification si autorisée.
+- Fin de cuisine : écran « Bon appétit » (note et commentaire facultatifs), `CookLog` enregistré dans tous les cas.
+- Courses en magasin : écran allumé (réglable), coches conservées hors ligne et envoyées au retour du réseau,
+  indicateur « N modifications en attente », dernier état connu affiché hors ligne.
+- Carte « Au menu » sur l'accueil téléphone ; partage d'un lien vers l'app corrigé.
+- Aucun changement backend. Upstream touché : `ShoppingStore.ts` (points d'accroche « fork »), `RecipeImportPage.vue`
+  (partage), `Tandoor.vue` (barre des minuteurs).
+- Prochain jalon : M6 (livraison sur le homelab).

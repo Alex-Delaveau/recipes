@@ -7,13 +7,24 @@
             </v-btn>
             <div class="fork-cook__heading">
                 <div class="fork-cook__recipe">{{ recipe?.name }}</div>
-                <div class="fork-cook__progress-label" v-if="screens.length">{{ $t('Fork_Step_Of', {n: current + 1, total: screens.length}) }}</div>
+                <div class="fork-cook__progress-label" v-if="finished">{{ $t('Fork_Cook_Done') }}</div>
+                <div class="fork-cook__progress-label" v-else-if="screens.length">{{ $t('Fork_Step_Of', {n: current + 1, total: screens.length}) }}</div>
             </div>
             <span class="fork-cook__servings" v-if="recipe">{{ $t('Fork_Servings_N', {n: servings}) }}</span>
         </header>
-        <v-progress-linear :model-value="screens.length ? (current + 1) / screens.length * 100 : 0" color="primary" height="4"></v-progress-linear>
+        <v-progress-linear :model-value="finished ? 100 : screens.length ? (current + 1) / screens.length * 100 : 0" color="primary" height="4"></v-progress-linear>
 
-        <main class="fork-cook__content" v-if="recipe && screen" :key="current" aria-live="polite">
+        <main class="fork-cook__content fork-cook__done" v-if="recipe && finished" aria-live="polite">
+            <!-- end of cooking: optional rating and comment; both buttons log the cooking (CookLog) -->
+            <h1 class="fork-cook__done-title">{{ $t('Fork_Done_Title') }}</h1>
+            <p class="fork-cook__done-hint">{{ $t('Fork_Done_Hint', {n: servings}) }}</p>
+            <h2 class="fork-cook__group">{{ $t('Fork_Done_Rating') }}</h2>
+            <v-rating v-model="rating" :length="5" size="x-large" density="comfortable" color="primary" active-color="primary" clearable
+                      class="fork-cook__rating"></v-rating>
+            <v-textarea v-model="comment" :label="$t('Fork_Done_Comment')" rows="3" auto-grow variant="solo-filled" flat rounded="lg" class="mt-4"></v-textarea>
+            <v-alert v-if="saveError" type="error" variant="tonal" :text="$t('Fork_Done_Error')"></v-alert>
+        </main>
+        <main class="fork-cook__content" v-else-if="recipe && screen" :key="current" aria-live="polite">
             <template v-if="screen.kind == 'ingredients'">
                 <h1 class="fork-cook__title">{{ $t('Fork_Cook_Get_Ready') }}</h1>
                 <template v-for="g in groups" :key="g.title ?? 'all'">
@@ -26,13 +37,16 @@
                     <span class="fork-cook__number">{{ screen.number }}</span>
                     {{ screen.step.name }}
                 </h1>
-                <v-chip v-if="screen.step.time" variant="tonal" size="large" prepend-icon="fas fa-stopwatch" class="mb-4">{{ screen.step.time }} {{ $t('min') }}</v-chip>
+                <v-chip v-if="screen.step.time" variant="tonal" size="large" prepend-icon="fas fa-stopwatch" class="mb-4 fork-cook__time"
+                        :aria-label="$t('Fork_Timer_Start_N', {duration: `${screen.step.time} ${$t('min')}`})"
+                        @click="startStepTimer(screen.step, screen.number)">{{ screen.step.time }} {{ $t('min') }}</v-chip>
                 <fork-ingredient-list v-if="screen.step.ingredients.length && !singleList" :ingredients="screen.step.ingredients" :factor="factor" large
                                       class="fork-cook__step-ingredients"></fork-ingredient-list>
                 <step-view v-if="screen.step.stepRecipe || screen.step.file" :model-value="screen.step" :step-number="screen.number"
                            :ingredient-factor="factor"></step-view>
                 <div class="fork-cook__instructions markdown-body" v-else>
-                    <instructions :instructions_html="screen.step.instructionsMarkdown ?? ''" :ingredient_factor="factor"></instructions>
+                    <fork-step-text :html="screen.step.instructionsMarkdown ?? ''" :factor="factor" :recipe-id="recipe.id"
+                                    :recipe-name="recipe.name" :label="timerLabel(screen.step, screen.number)"></fork-step-text>
                 </div>
             </template>
         </main>
@@ -44,14 +58,23 @@
         </main>
 
         <footer class="fork-cook__nav">
-            <div class="fork-cook__nav-inner">
+            <fork-timers-bar inline class="fork-cook__timers"></fork-timers-bar>
+            <div class="fork-cook__nav-inner" v-if="finished">
+                <v-btn size="x-large" variant="tonal" class="flex-grow-1" :disabled="saving" @click="logCooking(false)">
+                    {{ $t('Fork_Done_Skip') }}
+                </v-btn>
+                <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" :loading="saving" append-icon="fa-solid fa-check" @click="logCooking(true)">
+                    {{ $t('Fork_Done_Save') }}
+                </v-btn>
+            </div>
+            <div class="fork-cook__nav-inner" v-else>
             <v-btn size="x-large" variant="tonal" class="flex-grow-1" :disabled="current == 0" prepend-icon="fa-solid fa-arrow-left" @click="previous()">
                 {{ $t('Fork_Previous') }}
             </v-btn>
             <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" append-icon="fa-solid fa-arrow-right" @click="next()" v-if="!isLast">
                 {{ $t('Next') }}
             </v-btn>
-            <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" append-icon="fa-solid fa-check" @click="exit()" v-else>
+            <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" append-icon="fa-solid fa-check" @click="finished = true" v-else>
                 {{ $t('Fork_Cook_Done') }}
             </v-btn>
             </div>
@@ -65,11 +88,12 @@ import {useRoute, useRouter} from "vue-router";
 import {useI18n} from "vue-i18n";
 import {onKeyStroke, useSwipe, useTitle, useWakeLock} from "@vueuse/core";
 import {ApiApi, Recipe, Step} from "@/openapi";
-// @ts-ignore upstream component written in plain JS
-import Instructions from "@/components/display/Instructions.vue";
 import StepView from "@/components/display/StepView.vue";
 import ForkIngredientList from "@/fork/components/ForkIngredientList.vue";
 import {ingredientFactor, ingredientGroups} from "@/fork/recipe";
+import ForkStepText from "@/fork/timers/ForkStepText.vue";
+import ForkTimersBar from "@/fork/timers/ForkTimersBar.vue";
+import {useForkTimers} from "@/fork/timers/timers";
 
 type CookScreen = { kind: 'ingredients' } | { kind: 'step', step: Step, number: number }
 
@@ -109,11 +133,50 @@ const screens = computed<CookScreen[]>(() => {
 const screen = computed(() => screens.value[current.value])
 const isLast = computed(() => current.value >= screens.value.length - 1)
 
+const timers = useForkTimers()
+
+/** the step name tells timers apart ("Mijoter"), else its number */
+function timerLabel(step: Step, number: number) {
+    return step.name?.trim() || t('Fork_Timer_Label', {n: number})
+}
+
+function startStepTimer(step: Step, number: number) {
+    if (step.time) timers.start(step.time * 60, timerLabel(step, number), `${step.time} ${t('min')}`, recipe.value?.id, recipe.value?.name)
+}
+
+const finished = ref(false)
+const rating = ref(0)
+const comment = ref('')
+const saving = ref(false)
+const saveError = ref(false)
+
+/** "Save" keeps the rating and comment, "Skip" logs the cooking alone: both feed "recent" and "not made for a while" */
+function logCooking(withReview: boolean) {
+    if (!recipe.value || saving.value) return
+    saving.value = true
+    saveError.value = false
+    new ApiApi().apiCookLogCreate({
+        cookLog: {
+            recipe: recipe.value.id!,
+            servings: servings.value,
+            rating: withReview && rating.value ? rating.value : null,
+            comment: withReview && comment.value.trim() ? comment.value.trim() : null,
+        }
+    }).then(() => {
+        exit()
+    }).catch(() => {
+        saveError.value = true
+    }).finally(() => {
+        saving.value = false
+    })
+}
+
 function next() {
-    if (!isLast.value) current.value++
+    if (!isLast.value && !finished.value) current.value++
 }
 
 function previous() {
+    if (finished.value) return
     if (current.value > 0) current.value--
 }
 
@@ -227,6 +290,21 @@ onBeforeUnmount(() => {
     font-size: var(--fork-text-lg);
 }
 
+.fork-cook__done-title {
+    font-size: var(--fork-text-xxl);
+    line-height: 40px;
+    font-weight: 600;
+}
+
+.fork-cook__done-hint {
+    margin: var(--fork-space-2) 0 var(--fork-space-4);
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.fork-cook__rating {
+    margin-left: calc(-1 * var(--fork-space-2));
+}
+
 .fork-cook__group {
     font-size: var(--fork-text-md);
     font-weight: 600;
@@ -267,7 +345,16 @@ onBeforeUnmount(() => {
     border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
-.fork-cook__nav .v-btn {
+.fork-cook__nav-inner .v-btn {
     min-height: 56px;
+}
+
+.fork-cook__timers {
+    max-width: 760px;
+    margin: 0 auto var(--fork-space-3);
+}
+
+.fork-cook__time {
+    min-height: 44px;
 }
 </style>
