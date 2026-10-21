@@ -141,11 +141,11 @@ upstream existante (`/api/cook-log/`, `/api/meal-plan/`, courses) et par le fron
 - [x] Nouvelles chaînes en `fr` et `en`. Pages touchées en `strict`, zones tactiles ≥ 44 px, 360 px sans débordement.
       Parcours cliqués pour les minuteurs, la fin de cuisine et les coches hors ligne. `verify.sh --ui m5` OK.
 
-## M6 — Livraison sur le homelab [ ]
-- [ ] Workflow GitHub Actions qui construit l'image Docker du fork et la publie sur GHCR (tag = version upstream + suffixe fork).
-- [ ] `docs/fork/DEPLOY.md` : stack compose pour Komodo, sauvegarde de la base avant bascule, test sur une copie, retour arrière vers l'image upstream.
-- [ ] CI GitHub Actions : `verify.sh` complet sur chaque PR vers `main`, la porte reste `VERIFY: OK`.
-- [ ] Vérification que les migrations de `kitchen/` s'appliquent sur une base Postgres créée par l'image upstream (service Postgres de la session).
+## M6 — Livraison sur le homelab [x]
+- [x] Workflow GitHub Actions qui construit l'image Docker du fork et la publie sur GHCR (tag = version upstream + suffixe fork).
+- [x] `docs/fork/DEPLOY.md` : stack compose pour Komodo, sauvegarde de la base avant bascule, test sur une copie, retour arrière vers l'image upstream.
+- [x] CI GitHub Actions : `verify.sh` complet sur chaque PR vers `main`, la porte reste `VERIFY: OK`.
+- [x] Vérification que les migrations de `kitchen/` s'appliquent sur une base Postgres créée par l'image upstream (service Postgres de la session).
 
 ## Récurrent — synchronisation upstream
 À chaque release Tandoor : `/upstream-sync` (branche `sync/upstream-<tag>`, PR dédiée).

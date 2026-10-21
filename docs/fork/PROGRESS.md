@@ -358,7 +358,7 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
    Vérif : exécution dans la session ; job dans `fork-verify.yml`.
 5. [x] `docs/fork/DEPLOY.md` : stack compose pour Komodo, sauvegarde avant bascule, essai sur une copie, retour arrière
    vers l'image upstream. Vérif : compose validé par `docker compose config`, commandes jouées dans le contrôle Postgres.
-6. [ ] Porte `verify.sh --ui m6 --publish`, `reviewer`, `ui-auditor`, critères, PR.
+6. [x] Porte `verify.sh --ui m6 --publish`, `reviewer`, `ui-auditor`, critères, PR.
 
 ### Avancement M6
 - 1 : `scripts/fork/image_tag.sh` → `2.6.15-fork.<n>` sur cette branche.
@@ -372,6 +372,9 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
   `migrate kitchen zero`, l'image upstream ne peut plus supprimer un aliment étendu par le fork (DECISIONS.md).
 - 5 : `DEPLOY.md` et `docs/fork/deploy/`. Procédure jouée de bout en bout sur deux stacks compose (production simulée
   avec l'image upstream 2.6.15, puis sauvegarde, essai sur une copie, bascule vers le fork, retour arrière).
+- Ajout après la demande d'Alex (stack Komodo réelle) : `compose.yaml` calqué sur `stacks/tandoor/compose.yaml`
+  (services `tandoor-db` / `tandoor-web`, NPM sur `internal-network`), `essai.override.yaml` pour une copie d'essai
+  sans alias sur `internal-network`. Deux stacks côte à côte jouées : bases bien séparées.
 - 6 : `verify.sh --ui m6 --publish` → `VERIFY: OK` (pytest 1368 passés, 1 échec de la baseline ; 137 contrôles de
   parcours).
 - Relectures :
@@ -383,3 +386,12 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
     Mineurs corrigés : journaux de CI (fichiers cachés), attente de `pg_isready`, « status check » requis sur `main`.
   - `ui-auditor` : « SHIP », aucune régression par rapport à M5 (aucun fichier d'UI touché). Les remarques mineures
     (zones tactiles de la vue et de l'éditeur upstream) datent d'avant M6.
+
+## M6 — summary
+- Image du fork : workflow `Fork image`, Dockerfile upstream inchangé, publiée sur GHCR
+  (`ghcr.io/alex-delaveau/recipes:<release>-fork.<n>`, `fork-latest`, `sha-…`), construite et démarrée dans la session.
+- CI `Fork verify` sur chaque PR vers `main` : `verify.sh` complet (porte `VERIFY: OK`) et contrôle PostgreSQL.
+- `pg_upgrade_check.sh` : base créée par l'image upstream 2.6.15, migrations `kitchen` par-dessus, puis retour arrière.
+- `DEPLOY.md` pour la stack Komodo réelle : compose à une variable (`TANDOOR_IMAGE`), sauvegarde, essai sur une copie
+  isolée, bascule, deux retours arrière. Piège trouvé : retirer les tables du fork avant de remettre l'image upstream.
+- Upstream touché : `.dockerignore` (lignes ajoutées). La bascule elle-même reste à faire par Alex.
