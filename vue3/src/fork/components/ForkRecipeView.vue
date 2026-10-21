@@ -34,6 +34,9 @@
                             </div>
                             <fork-servings-stepper v-model="servings" :label="recipe.servingsText || $t('Servings')"></fork-servings-stepper>
                         </div>
+                        <!-- estimated price at the servings chosen (M7) -->
+                        <fork-price-summary v-if="price" class="fork-recipe__price mt-3" :total="price.total * factor"
+                                            :per-serving="servings > 0 ? price.total * factor / servings : null" :missing="price.missing"></fork-price-summary>
 
                         <div class="d-flex flex-column ga-2 mt-4 d-print-none">
                             <v-btn color="primary" size="x-large" block prepend-icon="fa-solid fa-fire-burner" v-if="hasSteps && !shared"
@@ -111,6 +114,8 @@ import RecipeActivity from "@/components/display/RecipeActivity.vue";
 import ForkIngredientList from "@/fork/components/ForkIngredientList.vue";
 import ForkServingsStepper from "@/fork/components/ForkServingsStepper.vue";
 import ForkAddToShoppingSheet from "@/fork/components/ForkAddToShoppingSheet.vue";
+import ForkPriceSummary from "@/fork/components/ForkPriceSummary.vue";
+import {estimateRecipes, RecipePrice} from "@/fork/prices";
 import {ingredientFactor, ingredientGroups, totalTime} from "@/fork/recipe";
 import ForkStepText from "@/fork/timers/ForkStepText.vue";
 import {useForkTimers} from "@/fork/timers/timers";
@@ -140,6 +145,16 @@ watch(() => recipe.value.servings, () => {
         servings.value = recipe.value.servings
     }
 })
+
+// price of the recipe for its own servings, scaled like the ingredients; nothing shown when it cannot be computed
+const price = ref<RecipePrice | null>(null)
+watch(() => recipe.value.id, (id) => {
+    price.value = null
+    if (id == undefined || props.shared || !useUserPreferenceStore().isAuthenticated) return
+    estimateRecipes([{id}]).then(r => {
+        price.value = r.recipes[0] ?? null
+    }).catch(() => {})
+}, {immediate: true})
 
 const timers = useForkTimers()
 
