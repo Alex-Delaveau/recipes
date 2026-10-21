@@ -27,6 +27,8 @@ start() {
     YARN="yarn"; command -v yarn >/dev/null 2>&1 || YARN="npx --yes yarn"
     (cd vue3 && $YARN build >/dev/null 2>&1)
   fi
+  # the branch may bring new migrations (kitchen/): the dev database follows
+  .venv/bin/python manage.py migrate --noinput -v0 >/dev/null 2>&1 || echo "[serve] WARN migrate failed"
   setsid .venv/bin/python manage.py runserver "127.0.0.1:$PORT" --noreload >"$LOG_FILE" 2>&1 < /dev/null &
   echo $! > "$PID_FILE"
   for _ in $(seq 1 60); do
