@@ -55,6 +55,9 @@ for p in settings.PLUGINS:
             print(f'ERROR failed loading urls for plugin <{p["name"]}>')
             traceback.format_exc()
 
+# fork: endpoints of the kitchen app, before cookbook's catch-all
+urlpatterns.append(path('api/kitchen/', include('kitchen.urls')))
+
 # include cookbook urls last because it has a catchall view to the tandoor frontend
 urlpatterns.append(
     path('', include('cookbook.urls')),

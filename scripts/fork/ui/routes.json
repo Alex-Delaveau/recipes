@@ -9,6 +9,7 @@
     { "name": "login", "path": "/accounts/login/", "auth": false, "strict": true },
     { "name": "start", "path": "/", "strict": true },
     { "name": "recipe-view", "path": "/recipe/{recipe}", "strict": true },
+    { "name": "cook-mode", "path": "/recipe/{recipe}/cook", "strict": true },
     { "name": "recipe-edit", "path": "/edit/Recipe/{recipe}", "strict": true },
     { "name": "food-list", "path": "/list/Food", "strict": true },
     { "name": "shopping", "path": "/shopping", "strict": true },

@@ -3,6 +3,111 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-20 — M2 — Branches par jalon
+**Contexte** : l'objectif de session demande une branche et une PR par jalon (M2, M3, M4), chaque branche partant de
+la précédente tant que sa PR n'est pas fusionnée. En M0 et M1, la session imposait une branche `claude/...`.
+**Choix** : `fork/m2-cuisine`, puis `fork/m3-aliments` (depuis M2) et `fork/m4-recettes` (depuis M3), comme le prévoit
+CLAUDE.md. Le push de ces branches est accepté par le dépôt.
+**Réversible ?** Oui.
+
+## 2026-10-20 — M2 — Client des endpoints `kitchen/` écrit à la main
+**Contexte** : le client TypeScript `vue3/src/openapi` est généré à partir du schéma OpenAPI. Le régénérer ajouterait
+les endpoints du fork dans les fichiers générés upstream (conflits à chaque synchronisation).
+**Choix** : un petit client à la main dans `vue3/src/fork/api.ts` (fetch + cookie CSRF), qui réutilise les
+convertisseurs générés (`RecipeOverviewFromJSON`). Les endpoints du fork sont montés sous `/api/kitchen/`
+(une ligne dans `recipes/urls.py`).
+**Alternative écartée** : régénérer le client (diff dans des fichiers générés upstream).
+**Réversible ?** Oui.
+
+## 2026-10-20 — M2 — Recherche de l'accueil : `GET /api/kitchen/recipes/`
+**Contexte** : P1 demande les ingrédients sous la main (classement), un temps total maximal et trois raccourcis.
+La recherche upstream n'a ni filtre de temps total ni classement sans stock (`makenow` repose sur `onhand`).
+**Choix** : un endpoint `kitchen/` qui applique d'abord `RecipeSearch` upstream (texte, mots-clés…), puis :
+- `have` : recettes utilisant au moins un des aliments (familles comprises : « Légumes » couvre « Courgette »),
+  classées par nombre d'aliments trouvés, puis par nombre total d'aliments (les recettes courtes d'abord) ;
+- `max_time` : temps de préparation + cuisson/repos ≤ N minutes ;
+- `sort=recent` : seulement les recettes **consultées** par l'utilisateur, la plus récente d'abord ;
+- `sort=forgotten` : jamais cuisinées d'abord, puis la date de dernière cuisine la plus ancienne ;
+- `sort=random`.
+
+**Alternative écartée** : modifier `RecipeSearch` upstream ; filtrer côté client (pagination fausse).
+**Réversible ?** Oui.
+
+## 2026-10-20 — M2 — Filtres de l'accueil gardés en mémoire, pas dans l'URL
+**Choix** : les filtres vivent dans un état du module (`vue3/src/fork/homeFilters.ts`). Revenir d'une recette retrouve
+la même recherche ; un rechargement repart de zéro. Ils restent propres à l'appareil.
+**Alternative écartée** : les mettre dans l'URL (il faudrait recharger les noms des aliments et mots-clés).
+**Réversible ?** Oui.
+
+## 2026-10-20 — M2 — Bandeau du plan de repas sur l'accueil : desktop seulement
+**Contexte** : le réglage upstream `start_showMealPlan` (activé par défaut) affiche le plan de la semaine sur l'accueil.
+SPEC.md : le plan de repas sert sur ordinateur.
+**Choix** : le bandeau reste affiché sur desktop (≥ 960 px) si le réglage est actif, jamais sur téléphone, où l'accueil
+commence par la recherche.
+**Réversible ?** Oui.
+
+## 2026-10-20 — M2 — Vue recette du fork
+**Choix** :
+- `ForkRecipeView` remplace la vue upstream, sauf en impression (mise en page upstream conservée).
+- Les ingrédients sont en haut. Une recette dont plusieurs étapes ont des ingrédients les garde groupés par étape
+  (en-têtes) ; sinon, une seule liste. Les étapes n'affichent que le texte, dont les quantités suivent les portions
+  (gabarits upstream `{{ ingredients[0] }}`, `{{ scale(100) }}`).
+- Les étapes avec sous-recette ou fichier gardent l'affichage upstream (`StepView`). Le menu ⋮ upstream (modifier,
+  plan, partage…), les propriétés et l'activité (note, commentaire) sont conservés.
+- Le Wake Lock est demandé sur la vue recette (comme upstream) et en mode cuisine ; un refus du navigateur est ignoré.
+
+**Réversible ?** Oui.
+
+## 2026-10-20 — M2 — Mode cuisine en page plein écran
+**Choix** : une route `/recipe/:id/cook?servings=N` (méta `forkFullscreen`, qui masque l'en-tête, le tiroir et la barre
+du bas). Le retour arrière du téléphone ramène à la recette. Un premier écran « Préparez les ingrédients » liste tout
+quand la recette a plusieurs étapes. Ensuite, chaque étape rappelle ses propres ingrédients, sauf pour une liste unique
+(déjà vue au premier écran). Balayage gauche/droite, deux boutons de 56 px, flèches du clavier sur desktop.
+**Alternative écartée** : un dialogue plein écran (pas d'URL, retour arrière qui quitte la recette).
+**Réversible ?** Oui.
+
+## 2026-10-20 — M2 — Feuille « Ajouter aux courses »
+**Choix** :
+- tous les ingrédients sont cochés, sauf les aliments marqués « jamais en courses » (sel, eau…), décochés et signalés ;
+- les ingrédients sans aliment (titres, texte libre) ne sont pas proposés ;
+- les portions de la recette sont reprises, et ajustables dans la feuille ;
+- les articles vont dans la liste du foyer (aucune liste nommée) ; les sous-recettes sont ajoutées comme upstream.
+
+**Alternative écartée** : cocher aussi les « jamais en courses » (le critère dit « tous cochés », mais ce drapeau
+existe justement pour ne pas les acheter).
+**Réversible ?** Oui. À valider par Alex.
+
+## 2026-10-20 — M2 — Liste de courses du fork
+**Choix** :
+- l'affichage est refait (`ForkShoppingList.vue`) sur le `ShoppingStore` upstream (chargement, synchro, annulation) ;
+- groupement par rayon dans l'ordre du magasin choisi, sinon alphabétique (M3 apporte l'ordre générique). Le groupe
+  « Sans rayon » vient **en dernier** : en magasin, le parcours compte d'abord ;
+- un tap sur la ligne coche tous les articles de l'aliment ; le bouton ⋮ ouvre le dialogue upstream (quantités,
+  report, rayon) ; « Vue détaillée » (menu ⋮ de la page) rend la vue upstream complète ;
+- l'ajout rapide est en haut de la liste, au-dessus des rayons ;
+- synchro : la boucle upstream (5 s par défaut), plus une synchro immédiate au retour sur l'écran.
+
+**Réversible ?** Oui.
+
+## 2026-10-20 — M2 — Correctif upstream dans la file de synchro des courses
+**Contexte** : `ShoppingStore._replaySyncQueue` envoie toutes les requêtes en attente en parallèle. Cocher puis annuler
+vite envoie « coché » et « décoché » pour le même article, dans un ordre d'arrivée non garanti : la base pouvait garder
+l'article coché (constaté par les tests de parcours). `splice(index)` retirait aussi le mauvais élément de la file.
+**Choix** : correctif minimal et commenté dans le store : la file est fusionnée (dernier état par article) avant envoi,
+et les requêtes terminées sont retirées par identité. À proposer upstream.
+**Réversible ?** Oui.
+
+## 2026-10-20 — M2 — Tests de parcours dans `verify.sh --ui`
+**Choix** : `scripts/fork/ui/flows.mjs` clique les parcours P1 à P4 sur un téléphone simulé (recherche, filtres,
+portions, mode cuisine, balayage, ajout aux courses, coche, annulation, ajout rapide, synchro depuis un autre appareil,
+message de fin) et remet les données en l'état. `verify.sh --ui` le lance après les captures.
+**Réversible ?** Oui.
+
+## 2026-10-20 — M2 — Photos du jeu de démo générées localement
+**Choix** : `dev_seed.py` dessine une photo par recette avec Pillow (assiette vue de dessus), pour juger les grandes
+cartes et la vue recette. Aucune image externe.
+**Réversible ?** Oui.
+
 ## 2026-10-20 — M1 — Thème « système » sans migration
 **Contexte** : DESIGN.md veut le thème du système par défaut, forçable en clair ou en sombre. Le champ upstream
 `UserPreference.theme` n'a pas de valeur « système », et en ajouter une créerait une migration dans `cookbook/`.

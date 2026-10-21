@@ -4,7 +4,11 @@ Tenu par Claude pendant les jalons : plan, avancement, blocages. Le plus récent
 Questions bloquantes pour Alex : en tête de ce fichier, sous « En attente ».
 
 ## En attente
-_(aucune)_
+Questions ouvertes (non bloquantes, le travail a continué avec le choix indiqué) :
+- M2 — Feuille « Ajouter aux courses » : les aliments « jamais en courses » (sel, eau) sont proposés **décochés**.
+  Le critère dit « tous cochés ». Garder ce choix ? (DECISIONS.md)
+- M2 — Éditeur de recette upstream sur mobile : le bouton flottant « Enregistrer » peut recouvrir le bouton
+  « Supprimer » de l'image selon le défilement. Non corrigé en M2 : l'éditeur mobile est refait en M4.
 
 ## 2026-10-20 — Cadrage
 - Entretien de cadrage terminé : SPEC.md rempli, DESIGN.md validé, critères M3 et M4 réécrits.
@@ -103,3 +107,57 @@ Branche : `claude/busy-heisenberg-yf2zw3` (branche imposée par la session cloud
 - Erreurs upstream (`view-log` en 403, `AccountSettings`) corrigées ; les 9 routes passent en `strict`.
 - Captures : « écran visible », sombre, 360 px publiées, reproductibles, contrôle de navigation interne.
 - Prochain jalon : M2.
+
+## M2 — plan
+Branche : `fork/m2-cuisine`, base `origin/main` (M1 fusionné). L'objectif de session demande une branche par jalon :
+`fork/m<N>-<slug>` est utilisé (le push de cette branche est accepté). Environnement : `verify.sh --quick` →
+`VERIFY: OK` avant tout changement (649 erreurs vue-tsc).
+
+1. [x] Jeu de démo enrichi : photos générées (Pillow, sans service externe), gabarits de quantités dans les étapes
+   (`{{ ingredients[0] }}`), historique de consultation et de cuisine, quelques articles de courses ; route
+   `cook-mode` ajoutée à `routes.json`. Vérif : `dev_seed.py` deux fois sans doublon, captures.
+2. [x] Endpoint `kitchen/` `GET /api/kitchen/recipes/` : recherche upstream (`RecipeSearch`) + classement par nombre
+   d'ingrédients sous la main (sans stock, descendants compris), temps total maximal, modes `recent`, `forgotten`,
+   `random`. Vérif : tests pytest dans `kitchen/tests`.
+3. [x] P1 Accueil Recettes (`vue3/src/fork/pages/ForkRecipesHome.vue`) : recherche visible, raccourcis, feuille de
+   filtres (ingrédients, temps, mots-clés), grandes cartes photo, états vide/chargement/erreur, filtres dans l'URL.
+   Vérif : captures `start` mobile, 360 px, sombre, desktop.
+4. [x] P2 Vue recette (`ForkRecipeView.vue`) : photo, temps total, portions ajustables (± 44 px), liste d'ingrédients
+   (groupée par étape si la recette est découpée), étapes avec quantités recalculées. Vérif : captures `recipe-view`.
+5. [x] P2 Mode cuisine (`/recipe/:id/cook`) : une étape par écran, plein écran, 24/20 px, balayage + deux boutons,
+   ingrédients de l'étape, Wake Lock. Vérif : captures `cook-mode`.
+6. [x] P3 Feuille « Ajouter aux courses » : ingrédients aux portions choisies, tous cochés, décochage, validation vers
+   la liste du foyer. Vérif : test manuel headless (script Playwright ponctuel) + capture.
+7. [x] P4 Courses (`ForkShoppingList.vue`) : groupé par rayon, un tap coche, « Dans le panier », annuler, ajout
+   rapide en texte libre, message de fin, synchro automatique et au retour sur l'écran. Vérif : captures `shopping`.
+8. [x] Routes refaites en `strict`, porte `verify.sh --ui m2 --publish`, `reviewer` + `ui-auditor`, PR.
+
+### Avancement M2
+- 1 : photos générées (Pillow), gabarits `{{ scale(…) }}` dans deux étapes, historique de consultation et de cuisine,
+  6 articles de courses, unité « pièce » au pluriel ; route `cook-mode` ajoutée (strict).
+- 2 : `GET /api/kitchen/recipes/` (10 tests pytest : espace, anonyme, classement par ingrédients, familles, temps,
+  texte, récentes, oubliées, hasard).
+- 3 : accueil `ForkRecipesHome` (recherche, raccourcis, feuille de filtres, cartes 16:9, états vide/erreur/chargement).
+- 4 : `ForkRecipeView` (photo, temps total et détail, portions ± 44 px, ingrédients, étapes recalculées).
+- 5 : mode cuisine `/recipe/:id/cook` (plein écran, 24/20 px, balayage, boutons de 56 px, Wake Lock).
+- 6 : feuille « Ajouter aux courses » (cases cochées, portions ajustables, liste du foyer).
+- 7 : `ForkShoppingList` (rayons, un tap, « Dans le panier », annuler, ajout rapide, message de fin, synchro au retour).
+  Deux défauts trouvés par les tests de parcours et corrigés : Entrée ne validait pas l'ajout rapide ; la file de
+  synchro upstream pouvait laisser un article coché après une annulation rapide (voir DECISIONS.md).
+- Outillage : `scripts/fork/ui/flows.mjs` (35 vérifications cliquées des parcours P1 à P4) lancé par `verify.sh --ui`.
+- 8 : porte `verify.sh --ui m2 --publish` → `VERIFY: OK`. `reviewer` : 1 point bloquant (portée OAuth de l'endpoint),
+  corrigé, plus 8 remarques mineures traitées (test des recettes privées, file de synchro, ajout rapide, sortie du mode
+  cuisine, étapes à sous-recette, zones tactiles, retour depuis la vue détaillée). `ui-auditor` : « FIX FIRST »,
+  corrigés : colonne des quantités alignée, portions lisibles en mode cuisine, raccourcis visibles à 360 px, contours
+  des cartes, largeur des boutons du mode cuisine, onglet Recettes actif dans une recette. Reste listé dans la PR.
+
+## M2 — summary
+- Accueil Recettes : recherche visible, raccourcis (récentes, pas faites depuis longtemps, au hasard), feuille de
+  filtres (ingrédients sous la main classés, temps total, mots-clés), grandes cartes photo. Endpoint
+  `/api/kitchen/recipes/` testé.
+- Vue recette : photo, temps, portions ± qui recalculent la liste et les étapes ; mode cuisine plein écran, une étape
+  par écran, balayage et deux grands boutons, Wake Lock.
+- Feuille « Ajouter aux courses » et liste de courses refaite (rayons, un tap, panier, annulation, ajout rapide,
+  message de fin, synchro au retour sur l'écran). Correctif de la file de synchro upstream.
+- `verify.sh --ui` lance désormais 35 vérifications cliquées des parcours P1 à P4.
+- Prochain jalon : M3 (branche `fork/m3-aliments`, partie de `fork/m2-cuisine`).

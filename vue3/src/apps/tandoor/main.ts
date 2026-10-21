@@ -15,7 +15,7 @@ import MealPlanPage from "@/pages/MealPlanPage.vue";
 import {TANDOOR_PLUGINS, TandoorPlugin} from "@/types/Plugins.ts";
 
 let routes = [
-    {path: '/', component: () => import("@/pages/StartPage.vue"), name: 'StartPage'},
+    {path: '/', component: () => import("@/fork/pages/ForkRecipesHome.vue"), name: 'StartPage'}, // fork: recipes home (P1)
     {path: '/search', redirect: {name: 'StartPage'}},
     {path: '/test', component: () => import("@/pages/TestPage.vue"), name: 'view_test'},
     {path: '/welcome', component: () => import("@/pages/WelcomePage.vue"), name: 'WelcomePage', meta: {title: 'Welcome'}},
@@ -24,12 +24,13 @@ let routes = [
 
     //{path: '/settings/:page', component: SettingsPage, name: 'view_settings_page', props: true},
     {path: '/advanced-search', component: () => import("@/pages/SearchPage.vue"), name: 'SearchPage', meta: {title: 'Search'}},
-    {path: '/shopping', component: () => import("@/pages/ShoppingListPage.vue"), name: 'ShoppingListPage', meta: {title: 'Shopping_list'}},
+    {path: '/shopping', component: () => import("@/fork/pages/ForkShoppingList.vue"), name: 'ShoppingListPage', meta: {title: 'Shopping_list'}}, // fork: shopping (P4)
     {path: '/mealplan', component: MealPlanPage, name: 'MealPlanPage', meta: {title: 'Meal_Plan'}},
     {path: '/books', component: () => import("@/pages/BooksPage.vue"), name: 'BooksPage', meta: {title: 'Books'}},
     {path: '/book/:bookId', component: () => import("@/pages/BookViewPage.vue"), name: 'BookViewPage', props: true, meta: {title: 'Book'}},
     {path: '/recipe/import', component: () => import("@/pages/RecipeImportPage.vue"), name: 'RecipeImportPage', meta: {title: 'Import'}},
 
+    {path: '/recipe/:id/cook', component: () => import("@/fork/pages/ForkCookModePage.vue"), name: 'ForkCookModePage', props: true, meta: {title: 'Recipe', forkFullscreen: true}}, // fork: cook mode (P2)
     {path: '/recipe/:id', component: () => import("@/pages/RecipeViewPage.vue"), name: 'RecipeViewPage', props: true, meta: {title: 'Recipe'}},
     {path: '/view/recipe/:id', redirect: {name: 'RecipeViewPage'}}, // old Tandoor v1 url pattern
 

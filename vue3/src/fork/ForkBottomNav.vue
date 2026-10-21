@@ -1,7 +1,7 @@
 <template>
     <!-- Mobile navigation (DESIGN.md): 4 labeled entries, the page reserves its height through the Vuetify layout -->
     <v-bottom-navigation grow :height="64" class="fork-bottom-nav d-print-none" color="primary">
-        <v-btn :to="{name: 'StartPage', params: {}}" exact>
+        <v-btn :to="{name: 'StartPage', params: {}}" exact :active="isRecipesTab">
             <v-icon icon="$recipes"></v-icon>
             <span>{{ $t('Recipes') }}</span>
         </v-btn>
@@ -46,10 +46,14 @@
 </template>
 
 <script setup lang="ts">
-import {ref} from "vue";
+import {computed, ref} from "vue";
+import {useRoute} from "vue-router";
 import {useNavigation} from "@/composables/useNavigation.ts";
 import MenuUserInfo from "@/components/display/MenuUserInfo.vue";
 
+const route = useRoute()
+// recipes tab stays highlighted inside a recipe
+const isRecipesTab = computed(() => ['StartPage', 'RecipeViewPage'].includes(String(route.name)))
 const addSheet = ref(false)
 const moreSheet = ref(false)
 </script>

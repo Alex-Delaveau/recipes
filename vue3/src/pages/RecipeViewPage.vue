@@ -1,9 +1,11 @@
 <template>
-    <v-container :class="{'ps-0 pe-0 pt-0': mobile}">
+    <v-container :class="{'ps-0 pe-0 pt-0': mobile || !useUserPreferenceStore().isPrintMode}">
         <v-defaults-provider :defaults="(useUserPreferenceStore().isPrintMode ? {VCard: {variant: 'flat'}} : {})">
 
 
-           <recipe-view v-model="recipe" :servings="servings"></recipe-view>
+           <!-- fork: mobile-first recipe view (P2); printing keeps the upstream layout -->
+           <fork-recipe-view v-model="recipe" :servings="servings" :shared="!!isShared" v-if="!useUserPreferenceStore().isPrintMode"></fork-recipe-view>
+           <recipe-view v-model="recipe" :servings="servings" v-else></recipe-view>
 
             <div class="mt-2" v-if="isShared && Object.keys(recipe).length > 0">
                 <import-tandoor-dialog></import-tandoor-dialog>
@@ -23,6 +25,7 @@ import {useTitle, useUrlSearchParams} from "@vueuse/core";
 import {ErrorMessageType, useMessageStore} from "@/stores/MessageStore";
 import {useUserPreferenceStore} from "@/stores/UserPreferenceStore";
 import ImportTandoorDialog from "@/components/dialogs/ImportTandoorDialog.vue";
+import ForkRecipeView from "@/fork/components/ForkRecipeView.vue";
 
 const props = defineProps({
     id: {type: String, required: true}
