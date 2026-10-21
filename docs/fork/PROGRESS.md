@@ -346,16 +346,31 @@ Branche : `claude/zen-ramanujan-cnfub4` (imposée par la session cloud, au lieu 
 `origin/main` (M5 fusionné). Environnement : `verify.sh --quick` → `VERIFY: OK` avant tout changement (649 erreurs
 vue-tsc). Docker est disponible dans la session (démon lancé à la main), ainsi que PostgreSQL 16.
 
-1. [ ] Étiquette d'image calculée par un script (`scripts/fork/image_tag.sh`) : version upstream (dernier tag de release
+1. [x] Étiquette d'image calculée par un script (`scripts/fork/image_tag.sh`) : version upstream (dernier tag de release
    ancêtre) + suffixe fork. Vérif : sortie du script sur la branche.
-2. [ ] Workflow `fork-image.yml` : build du front, image Docker (Dockerfile upstream inchangé), publication GHCR sur
+2. [x] Workflow `fork-image.yml` : build du front, image Docker (Dockerfile upstream inchangé), publication GHCR sur
    `main` et à la demande ; build sans publication sur les PR. Vérif : build local de la même image avec Docker,
    démarrage du conteneur, page de connexion servie.
-3. [ ] Workflow `fork-verify.yml` : `setup.sh` puis `verify.sh` complet sur chaque PR vers `main`, échec si la dernière
+3. [x] Workflow `fork-verify.yml` : `setup.sh` puis `verify.sh` complet sur chaque PR vers `main`, échec si la dernière
    ligne n'est pas `VERIFY: OK`. Vérif : exécution réelle sur la PR du jalon.
-4. [ ] Contrôle Postgres (`scripts/fork/pg_upgrade_check.sh`) : base créée et migrée par l'image upstream, puis
+4. [x] Contrôle Postgres (`scripts/fork/pg_upgrade_check.sh`) : base créée et migrée par l'image upstream, puis
    migrations du fork appliquées dessus, puis `migrate --check` et retour arrière de `kitchen` (`migrate kitchen zero`).
    Vérif : exécution dans la session ; job dans `fork-verify.yml`.
-5. [ ] `docs/fork/DEPLOY.md` : stack compose pour Komodo, sauvegarde avant bascule, essai sur une copie, retour arrière
+5. [x] `docs/fork/DEPLOY.md` : stack compose pour Komodo, sauvegarde avant bascule, essai sur une copie, retour arrière
    vers l'image upstream. Vérif : compose validé par `docker compose config`, commandes jouées dans le contrôle Postgres.
 6. [ ] Porte `verify.sh --ui m6 --publish`, `reviewer`, `ui-auditor`, critères, PR.
+
+### Avancement M6
+- 1 : `scripts/fork/image_tag.sh` → `2.6.15-fork.<n>` sur cette branche.
+- 2 : `fork-image.yml`. Image construite dans la session avec le Dockerfile upstream (base Python via le miroir
+  `mirror.gcr.io` et le certificat du proxy de la session, à cause des limites de Docker Hub : rien de cela n'est
+  commité). Conteneur démarré sur PostgreSQL : migrations `kitchen` appliquées par `boot.sh`, `/accounts/login/` en 200,
+  endpoints `/api/kitchen/*` présents dans `/openapi/`. (Le nginx de l'image ne démarre pas dans la session faute
+  d'IPv6 : contourné à la main pour le test, limite de la session, pas de l'image.)
+- 3 : `fork-verify.yml` (`setup.sh --no-seed`, `verify.sh`, contrôle Postgres), exécuté sur la PR du jalon.
+- 4 : `pg_upgrade_check.sh` → `PG UPGRADE CHECK: OK`, avec le code local et avec l'image du fork. Constat : sans
+  `migrate kitchen zero`, l'image upstream ne peut plus supprimer un aliment étendu par le fork (DECISIONS.md).
+- 5 : `DEPLOY.md` et `docs/fork/deploy/`. Procédure jouée de bout en bout sur deux stacks compose (production simulée
+  avec l'image upstream 2.6.15, puis sauvegarde, essai sur une copie, bascule vers le fork, retour arrière).
+- 6 : `verify.sh --ui m6 --publish` → `VERIFY: OK` (pytest 1368 passés, 1 échec de la baseline ; 137 contrôles de
+  parcours).
