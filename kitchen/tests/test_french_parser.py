@@ -15,6 +15,10 @@ from cookbook.models import Automation, Food
 LINES = [
     ("2 c. à soupe d'huile d'olive", 2, 'c. à soupe', "huile d'olive", ''),
     ('1 cs de sucre', 1, 'c. à soupe', 'sucre', ''),
+    ('1 c.s. de sucre', 1, 'c. à soupe', 'sucre', ''),
+    ('2 c.c. de cumin', 2, 'c. à café', 'cumin', ''),
+    ('2 cuillerées à soupe de miel', 2, 'c. à soupe', 'miel', ''),
+    ("20 cl d'eau + 30 ml", 20, 'cl', 'eau', '+ 30 ml'),
     ('1 CS de miel', 1, 'c. à soupe', 'miel', ''),
     ('1 càs de sauce soja', 1, 'c. à soupe', 'sauce soja', ''),
     ('1 càc de sel', 1, 'c. à café', 'sel', ''),
