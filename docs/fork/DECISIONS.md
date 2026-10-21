@@ -3,6 +3,26 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — Le tirage remplit le menu de la semaine et les courses
+**Contexte** : Alex veut que le tirage alimente directement le menu de la semaine et la liste de courses, comme chez
+Jow.
+**Choix** : deux boutons sous la liste tirée.
+- **« Ajouter au menu »** : une recette par jour à partir du premier jour (aujourd'hui, demain après 21 h, modifiable),
+  pour un type de repas (« Dîner » par défaut s'il existe, sinon le plus tardif), aux portions de la recette.
+  - L'option « Ajouter aussi les ingrédients aux courses » est cochée par défaut. Elle passe par `addshopping` de
+    l'API upstream des repas.
+  - Sans aucun type de repas, un bouton crée « Dîner » (19:30).
+- **« Ajouter aux courses »** : toutes les recettes, sans planifier (`/api/recipe/<id>/shopping/`, comme la page
+  recette upstream), après confirmation.
+- Aucun changement backend. La liste tirée reste après l'ajout : on peut la vider soi-même.
+
+**Alternative écartée** :
+- Choisir le jour de chaque recette : plus lent. On déplace ensuite dans le menu de la semaine.
+- Passer par la feuille « décocher ce qu'on a » pour chaque recette : trop d'étapes pour 5 recettes. On décoche dans
+  la liste de courses.
+
+**Réversible ?** Oui.
+
 ## 2026-10-21 — hors jalon — « Tirer au sort » remplace le chip « Au hasard »
 **Contexte** : Alex veut tirer X recettes au hasard, puis en retirer au cas par cas. Le chip « Au hasard » restait
 sélectionné (un nouveau clic relançait le tirage au lieu de le désélectionner). Les chips choisis montraient deux

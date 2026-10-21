@@ -101,3 +101,16 @@ Ce qu'on attend en échange :
   Soupes…) ?
 - Le tirage doit-il pouvoir alimenter directement le menu de la semaine (un jour par recette) et la liste de courses ?
   C'est l'étape suivante logique, comme chez Jow.
+
+## 7. Suite (2026-10-21, réponses d'Alex)
+
+- **Maquettes à comparer** : https://claude.ai/artifact/1jE7ee7MLBGGFvTv8inbX3, avec 4 écrans de téléphone.
+  - A : grille dense ;
+  - B : liste compacte ;
+  - C : étagères ;
+  - D : la semaine d'abord.
+- **Plats principaux seulement** : pas d'étagères par mot-clé (Plats, Desserts…). Les étagères des maquettes répondent
+  à des questions : « en moins de 30 min », « pas faites depuis longtemps », « avec ce que vous avez », « jamais
+  faites ».
+- **Le tirage remplit le menu de la semaine et les courses** : livré (voir DECISIONS.md).
+

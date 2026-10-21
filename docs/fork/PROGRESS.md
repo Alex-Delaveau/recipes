@@ -422,3 +422,8 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
 - Réflexion sur l'accueil : `docs/fork/RECETTES-ACCUEIL.md` (diagnostic, 4 pistes, recommandation D + C + B).
   **En attente** : choix de la direction par Alex avant la refonte.
 - Doublons : variétés d'un nom composé (« Pomme de terre à chair ferme » ~ « Pomme de terre »).
+- Le tirage remplit le menu de la semaine (une recette par jour, type de repas au choix, « Dîner » créé si aucun) et
+  la liste de courses (avec le menu, ou seul). Parcours `draw` étendu (planification vérifiée côté serveur, données
+  remises en place).
+- Maquettes des 4 pistes d'accueil pour comparaison : https://claude.ai/artifact/1jE7ee7MLBGGFvTv8inbX3.
+  **En attente** : choix d'Alex.
