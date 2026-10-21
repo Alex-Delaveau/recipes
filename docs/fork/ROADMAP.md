@@ -113,7 +113,7 @@ Découle de SPEC.md, section « Création de recettes — attendu ».
 ## M5 — Cuisine et courses au quotidien (idées kitshn) [ ]
 Découle de `docs/fork/AUDIT-KITSHN.md` (audit du 2026-10-21). Aucun changement backend attendu : tout passe par l'API
 upstream existante (`/api/cook-log/`, `/api/meal-plan/`, courses) et par le front du fork.
-- [ ] Minuteurs dans les étapes :
+- [x] Minuteurs dans les étapes :
   - les durées du texte des étapes sont repérées en français et deviennent touchables, dans le mode cuisine et dans la
     vue recette : « 10 min », « 1 h 30 », « 1 heure et demie », « 45 s », plages « 20 à 25 minutes » et « 2-3 min » ;
   - la puce du temps de l'étape (`step.time`) lance aussi un minuteur ;
@@ -125,20 +125,20 @@ upstream existante (`/api/cook-log/`, `/api/meal-plan/`, courses) et par le fron
   - la détection est une fonction pure, testée automatiquement par `verify.sh` (pas de vitest dans `vue3` : petit test
     node ou test de parcours, choix noté dans DECISIONS.md) sur au moins 20 phrases françaises
     réelles (dont des faux positifs à éviter : « 4 personnes », « 180 °C », « farine T55 », « 2 œufs »).
-- [ ] Fin de cuisine : le bouton « Terminé » du mode cuisine ouvre un écran « Bon appétit » avec une note (étoiles) et
+- [x] Fin de cuisine : le bouton « Terminé » du mode cuisine ouvre un écran « Bon appétit » avec une note (étoiles) et
       un commentaire facultatifs, puis « Enregistrer » ou « Passer ». Les deux créent un `CookLog` (portions incluses),
       ce qui nourrit « récentes » et « pas faites depuis longtemps » sur l'accueil. Retour à la recette ensuite.
-- [ ] Courses en magasin :
+- [x] Courses en magasin :
   - l'écran reste allumé sur la liste de courses (réglable, actif par défaut), relâché en quittant la page ;
   - les coches faites sans réseau sont conservées sur l'appareil, même après fermeture de l'app, puis envoyées au
     retour du réseau ; un indicateur affiche « N modifications en attente » ;
   - la liste s'affiche hors ligne avec le dernier état connu ;
   - la correction de la file de synchro reste au plus près de `ShoppingStore` (diff minimal, noté dans DECISIONS.md).
-- [ ] « Au menu » sur l'accueil téléphone : carte compacte affichée seulement s'il y a un repas prévu, « Aujourd'hui » (ou
+- [x] « Au menu » sur l'accueil téléphone : carte compacte affichée seulement s'il y a un repas prévu, « Aujourd'hui » (ou
       « Demain » après 21 h) ; un tap ouvre la recette (ou montre le titre si l'entrée n'a pas de recette).
-- [ ] Partage vers l'app : un lien partagé à la PWA (`share_target` upstream) lance l'import sur la première URL trouvée
+- [x] Partage vers l'app : un lien partagé à la PWA (`share_target` upstream) lance l'import sur la première URL trouvée
       dans `url`, `text` ou `title` (« Recette de tarte https://… » fonctionne).
-- [ ] Nouvelles chaînes en `fr` et `en`. Pages touchées en `strict`, zones tactiles ≥ 44 px, 360 px sans débordement.
+- [x] Nouvelles chaînes en `fr` et `en`. Pages touchées en `strict`, zones tactiles ≥ 44 px, 360 px sans débordement.
       Parcours cliqués pour les minuteurs, la fin de cuisine et les coches hors ligne. `verify.sh --ui m5` OK.
 
 ## M6 — Livraison sur le homelab [ ]
