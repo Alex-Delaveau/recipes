@@ -3,6 +3,50 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — M6 — Branche et libellé de la porte finale
+**Contexte** : comme en M5, la session cloud impose la branche `claude/zen-ramanujan-cnfub4` (au lieu de
+`fork/m6-livraison`), et la consigne demande `verify.sh --ui m1 --publish`.
+**Choix** : même règle qu'en M5. Les captures de la PR sont publiées sous `m6`. La porte est aussi lancée avec le libellé
+`m1`, mais ses captures ne sont pas commitées, pour ne pas écraser l'historique de M1.
+**Alternative écartée** : renommer la branche (interdit par la session) ; republier `docs/fork/screens/m1`.
+**Réversible ?** Oui.
+
+## 2026-10-21 — M6 — Étiquette de l'image : `<release>-fork.<n>`
+**Contexte** : le critère demande « version upstream + suffixe fork ».
+**Choix** : `scripts/fork/image_tag.sh` donne `<dernière release Tandoor contenue>-fork.<commits depuis ce tag>`, par
+exemple `2.6.15-fork.97`. Le numéro augmente à chaque fusion dans `main` et se calcule sans état ni secret. On publie
+aussi `fork-latest` et `sha-<commit>`. Les tags de pré-version (`-beta`) sont ignorés.
+**Alternative écartée** : un numéro de run GitHub (pas reproductible en local) ; une date (deux images le même jour) ;
+`2.6.15-fork` seul (écrasé à chaque fusion, pas de retour à une image précise).
+**Réversible ?** Oui.
+
+## 2026-10-21 — M6 — Image : Dockerfile upstream inchangé, `amd64` seulement, nouveau workflow
+**Contexte** : le workflow upstream `build-docker.yml` ne tourne que pour `TandoorRecipes` et pousse aussi sur Docker Hub.
+**Choix** : un workflow du fork, `fork-image.yml`, construit le front puis le Dockerfile upstream tel quel. Il publie sur
+GHCR sur `main` et à la demande, et construit sans publier sur les PR qui touchent l'image. Plateforme `linux/amd64`
+seulement : l'`arm64` par émulation multiplie la durée de build (compilation Rust/C). Seul ajout côté upstream : deux
+lignes dans `.dockerignore` (`.venv`, `.fork`), pour qu'un build local n'embarque pas l'environnement de dev.
+**Alternative écartée** : modifier `build-docker.yml` (conflits à chaque synchro) ; un Dockerfile du fork.
+**Réversible ?** Oui (ajouter `linux/arm64` dans `platforms` si le homelab est en ARM).
+
+## 2026-10-21 — M6 — CI : `verify.sh` complet sans les contrôles UI
+**Contexte** : critère « `verify.sh` complet sur chaque PR vers `main` ».
+**Choix** : la CI lance `verify.sh` sans option, donc complet : règles, vue-tsc, tests node, build et pytest. Le job ajoute
+le contrôle PostgreSQL (`pg_upgrade_check.sh`) contre un service Postgres 16. Les contrôles UI (`--ui`) restent dans les
+sessions : ils demandent Chromium et des données de démo, et leurs captures sont relues par `ui-auditor`, pas par la CI.
+**Alternative écartée** : `--ui ci` en CI (plus long, plus fragile, captures sans relecture).
+**Réversible ?** Oui.
+
+## 2026-10-21 — M6 — Retour arrière : retirer les tables du fork avant de remettre l'image upstream
+**Contexte** : en M6, sur PostgreSQL, l'image upstream ne pouvait plus supprimer un aliment étendu par le fork
+(`IntegrityError` sur `kitchen_kitchenfood_food_id`). Django gère les suppressions en cascade dans le code, pas dans la
+base : un code qui ignore les tables `kitchen_*` ne les nettoie pas.
+**Choix** : `DEPLOY.md` impose `migrate kitchen zero` avec l'image du fork avant de remettre l'image upstream (ou la
+restauration de la sauvegarde). `pg_upgrade_check.sh` joue ce retour arrière en CI.
+**Alternative écartée** : des clés étrangères `ON DELETE CASCADE` côté base (migration SQL spécifique, plus difficile à
+maintenir) ; ne rien dire (piège découvert au premier nettoyage d'aliments).
+**Réversible ?** Oui.
+
 ## 2026-10-21 — M5 — Branche et libellé de la porte finale
 **Contexte** : le skill prévoit la branche `fork/m5-quotidien` et la porte `verify.sh --ui m5 --publish`. La session cloud
 impose la branche `claude/clever-fermat-h1cce1`, et la consigne de la session demande `verify.sh --ui m1 --publish`.

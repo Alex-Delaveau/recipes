@@ -30,3 +30,6 @@ vue/package.json
 vue/tsconfig.json
 vue/src/utils/openapi
 venv
+# fork: local dev environment and tooling output
+.venv
+.fork
