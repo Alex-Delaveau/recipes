@@ -58,6 +58,8 @@ else
       | while read -r f; do grep -F "${f#vue3/}" "$TSC_OUT" | head -3 | sed 's/^/         /'; done
   else ok "vue-tsc: $TSC_COUNT errors (baseline $TSC_BASE)"; [ "$TSC_COUNT" -lt "$TSC_BASE" ] && echo "  [info] fewer errors than baseline: you may lower it with --update-baseline"; fi
 fi
+if node --test scripts/fork/tests/*.test.mjs > .fork/node-tests.txt 2>&1; then ok "front unit tests (node --test): $(grep -E '^# pass' .fork/node-tests.txt | sed 's/# //')"
+else ko "front-unit-tests"; grep -E '^not ok|expected|actual' .fork/node-tests.txt | head -15 | sed 's/^/         /'; fi
 if (cd vue3 && $YARN build) > .fork/build.txt 2>&1; then ok "vite build"; else ko "vite-build"; tail -15 .fork/build.txt | sed 's/^/         /'; fi
 
 if [ "$QUICK" = 0 ]; then

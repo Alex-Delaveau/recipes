@@ -292,7 +292,7 @@ Branche : `fork/m4-recettes`, partie de `fork/m3-aliments` (PR M3 ouverte, non f
 Branche : `claude/clever-fermat-h1cce1` (imposée par la session cloud, au lieu de `fork/m5-quotidien`), partie de
 `origin/main` (M4 fusionné). Environnement : `verify.sh --quick` → `VERIFY: OK` avant tout changement (649 erreurs vue-tsc).
 
-1. [ ] Détection des durées en français : fonction pure `vue3/src/fork/timers/detect.ts`, testée par `node --test`
+1. [x] Détection des durées en français : fonction pure `vue3/src/fork/timers/detect.ts`, testée par `node --test`
    (`scripts/fork/tests/`), lancé par `verify.sh` (même en `--quick`). Vérif : ≥ 20 phrases réelles, dont faux positifs.
 2. [ ] Minuteurs : store Pinia du fork (heure de fin, pause, +1 min, arrêt, persistance sur l'appareil), barre compacte
    globale montée dans la coquille, alarme (son, vibration, notification si autorisée). Vérif : `--quick --ui wip`, flow.
