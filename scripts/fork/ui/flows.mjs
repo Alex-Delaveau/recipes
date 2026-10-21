@@ -817,6 +817,7 @@ const FLOWS = {
       // the cart as it was
       if (cartBefore) {
         await page.goto(base + '/shopping', { waitUntil: 'networkidle' }).catch(() => {})
+        await eventually(() => page.locator('.fork-shopping__row').first().isVisible(), 6000)
         for (const name of ['Citron', 'Pâtes']) {
           const row = page.locator('.fork-shopping__row--done', { hasText: name }).first()
           if (await row.isVisible().catch(() => false)) await row.click()
