@@ -26,13 +26,16 @@
                     <span class="fork-cook__number">{{ screen.number }}</span>
                     {{ screen.step.name }}
                 </h1>
-                <v-chip v-if="screen.step.time" variant="tonal" size="large" prepend-icon="fas fa-stopwatch" class="mb-4">{{ screen.step.time }} {{ $t('min') }}</v-chip>
+                <v-chip v-if="screen.step.time" variant="tonal" size="large" prepend-icon="fas fa-stopwatch" class="mb-4 fork-cook__time"
+                        :aria-label="$t('Fork_Timer_Start_N', {duration: `${screen.step.time} ${$t('min')}`})"
+                        @click="startStepTimer(screen.step, screen.number)">{{ screen.step.time }} {{ $t('min') }}</v-chip>
                 <fork-ingredient-list v-if="screen.step.ingredients.length && !singleList" :ingredients="screen.step.ingredients" :factor="factor" large
                                       class="fork-cook__step-ingredients"></fork-ingredient-list>
                 <step-view v-if="screen.step.stepRecipe || screen.step.file" :model-value="screen.step" :step-number="screen.number"
                            :ingredient-factor="factor"></step-view>
                 <div class="fork-cook__instructions markdown-body" v-else>
-                    <instructions :instructions_html="screen.step.instructionsMarkdown ?? ''" :ingredient_factor="factor"></instructions>
+                    <fork-step-text :html="screen.step.instructionsMarkdown ?? ''" :factor="factor" :recipe-id="recipe.id"
+                                    :label="timerLabel(screen.number)"></fork-step-text>
                 </div>
             </template>
         </main>
@@ -44,6 +47,7 @@
         </main>
 
         <footer class="fork-cook__nav">
+            <fork-timers-bar inline class="fork-cook__timers"></fork-timers-bar>
             <div class="fork-cook__nav-inner">
             <v-btn size="x-large" variant="tonal" class="flex-grow-1" :disabled="current == 0" prepend-icon="fa-solid fa-arrow-left" @click="previous()">
                 {{ $t('Fork_Previous') }}
@@ -65,11 +69,12 @@ import {useRoute, useRouter} from "vue-router";
 import {useI18n} from "vue-i18n";
 import {onKeyStroke, useSwipe, useTitle, useWakeLock} from "@vueuse/core";
 import {ApiApi, Recipe, Step} from "@/openapi";
-// @ts-ignore upstream component written in plain JS
-import Instructions from "@/components/display/Instructions.vue";
 import StepView from "@/components/display/StepView.vue";
 import ForkIngredientList from "@/fork/components/ForkIngredientList.vue";
 import {ingredientFactor, ingredientGroups} from "@/fork/recipe";
+import ForkStepText from "@/fork/timers/ForkStepText.vue";
+import ForkTimersBar from "@/fork/timers/ForkTimersBar.vue";
+import {useForkTimers} from "@/fork/timers/timers";
 
 type CookScreen = { kind: 'ingredients' } | { kind: 'step', step: Step, number: number }
 
@@ -108,6 +113,16 @@ const screens = computed<CookScreen[]>(() => {
 })
 const screen = computed(() => screens.value[current.value])
 const isLast = computed(() => current.value >= screens.value.length - 1)
+
+const timers = useForkTimers()
+
+function timerLabel(number: number) {
+    return t('Fork_Timer_Label', {recipe: recipe.value?.name ?? '', n: number})
+}
+
+function startStepTimer(step: Step, number: number) {
+    if (step.time) timers.start(step.time * 60, timerLabel(number), `${step.time} ${t('min')}`, recipe.value?.id)
+}
 
 function next() {
     if (!isLast.value) current.value++
@@ -267,7 +282,16 @@ onBeforeUnmount(() => {
     border-top: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
-.fork-cook__nav .v-btn {
+.fork-cook__nav-inner .v-btn {
     min-height: 56px;
+}
+
+.fork-cook__timers {
+    max-width: 760px;
+    margin: 0 auto var(--fork-space-3);
+}
+
+.fork-cook__time {
+    min-height: 44px;
 }
 </style>

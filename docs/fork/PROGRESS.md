@@ -294,9 +294,9 @@ Branche : `claude/clever-fermat-h1cce1` (imposée par la session cloud, au lieu 
 
 1. [x] Détection des durées en français : fonction pure `vue3/src/fork/timers/detect.ts`, testée par `node --test`
    (`scripts/fork/tests/`), lancé par `verify.sh` (même en `--quick`). Vérif : ≥ 20 phrases réelles, dont faux positifs.
-2. [ ] Minuteurs : store Pinia du fork (heure de fin, pause, +1 min, arrêt, persistance sur l'appareil), barre compacte
+2. [x] Minuteurs : store Pinia du fork (heure de fin, pause, +1 min, arrêt, persistance sur l'appareil), barre compacte
    globale montée dans la coquille, alarme (son, vibration, notification si autorisée). Vérif : `--quick --ui wip`, flow.
-3. [ ] Durées touchables dans le mode cuisine et la vue recette (balisage du HTML rendu, sans toucher `Instructions`),
+3. [x] Durées touchables dans le mode cuisine et la vue recette (balisage du HTML rendu, sans toucher `Instructions`),
    puce `step.time` qui lance un minuteur, feuille de choix pour une plage. Vérif : flow « minuteurs ».
 4. [ ] Écran « Bon appétit » après « Terminé » : étoiles et commentaire facultatifs, « Enregistrer » / « Passer », les deux
    créent un `CookLog` avec les portions, puis retour à la recette. Vérif : flow (CookLog créé puis supprimé).

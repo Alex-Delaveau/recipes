@@ -67,10 +67,13 @@
                                 <div class="d-flex align-center ga-3 mb-2">
                                     <span class="fork-recipe__step-number">{{ index + 1 }}</span>
                                     <span class="fork-recipe__step-title">{{ step.name }}</span>
-                                    <v-chip v-if="step.time" size="small" variant="tonal" prepend-icon="fas fa-stopwatch">{{ step.time }} {{ $t('min') }}</v-chip>
+                                    <v-chip v-if="step.time" variant="tonal" prepend-icon="fas fa-stopwatch" class="fork-recipe__time-chip"
+                                            :aria-label="$t('Fork_Timer_Start_N', {duration: `${step.time} ${$t('min')}`})"
+                                            @click="startStepTimer(step.time, index + 1)">{{ step.time }} {{ $t('min') }}</v-chip>
                                 </div>
                                 <div class="fork-recipe__instructions markdown-body">
-                                    <instructions :instructions_html="step.instructionsMarkdown ?? ''" :ingredient_factor="factor"></instructions>
+                                    <fork-step-text :html="step.instructionsMarkdown ?? ''" :factor="factor" :recipe-id="recipe.id"
+                                                    :label="$t('Fork_Timer_Label', {recipe: recipe.name, n: index + 1})"></fork-step-text>
                                 </div>
                             </template>
                         </div>
@@ -103,14 +106,14 @@ import {useUserPreferenceStore} from "@/stores/UserPreferenceStore";
 import RecipeContextMenu from "@/components/inputs/RecipeContextMenu.vue";
 import KeywordsComponent from "@/components/display/KeywordsBar.vue";
 import StepView from "@/components/display/StepView.vue";
-// @ts-ignore upstream component written in plain JS
-import Instructions from "@/components/display/Instructions.vue";
 import PropertyView from "@/components/display/PropertyView.vue";
 import RecipeActivity from "@/components/display/RecipeActivity.vue";
 import ForkIngredientList from "@/fork/components/ForkIngredientList.vue";
 import ForkServingsStepper from "@/fork/components/ForkServingsStepper.vue";
 import ForkAddToShoppingSheet from "@/fork/components/ForkAddToShoppingSheet.vue";
 import {ingredientFactor, ingredientGroups, totalTime} from "@/fork/recipe";
+import ForkStepText from "@/fork/timers/ForkStepText.vue";
+import {useForkTimers} from "@/fork/timers/timers";
 
 const props = defineProps({
     servings: {type: Number, required: false},
@@ -137,6 +140,12 @@ watch(() => recipe.value.servings, () => {
         servings.value = recipe.value.servings
     }
 })
+
+const timers = useForkTimers()
+
+function startStepTimer(minutes: number, number: number) {
+    timers.start(minutes * 60, t('Fork_Timer_Label', {recipe: recipe.value.name, n: number}), `${minutes} ${t('min')}`, recipe.value.id)
+}
 
 const factor = computed(() => ingredientFactor(recipe.value, servings.value))
 const groups = computed(() => recipe.value.steps ? ingredientGroups(recipe.value, t) : [])
@@ -182,6 +191,10 @@ onBeforeUnmount(() => {
         position: sticky;
         top: 64px;
     }
+}
+
+.fork-recipe__time-chip {
+    min-height: 44px;
 }
 
 .fork-recipe__title {

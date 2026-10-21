@@ -158,6 +158,74 @@ const FLOWS = {
     check(true, 'leaving cook mode returns to the recipe with the chosen servings')
   },
 
+  // M5: durations in the step text start timers; several timers, pause, +1 min, stop; they survive a reload
+  async timers(page, ctx) {
+    const timerRows = page.locator('.fork-timers__row')
+    const curry = (await api(page, 'GET', `/api/recipe/${ctx.curry}/`)).data
+    const step = curry.steps[1]
+    await api(page, 'PATCH', `/api/step/${step.id}/`, { time: 20 }) // step.time chip, restored below
+    try {
+      await page.goto(`${base}/recipe/${ctx.curry}`, { waitUntil: 'networkidle' })
+      await page.evaluate(() => localStorage.removeItem('fork_timers'))
+      await page.reload({ waitUntil: 'networkidle' })
+      const link = page.locator('.fork-recipe__instructions .fork-timer-link', { hasText: '15 min' })
+      check(await eventually(() => link.isVisible()), '"15 min" in the step text is tappable (recipe view)')
+      await link.click()
+      check(await eventually(() => timerRows.first().isVisible(), 3000), 'tapping it starts a timer shown in the timers bar')
+      const time = () => timerRows.first().locator('.fork-timers__time').innerText()
+      check(/^1[45]:\d\d$/.test(await time()), `countdown from 15:00 (${await time()})`)
+      check((await timerRows.first().innerText()).includes('Étape 2 · Curry de pois chiches'), 'timer labelled with the recipe and the step')
+      await timerRows.first().getByRole('button', { name: 'Mettre en pause' }).click()
+      const paused = await time()
+      await page.waitForTimeout(1500)
+      check(await time() === paused && await timerRows.first().getByRole('button', { name: 'Reprendre' }).isVisible(), 'pause freezes the countdown')
+      await timerRows.first().getByRole('button', { name: 'Ajouter une minute' }).click()
+      check(/^1[56]:\d\d$/.test(await time()), `+1 min adds a minute (${await time()})`)
+      await timerRows.first().getByRole('button', { name: 'Reprendre' }).click()
+
+      await page.locator('.fork-recipe__time-chip').first().click()
+      check(await eventually(async () => (await timerRows.count()) === 2, 3000), 'the step time chip starts a second timer')
+
+      // a range asks which duration
+      const poulet = (await api(page, 'GET', '/api/recipe/?query=poulet&page_size=1')).data.results[0]
+      await page.goto(`${base}/recipe/${poulet.id}`, { waitUntil: 'networkidle' })
+      check(await eventually(async () => (await timerRows.count()) === 2), 'timers follow to another page')
+      await page.locator('.fork-timer-link', { hasText: '16 à 18 min' }).click()
+      const sheet = page.locator('.v-bottom-sheet')
+      check(await eventually(() => sheet.getByText('Quelle durée ?').isVisible(), 3000), 'a range opens a duration choice')
+      const options = await sheet.locator('.v-btn').allInnerTexts()
+      check(options.join('|') === '16 min|17 min|18 min', `low, middle and high proposed (${options.join(', ')})`)
+      await shot(page, 'timer-range')
+      await sheet.getByRole('button', { name: '17 min' }).click()
+      check(await eventually(async () => (await timerRows.count()) === 3, 3000), 'choosing 17 min starts a third timer')
+      await shot(page, 'timers-bar')
+
+      // timers rely on their end time: a reload keeps them; an elapsed one shows as done
+      await page.evaluate(() => {
+        const list = JSON.parse(localStorage.getItem('fork_timers'))
+        list[0].endAt = Date.now() + 1500
+        localStorage.setItem('fork_timers', JSON.stringify(list))
+      })
+      await page.reload({ waitUntil: 'networkidle' })
+      check(await eventually(async () => (await timerRows.count()) === 3), 'timers survive a reload')
+      check(await eventually(() => page.locator('.fork-timers__row--done', { hasText: 'Terminé' }).isVisible(), 5000), 'a timer reaching its end time rings as done')
+
+      // cook mode shows them above its buttons, durations tappable there too
+      await page.goto(`${base}/recipe/${ctx.curry}/cook`, { waitUntil: 'networkidle' })
+      check(await eventually(() => page.locator('.fork-cook__nav .fork-timers__row').first().isVisible()), 'cook mode shows the timers above its buttons')
+      await page.getByRole('button', { name: 'Suivant' }).click()
+      await page.getByRole('button', { name: 'Suivant' }).click()
+      check(await page.locator('.fork-cook__instructions .fork-timer-link', { hasText: '15 min' }).isVisible(), 'durations tappable in cook mode')
+      check(await page.locator('.fork-cook__time').isVisible(), 'step time chip shown in cook mode')
+      await shot(page, 'cook-timers')
+      for (let i = await timerRows.count(); i > 0; i--) await timerRows.first().getByRole('button', { name: 'Arrêter le minuteur' }).click()
+      check(await eventually(async () => (await timerRows.count()) === 0, 3000), 'stop removes the timers')
+    } finally {
+      await api(page, 'PATCH', `/api/step/${step.id}/`, { time: step.time ?? 0 })
+      await page.evaluate(() => localStorage.removeItem('fork_timers')).catch(() => {})
+    }
+  },
+
   // P3: add to shopping, untick what you have
   async p3(page, ctx) {
     await page.goto(`${base}/recipe/${ctx.curry}?servings=6`, { waitUntil: 'networkidle' })
