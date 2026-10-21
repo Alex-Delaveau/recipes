@@ -25,13 +25,18 @@
                 </p>
 
                 <v-switch v-model="form.ignoreShopping" :label="$t('Fork_Never_In_Shopping')" color="primary" hide-details></v-switch>
+
+                <v-progress-linear v-if="priceLoading" indeterminate color="primary" class="my-4"></v-progress-linear>
+                <fork-price-fields v-else-if="!form.isFamily" v-model="priceForm" :source="priceDetail?.price?.source ?? null"
+                                   :suggestion="priceDetail?.suggestion ?? null"></fork-price-fields>
+                <v-alert v-if="priceError" type="warning" variant="tonal" density="compact" class="mt-2" :text="priceError"></v-alert>
             </v-card-text>
             <v-card-actions class="pa-4 ga-2">
                 <v-btn variant="text" size="large" :to="{name: 'ModelEditPage', params: {model: 'Food', id: food.id}}" v-if="food">
                     {{ $t('Fork_All_Fields') }}
                 </v-btn>
                 <v-spacer></v-spacer>
-                <v-btn color="primary" variant="flat" size="large" :loading="saving" :disabled="!form.name?.trim()" @click="save()">{{ $t('Save') }}</v-btn>
+                <v-btn color="primary" variant="flat" size="large" :loading="saving" :disabled="!form.name?.trim() || priceFormInvalid(priceForm)" @click="save()">{{ $t('Save') }}</v-btn>
             </v-card-actions>
         </v-card>
     </v-bottom-sheet>
@@ -43,6 +48,8 @@ import {useI18n} from "vue-i18n";
 import {ApiApi, Food} from "@/openapi";
 import {ErrorMessageType, PreparedMessage, useMessageStore} from "@/stores/MessageStore";
 import {KitchenAisle, KitchenFoodItem, moveFoodToFamily, setFoodAisle, setFoodFamily} from "@/fork/api";
+import {emptyPriceForm, FoodPriceDetail, getFoodPrice, PriceError, priceFormInvalid, priceFormOf, priceUpdateOf, setFoodPrice} from "@/fork/prices";
+import ForkPriceFields from "@/fork/components/ForkPriceFields.vue";
 
 const props = defineProps({
     /** food to edit, null to create one */
@@ -53,8 +60,15 @@ const props = defineProps({
 const emit = defineEmits(['saved'])
 
 const sheet = defineModel<boolean>({default: false})
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const saving = ref(false)
+
+// price (M7): loaded with the sheet, saved after the food
+const priceDetail = ref<FoodPriceDetail | null>(null)
+const priceForm = ref(emptyPriceForm())
+let priceInitial = emptyPriceForm()
+const priceLoading = ref(false)
+const priceError = ref('')
 
 const form = reactive({
     name: '',
@@ -77,7 +91,25 @@ watch(sheet, (open) => {
     form.category = props.food?.category?.id ?? null
     form.ignoreShopping = props.food?.ignoreShopping ?? false
     form.isFamily = props.food?.isFamily ?? false
+    priceError.value = ''
+    priceDetail.value = null
+    priceForm.value = emptyPriceForm()
+    priceInitial = emptyPriceForm()
+    if (props.food) loadPrice(props.food.id)
 })
+
+async function loadPrice(id: number) {
+    priceLoading.value = true
+    try {
+        priceDetail.value = await getFoodPrice(id)
+        priceForm.value = priceFormOf(priceDetail.value, locale.value)
+        priceInitial = {...priceForm.value}
+    } catch {
+        // the rest of the sheet still works; the price fields stay empty
+    } finally {
+        priceLoading.value = false
+    }
+}
 
 // choosing a family proposes its aisle (members inherit it by default)
 watch(() => form.family, (family, previous) => {
@@ -108,6 +140,20 @@ async function save() {
         // saving confirms the aisle: the user saw it
         if (form.category != (props.food?.category?.id ?? null) || (form.category != null && !props.food?.aisleConfirmed)) {
             await setFoodAisle(id, form.category)
+        }
+        const priceUpdate = form.isFamily ? null : priceUpdateOf(priceForm.value, priceInitial)
+        if (priceUpdate) {
+            try {
+                await setFoodPrice(id, priceUpdate)
+            } catch (err) {
+                if (err instanceof PriceError) {
+                    // the food is saved, only the price is refused: say why and keep the sheet open
+                    priceError.value = err.reason == 'reference' ? t('Fork_Price_Reference_Error') : t('Fork_Price_Number')
+                    emit('saved', id)
+                    return
+                }
+                throw err
+            }
         }
         useMessageStore().addPreparedMessage(PreparedMessage.UPDATE_SUCCESS)
         sheet.value = false

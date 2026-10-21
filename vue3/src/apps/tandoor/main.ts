@@ -41,6 +41,7 @@ let routes = [
     // fork: food organisation (M3)
     {path: '/foods', component: () => import("@/fork/pages/ForkFoodsPage.vue"), name: 'ForkFoodsPage', meta: {title: 'Food'}},
     {path: '/foods/to-sort', component: () => import("@/fork/pages/ForkToSortPage.vue"), name: 'ForkToSortPage', meta: {title: 'Food'}},
+    {path: '/foods/no-price', component: () => import("@/fork/pages/ForkNoPricePage.vue"), name: 'ForkNoPricePage', meta: {title: 'Food'}},
     {path: '/foods/aisles', component: () => import("@/fork/pages/ForkAislesPage.vue"), name: 'ForkAislesPage', meta: {title: 'Food'}},
     {path: '/foods/names', component: () => import("@/fork/pages/ForkFoodNamesPage.vue"), name: 'ForkFoodNamesPage', meta: {title: 'Food'}},
     {path: '/foods/duplicates', component: () => import("@/fork/pages/ForkDuplicatesPage.vue"), name: 'ForkDuplicatesPage', meta: {title: 'Food'}},
