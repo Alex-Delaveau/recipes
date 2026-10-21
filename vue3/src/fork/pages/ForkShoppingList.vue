@@ -21,6 +21,13 @@
                     <v-list>
                         <v-list-item prepend-icon="fa-solid fa-list" :title="$t('Fork_Detailed_View')" @click="detailedView = true" min-height="48"></v-list-item>
                         <v-list-item prepend-icon="fa-solid fa-sliders" :title="$t('Settings')" :to="{name: 'ShoppingSettings'}" min-height="48"></v-list-item>
+                        <v-list-item prepend-icon="fa-solid fa-sun" :title="$t('Fork_Shopping_Keep_Screen_On')" min-height="48"
+                                     @click="keepShoppingScreenOn = !keepShoppingScreenOn">
+                            <template #append>
+                                <v-switch :model-value="keepShoppingScreenOn" color="primary" hide-details density="compact" inset readonly
+                                          tabindex="-1" aria-hidden="true" class="ms-2"></v-switch>
+                            </template>
+                        </v-list-item>
                     </v-list>
                 </v-menu>
             </v-btn>
@@ -50,7 +57,12 @@
             </v-text-field>
         </v-form>
 
-        <v-alert v-if="useShoppingStore().hasFailedItems()" type="warning" variant="tonal" class="mt-3" :text="$t('ShoppingBackgroundSyncWarning')"></v-alert>
+        <!-- offline in the shop: checks are kept on the device and sent when the network is back -->
+        <v-alert v-if="!online || (pendingShoppingChanges > 0 && useShoppingStore().hasFailedItems())" type="warning" variant="tonal" class="mt-3 fork-shopping__offline"
+                 icon="fa-solid fa-cloud-arrow-up" role="status" density="compact">
+            <div v-if="!online">{{ $t('Fork_Shopping_Offline') }}</div>
+            <div v-if="pendingShoppingChanges > 0" class="fork-shopping__pending">{{ $t('Fork_Shopping_Pending', {n: pendingShoppingChanges}, pendingShoppingChanges) }}</div>
+        </v-alert>
 
         <!-- loading -->
         <div v-if="!useShoppingStore().initialized" class="mt-4">
@@ -116,7 +128,8 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref} from "vue";
+import {computed, onBeforeUnmount, onMounted, ref, watch} from "vue";
+import {useOnline, useWakeLock} from "@vueuse/core";
 import {useI18n} from "vue-i18n";
 import {ApiApi, Food, ShoppingListEntry} from "@/openapi";
 import {useShoppingStore} from "@/stores/ShoppingStore";
@@ -128,6 +141,7 @@ import {pluralString} from "@/utils/model_utils";
 import {roundDecimals} from "@/utils/number_utils";
 import ShoppingListView from "@/components/display/ShoppingListView.vue";
 import {listAisles} from "@/fork/api";
+import {keepShoppingScreenOn, pendingShoppingChanges} from "@/fork/shoppingOffline";
 import ShoppingLineItemDialog from "@/components/dialogs/ShoppingLineItemDialog.vue";
 
 type ShoppingFood = NonNullable<ShoppingListEntry['food']>
@@ -145,6 +159,15 @@ interface AisleGroup {
 }
 
 const {t} = useI18n()
+const online = useOnline()
+const wakeLock = useWakeLock()
+
+// in the shop, the phone stays awake on the list (setting of this device); released when leaving the page
+watch(keepShoppingScreenOn, (on) => {
+    // the browser may refuse (hidden tab, low battery): not an error for the user
+    if (on) wakeLock.request('screen').catch(() => {})
+    else wakeLock.release().catch(() => {})
+}, {immediate: true})
 
 const detailedView = ref(false)
 const newItem = ref('')
@@ -289,6 +312,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+    wakeLock.release().catch(() => {})
     document.removeEventListener('visibilitychange', onVisibilityChange)
     clearTimeout(useShoppingStore().autoSyncTimeoutId)
 })

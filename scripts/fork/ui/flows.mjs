@@ -413,6 +413,65 @@ const FLOWS = {
     await page.waitForTimeout(1500)
   },
 
+  // M5: in the shop without network: checks kept on the device (even after a reload), sent when the network is back
+  async offline(page) {
+    const context = page.context()
+    // record wake lock requests (headless Chromium has no real screen to keep on)
+    await context.addInitScript(() => {
+      window.__forkWakeLocks = []
+      if (!navigator.wakeLock) return
+      navigator.wakeLock.request = async (type) => {
+        const lock = Object.assign(new EventTarget(), { type, released: false, release: async () => { lock.released = true; lock.dispatchEvent(new Event('release')) } })
+        window.__forkWakeLocks.push(lock)
+        return lock
+      }
+    })
+    const serverEntry = async (id) => (await (await context.request.get(`${base}/api/shopping-list-entry/${id}/`)).json())
+    await page.goto(base + '/shopping', { waitUntil: 'networkidle' })
+    await page.evaluate(() => { localStorage.removeItem('fork_shopping_sync_queue') })
+    await page.reload({ waitUntil: 'networkidle' })
+    const row = page.locator('.fork-shopping__row:not(.fork-shopping__row--done)', { hasText: 'Citron' })
+    await eventually(() => row.isVisible())
+    const ids = (await api(page, 'GET', '/api/shopping-list-entry/?page_size=200')).data.results
+      .filter((e) => e.food?.name === 'Citron' && !e.checked).map((e) => e.id)
+    check(ids.length > 0, `an unchecked "Citron" entry to work with (${ids.length})`)
+    // the service worker controls the page before going offline (it serves the app shell when reloading offline)
+    // (as on the phone: the upstream service worker caches pages and API answers it has served)
+    await page.evaluate(() => navigator.serviceWorker?.ready.then(() => true)).catch(() => {})
+    await page.reload({ waitUntil: 'networkidle' })
+    check(await page.evaluate(() => !!navigator.serviceWorker?.controller), 'service worker controls the shopping page')
+    check(await eventually(() => page.evaluate(() => window.__forkWakeLocks?.some((l) => !l.released))), 'screen kept on while the list is open')
+    try {
+      await context.setOffline(true)
+      check(await eventually(() => page.getByText('Hors ligne : dernier état connu de la liste').isVisible(), 3000), 'offline banner shown')
+      await row.click()
+      const cart = page.locator('.fork-shopping__row--done', { hasText: 'Citron' })
+      check(await eventually(() => cart.isVisible(), 3000), 'checking works offline')
+      check(await eventually(() => page.getByText('1 modification en attente').isVisible(), 3000), 'indicator "1 modification en attente"')
+      const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fork_shopping_sync_queue') || '[]'))
+      check(stored.some((q) => q.checked && ids.every((id) => q.ids.includes(id))), 'pending check stored on the device')
+      await shot(page, 'shopping-offline')
+
+      // closing the app (here: a reload, still offline) loses nothing; the last known list is shown
+      await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {})
+      check(await eventually(() => cart.isVisible(), 10000), 'after an offline reload the list shows, the item still in the cart')
+      check(await eventually(() => page.getByText('1 modification en attente').isVisible(), 3000), 'still 1 change waiting after the reload')
+      check((await serverEntry(ids[0])).checked === false, 'nothing reached the server while offline')
+
+      await context.setOffline(false)
+      check(await eventually(async () => (await serverEntry(ids[0])).checked === true, 15000), 'back online: the check is sent to the server')
+      check(await eventually(async () => !(await page.getByText('modification en attente').count()), 5000), 'indicator gone once sent')
+      await page.locator('.fork-bottom-nav .v-btn', { hasText: 'Recettes' }).click()
+      check(await eventually(() => page.evaluate(() => window.__forkWakeLocks.length > 0 && window.__forkWakeLocks.every((l) => l.released))), 'screen released when leaving the list')
+    } finally {
+      await context.setOffline(false)
+      await context.request.post(`${base}/api/shopping-list-entry/bulk/`, {
+        data: { ids, checked: false }, headers: { 'X-CSRFToken': (await context.cookies()).find((c) => c.name === 'csrftoken')?.value ?? '' },
+      })
+      await page.evaluate(() => localStorage.removeItem('fork_shopping_sync_queue')).catch(() => {})
+    }
+  },
+
   // M3: food tree, move in 2 taps, quick edit, "no aisle" filter
   async foods(page) {
     await page.goto(base + '/foods', { waitUntil: 'networkidle' })

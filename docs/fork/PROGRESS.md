@@ -300,7 +300,7 @@ Branche : `claude/clever-fermat-h1cce1` (imposée par la session cloud, au lieu 
    puce `step.time` qui lance un minuteur, feuille de choix pour une plage. Vérif : flow « minuteurs ».
 4. [x] Écran « Bon appétit » après « Terminé » : étoiles et commentaire facultatifs, « Enregistrer » / « Passer », les deux
    créent un `CookLog` avec les portions, puis retour à la recette. Vérif : flow (CookLog créé puis supprimé).
-5. [ ] Courses en magasin : écran allumé (réglable, actif par défaut), file de coches persistée et rejouée au retour du
+5. [x] Courses en magasin : écran allumé (réglable, actif par défaut), file de coches persistée et rejouée au retour du
    réseau, indicateur « N modifications en attente », dernier état connu affiché hors ligne. Diff minimal dans
    `ShoppingStore` (logique dans `vue3/src/fork/`). Vérif : flow hors ligne (Playwright `setOffline`).
 6. [x] Carte « Au menu » sur l'accueil téléphone (aujourd'hui, ou demain après 21 h), seulement s'il y a un repas prévu.
