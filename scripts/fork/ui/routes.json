@@ -15,6 +15,7 @@
     { "name": "recipe-wizard-edit", "path": "/recipe/{recipe}/edit", "strict": true },
     { "name": "food-list", "path": "/list/Food", "strict": true },
     { "name": "recipe-draw", "path": "/recipes/draw", "strict": true },
+    { "name": "recipes-all", "path": "/recipes/all", "strict": true },
     { "name": "foods", "path": "/foods", "strict": true },
     { "name": "foods-to-sort", "path": "/foods/to-sort", "strict": true },
     { "name": "foods-aisles", "path": "/foods/aisles", "strict": true },

@@ -1,6 +1,7 @@
 <template>
     <!-- Recipe photo, or a tinted tile with the initial when there is none (two missing photos stay told apart) -->
-    <div class="fork-thumb" :style="{width: px, height: px, borderRadius: radius, background: image ? undefined : tint.bg}">
+    <div class="fork-thumb" :class="{'fork-thumb--fluid': fluid}"
+         :style="{width: fluid ? undefined : px, height: fluid ? undefined : px, borderRadius: radius, background: image ? undefined : tint.bg}">
         <v-img v-if="image" :src="image" cover :alt="''" class="fork-thumb__img"></v-img>
         <span v-else class="fork-thumb__initial" :style="{color: tint.fg, fontSize: initialSize}" aria-hidden="true">{{ initial }}</span>
     </div>
@@ -13,6 +14,8 @@ const props = defineProps({
     name: {type: String, required: true},
     image: {type: String as () => string | null | undefined, default: null},
     size: {type: Number, default: 52},
+    /** fills the width of its container, square (grids); `size` then only sets the corner radius and the initial */
+    fluid: {type: Boolean, default: false},
 })
 
 // muted warm tiles, each with a text color that reaches 4.5:1
@@ -39,6 +42,11 @@ const tint = computed(() => {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.fork-thumb--fluid {
+    width: 100%;
+    aspect-ratio: 1 / 1;
 }
 
 .fork-thumb__img {

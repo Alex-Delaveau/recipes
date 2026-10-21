@@ -56,7 +56,10 @@
             <horizontal-meal-plan-window class="mt-4" v-if="mdAndUp && useUserPreferenceStore().deviceSettings.start_showMealPlan"></horizontal-meal-plan-window>
             <fork-recipe-shelf class="mt-5" :title="$t('Fork_Shelf_Quick')" :recipes="quickShelf" @see-all="filters.maxTime = 30"></fork-recipe-shelf>
             <fork-recipe-shelf class="mt-4" :title="$t('Fork_Shortcut_Forgotten')" :recipes="forgottenShelf" @see-all="filters.sort = 'forgotten'"></fork-recipe-shelf>
-            <h2 class="fork-home__all mt-5" v-if="!loading || recipes.length">{{ $t('Fork_All_Recipes', {n: count}) }}</h2>
+            <div class="fork-home__all mt-5" v-if="!loading || recipes.length">
+                <h2 class="fork-home__all-title">{{ $t('Fork_All_Recipes', {n: count}) }}</h2>
+                <v-btn variant="text" color="primary" size="large" :to="{name: 'ForkAllRecipesPage'}">{{ $t('Fork_See_All') }}</v-btn>
+            </div>
         </template>
 
         <p class="text-body-2 text-medium-emphasis mt-4 mb-1" v-else-if="!loading && !error && totalRecipes != 0" aria-live="polite">
@@ -96,10 +99,14 @@
 
         <!-- one recipe per line: quick to scan, two columns on a wide screen -->
         <div v-else class="fork-home__list">
-            <fork-recipe-row v-for="r in recipes" :key="r.id" :recipe="r"></fork-recipe-row>
+            <fork-recipe-row v-for="r in shownRecipes" :key="r.id" :recipe="r"></fork-recipe-row>
         </div>
 
-        <div class="text-center my-4" v-if="hasMore && !error">
+        <!-- browsing: a preview, "see all" opens the page made for browsing everything; results: page by page -->
+        <div class="text-center my-4" v-if="browsing && recipes.length && count > PREVIEW_SIZE">
+            <v-btn variant="tonal" size="large" :to="{name: 'ForkAllRecipesPage'}">{{ $t('Fork_See_All_N', {n: count}) }}</v-btn>
+        </div>
+        <div class="text-center my-4" v-else-if="!browsing && hasMore && !error">
             <v-btn variant="tonal" size="large" :loading="loading" @click="loadPage(page + 1)">{{ $t('Fork_Load_More') }}</v-btn>
         </div>
     </v-container>
@@ -167,6 +174,9 @@ const activeFilterCount = computed(() => filters.have.length + filters.keywords.
 const browsing = computed(() => !filters.query && activeFilterCount.value == 0 && !filters.sort)
 
 const SHELF_SIZE = 10
+/** browsing shows the first recipes by name only: the full list has its own page (grid, A-Z) */
+const PREVIEW_SIZE = 6
+const shownRecipes = computed(() => browsing.value ? recipes.value.slice(0, PREVIEW_SIZE) : recipes.value)
 const quickShelf = ref<KitchenRecipe[]>([])
 const forgottenShelf = ref<KitchenRecipe[]>([])
 
@@ -242,10 +252,16 @@ onMounted(() => {
 
 <style scoped>
 .fork-home__all {
+    display: flex;
+    align-items: center;
+    gap: var(--fork-space-2);
+    border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.fork-home__all-title {
+    flex: 1;
     font-size: var(--fork-text-lg);
     font-weight: 600;
-    padding-bottom: var(--fork-space-2);
-    border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
 @media (min-width: 960px) {
