@@ -1,0 +1,86 @@
+# Fork: the same quality gate as in the sessions, on every pull request to main.
+#   1. scripts/fork/verify.sh (fork rules, vue-tsc ratchet, node tests, build, backend tests): last line must be VERIFY: OK
+#   2. scripts/fork/pg_upgrade_check.sh: the fork's migrations on a PostgreSQL database created by the upstream image
+name: Fork verify
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: fork-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify.sh
+    runs-on: ubuntu-latest
+    if: github.repository_owner != 'TandoorRecipes'
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # merge-base with upstream (migration guard) and release tags
+      - name: Fetch upstream master
+        run: |
+          git remote add upstream https://github.com/TandoorRecipes/recipes.git
+          git fetch -q upstream master
+
+      - name: System libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libldap2-dev libsasl2-dev libxmlsec1-dev pkg-config gettext postgresql-client
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: yarn
+          cache-dependency-path: vue3/yarn.lock
+
+      - name: Setup (uv, yarn, SQLite dev database)
+        run: scripts/fork/setup.sh --no-seed
+
+      - name: verify.sh
+        run: |
+          scripts/fork/verify.sh 2>&1 | tee verify.txt
+          test "$(tail -1 verify.txt)" = "VERIFY: OK"
+
+      - name: PostgreSQL upgrade check
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: |
+          scripts/fork/pg_upgrade_check.sh 2>&1 | tee pg.txt
+          test "$(tail -1 pg.txt)" = "PG UPGRADE CHECK: OK"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo '```'
+            [ -f verify.txt ] && tail -15 verify.txt
+            [ -f pg.txt ] && cat pg.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fork-logs
+          path: |
+            .fork/*.txt
+            .fork/*.log
+          if-no-files-found: ignore
