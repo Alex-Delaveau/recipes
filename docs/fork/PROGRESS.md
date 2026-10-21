@@ -438,3 +438,9 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
   - une seule barre de message à la fois ;
   - parcours renforcé (échec simulé, premier jour, heure, articles créés).
   Non traité : « Ajouter aux courses » échoue dans un espace de démo Tandoor (refus upstream), sans objet ici.
+- Accueil refait selon la piste D, choisie par Alex :
+  - carte « Cette semaine » repliable (état gardé sur l'appareil) ;
+  - étagères « En moins de 30 min » et « Pas faites depuis longtemps » ;
+  - toutes les recettes en lignes compactes, triées par nom ;
+  - tuiles colorées pour les recettes sans photo.
+  Nouveau parcours `week` ; `p1` et `draw` adaptés.

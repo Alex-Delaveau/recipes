@@ -3,6 +3,25 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — Accueil des recettes : piste D, la semaine d'abord
+**Contexte** : Alex choisit la piste D des maquettes (https://claude.ai/artifact/1jE7ee7MLBGGFvTv8inbX3). Il veut
+pouvoir réduire ou étendre la partie « au hasard ».
+**Choix** : sans recherche ni filtre, l'accueil affiche dans l'ordre :
+1. **« Cette semaine »** : les plats tirés au sort, repliable. Repliée, c'est une ligne avec les vignettes ; l'état est
+   gardé sur l'appareil.
+   - On retire ou remplace un plat, on en ajoute un, ou on refait un nouveau tirage, avec annulation.
+   - « Au menu » et « Aux courses » ouvrent la page du tirage sur la bonne feuille.
+   - Le dé ouvre la page du tirage (nombre de plats).
+2. Deux étagères : « En moins de 30 min » et « Pas faites depuis longtemps ». « Tout voir » applique le filtre
+   correspondant. Pas d'étagère par mot-clé : Alex ne fait que des plats principaux.
+3. **« Toutes les recettes »**, triées par nom, une par ligne : vignette de 52 px, nom, durée. Sur ordinateur, deux
+   colonnes.
+
+Une recherche, un filtre ou un raccourci n'affichent que les résultats, en lignes. Une recette sans photo a une tuile
+de couleur avec son initiale, au lieu d'un rectangle gris. Le chip « Tirer au sort » disparaît : la carte le remplace.
+**Alternative écartée** : pistes A, B et C (voir RECETTES-ACCUEIL.md).
+**Réversible ?** Oui. `ForkRecipeCard` reste dans le code.
+
 ## 2026-10-21 — hors jalon — Le tirage remplit le menu de la semaine et les courses
 **Contexte** : Alex veut que le tirage alimente directement le menu de la semaine et la liste de courses, comme chez
 Jow.
