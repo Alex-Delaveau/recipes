@@ -121,6 +121,50 @@ const FLOWS = {
     await page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Récentes' }).click()
     await page.waitForTimeout(800)
     check(!(await page.locator('.v-alert--variant-tonal.text-error').count()), 'shortcut "récentes" loads without error')
+    const recent = page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Récentes' })
+    check((await recent.getAttribute('aria-pressed')) === 'true' && !(await recent.locator('.v-chip__filter').count()), 'selected shortcut: one icon, no extra check mark')
+    await recent.click()
+    check(await eventually(async () => (await recent.getAttribute('aria-pressed')) === 'false', 3000), 'tapping it again switches it off')
+  },
+
+  // draw X recipes at random: a short list, remove or replace one at a time, kept on the device
+  async draw(page) {
+    await page.goto(base + '/', { waitUntil: 'networkidle' })
+    await page.evaluate(() => { localStorage.removeItem('fork_recipe_draw'); localStorage.setItem('fork_recipe_draw_size', '3') })
+    await page.reload({ waitUntil: 'networkidle' }) // the stored values are read when the app starts
+    await page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Tirer au sort' }).click()
+    await eventually(() => page.getByRole('button', { name: 'Tirer 3 recettes' }).isVisible())
+    await page.getByRole('button', { name: 'Une recette de moins' }).click()
+    await page.getByRole('button', { name: 'Une recette de plus' }).click()
+    await page.getByRole('button', { name: 'Tirer 3 recettes' }).click()
+    const rows = page.locator('.fork-draw__row')
+    check(await eventually(async () => (await rows.count()) === 3, 5000), '3 recipes drawn')
+    const names = async () => texts(page, '.fork-draw__name')
+    const first = await names()
+    check(new Set(first).size === 3, 'no recipe twice')
+
+    await rows.first().getByRole('button', { name: /Retirer/ }).click()
+    check(await eventually(async () => (await rows.count()) === 2, 3000), 'one removed')
+    await page.locator('.v-snackbar').getByRole('button', { name: 'Annuler' }).click()
+    check(await eventually(async () => (await rows.count()) === 3, 3000), 'undo puts it back')
+
+    await rows.first().getByRole('button', { name: /Remplacer/ }).click()
+    const replaced = await eventually(async () => { const n = await names(); return n[0] !== first[0] && n }, 5000)
+    check(replaced && replaced.length === 3 && new Set(replaced).size === 3, `replaced in place by another recipe (${replaced && replaced[0]})`)
+
+    await page.getByRole('button', { name: 'Une de plus' }).click()
+    check(await eventually(async () => (await rows.count()) === 4, 5000), 'one more added')
+    await page.getByRole('button', { name: 'Une de plus' }).click()
+    check(await eventually(() => page.getByText("Plus d'autre recette qui corresponde.").isVisible(), 5000), 'says when no other recipe is left (4 in the demo)')
+    await shot(page, 'recipe-draw')
+
+    await page.reload({ waitUntil: 'networkidle' })
+    check(await eventually(async () => (await rows.count()) === 4, 4000), 'the list stays on the device after a reload')
+    await page.goto(base + '/', { waitUntil: 'networkidle' })
+    check(await eventually(() => page.locator('.fork-home__shortcuts .v-chip', { hasText: /Tirer au sort\s*\(4\)/ }).isVisible(), 3000), 'home shortcut shows the list size')
+    await page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Tirer au sort' }).click()
+    await page.getByRole('button', { name: 'Vider la liste' }).click()
+    check(await eventually(async () => (await rows.count()) === 0, 3000), 'list cleared')
   },
 
   // P2: servings scale every quantity, cook mode one step per screen
