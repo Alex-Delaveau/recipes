@@ -487,6 +487,63 @@ const FLOWS = {
   },
 
   // M3: food tree, move in 2 taps, quick edit, "no aisle" filter
+  // clear the list: only the cart, or everything; confirmed first, undo brings everything back
+  async clearshopping(page) {
+    const all = async () => (await api(page, 'GET', '/api/shopping-list-entry/?page_size=200')).data.results
+    const before = await all()
+    const food = async (q) => (await api(page, 'GET', `/api/food/?query=${q}&page_size=1`)).data.results[0]
+    const ail = await food('Ail'), poivron = await food('Poivron')
+    const inCart = (await api(page, 'POST', '/api/shopping-list-entry/', { food: { id: ail.id, name: ail.name }, amount: 1, unit: null })).data
+    await api(page, 'PATCH', `/api/shopping-list-entry/${inCart.id}/`, { checked: true })
+    const toBuy = (await api(page, 'POST', '/api/shopping-list-entry/', { food: { id: poivron.id, name: poivron.name }, amount: 2, unit: null })).data
+
+    await page.goto(base + '/shopping', { waitUntil: 'networkidle' })
+    await eventually(() => page.locator('.fork-shopping__row--done', { hasText: /^\s*Ail/ }).first().isVisible())
+    const menu = () => page.getByRole('button', { name: 'Options' }).click()
+
+    // the cart only
+    await menu()
+    await page.getByText('Retirer les articles du panier').click()
+    const dialog = page.locator('.fork-shopping__clear')
+    check(await eventually(() => dialog.isVisible(), 3000), 'confirmation before removing the cart')
+    await dialog.getByRole('button', { name: 'Retirer' }).click()
+    check(await eventually(async () => (await page.locator('.fork-shopping__row--done').count()) === 0, 6000), 'cart emptied on screen')
+    check(await eventually(async () => !(await all()).some(e => e.id === inCart.id), 6000), 'checked entry deleted on the server')
+    check((await all()).some(e => e.id === toBuy.id), 'items still to buy are kept')
+
+    // everything: cancel first, then confirm
+    const rows = async () => page.locator('.fork-shopping__row').count()
+    const n = await rows()
+    await menu()
+    await page.getByText('Vider la liste').click()
+    check(await eventually(() => dialog.getByText(/articles? seront? supprimés? de la liste/).isVisible(), 3000), 'the dialog says how many items go')
+    await dialog.getByRole('button', { name: 'Annuler' }).click()
+    check(await eventually(async () => !(await dialog.isVisible()), 3000) && (await rows()) === n, 'cancel keeps the list')
+    await menu()
+    await page.getByText('Vider la liste').click()
+    await shot(page, 'shopping-clear-mobile')
+    await dialog.getByRole('button', { name: 'Vider' }).click()
+    check(await eventually(() => page.getByText('La liste de courses est vide.').isVisible(), 8000), 'list emptied')
+    check(await eventually(async () => (await all()).filter(e => before.some(b => b.id === e.id) || e.id === toBuy.id).length === 0, 6000), 'entries deleted on the server')
+
+    // undo: the whole list comes back, then the cart (the undo button keeps both)
+    await page.locator('.v-snackbar').getByRole('button', { name: 'Annuler' }).click()
+    check(await eventually(async () => (await rows()) === n, 8000), 'undo brings every item back')
+    await page.getByRole('button', { name: 'Annuler' }).first().click()
+    const checkedBefore = before.filter(e => e.checked).length
+    check(await eventually(async () => (await page.locator('.fork-shopping__row--done').count()) >= checkedBefore + 1, 8000), 'undo again brings the cart back')
+    check(await eventually(async () => (await all()).length === before.length + 2, 6000), 'entries recreated on the server')
+
+    // restore: drop the two items added by this flow (recreated by the undo)
+    await page.waitForTimeout(800)
+    const mine = [(e) => e.food?.id === poivron.id && Number(e.amount) === 2, (e) => e.food?.id === ail.id && Number(e.amount) === 1]
+    for (const added of mine) {
+      const extra = (await all()).filter(added).slice(before.filter(added).length)
+      for (const e of extra) await api(page, 'DELETE', `/api/shopping-list-entry/${e.id}/`)
+    }
+    check((await all()).length === before.length, `list restored (${before.length} entries)`)
+  },
+
   async foods(page) {
     await page.goto(base + '/foods', { waitUntil: 'networkidle' })
     const family = page.locator('.fork-foods__family', { hasText: 'Légumes' })
