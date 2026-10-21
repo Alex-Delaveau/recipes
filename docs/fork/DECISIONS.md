@@ -3,6 +3,21 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — Règles des étagères « En moins de 30 min » et « Pas faites depuis longtemps »
+**Contexte** : Alex demande comment ces catégories sont calculées. En relisant, deux défauts sont apparus :
+- une recette sans durée comptait comme « 0 min », donc « rapide » ;
+- « Pas faites depuis longtemps » ne comptait que les cuissons de l'utilisateur connecté (`lastcooked` upstream).
+**Choix** :
+- **En moins de 30 min** : temps total = préparation + attente, entre 1 et 30 min. Une recette sans durée n'y est plus
+  (inconnue, pas rapide). Même règle pour le filtre « ≤ 15/30/60 min ».
+- **Pas faites depuis longtemps** : un tri, pas un seuil. Les recettes jamais cuisinées viennent d'abord (par nom),
+  puis celles dont la dernière cuisson est la plus ancienne. Une cuisson compte quel que soit le membre du foyer qui
+  l'a faite. Elle est enregistrée par « Terminé » / « Bon appétit » à la fin du mode cuisine (M5) ou par le bouton
+  « cuisiné » upstream. L'étagère montre les 10 premières.
+**Alternative écartée** : garder l'annotation upstream par utilisateur (la recette faite hier par l'autre membre du
+foyer serait « oubliée ») ; un seuil fixe (6 semaines) qui viderait l'étagère au début.
+**Réversible ?** Oui.
+
 ## 2026-10-21 — hors jalon — Accueil des recettes : piste D, la semaine d'abord
 **Contexte** : Alex choisit la piste D des maquettes (https://claude.ai/artifact/1jE7ee7MLBGGFvTv8inbX3). Il veut
 pouvoir réduire ou étendre la partie « au hasard ».
