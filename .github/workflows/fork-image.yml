@@ -35,7 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0 # release tags + history for the image tag and version.py
+          fetch-depth: 0 # history for the image tag and version.py
+      - name: Fetch upstream release tags
+        # the fork's own tags may lag behind after an upstream sync; the image tag names the real base release
+        run: git fetch -q --tags https://github.com/TandoorRecipes/recipes.git master
 
       - name: Image name and tags
         id: tag

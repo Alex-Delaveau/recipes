@@ -71,7 +71,7 @@ On démarre une deuxième stack, isolée, sur la sauvegarde, avec l'image du for
 
    ```sh
    docker compose up -d db_recipes
-   docker compose exec -T db_recipes sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'   # attendre "accepting connections"
+   until docker compose exec -T db_recipes sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'; do sleep 2; done
    docker compose exec -T db_recipes sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner' < ../tandoor/backups/tandoor-before-fork.dump
    tar xzf ../tandoor/backups/mediafiles-before-fork.tgz
    docker compose up -d
@@ -121,13 +121,18 @@ On revient à l'état exact d'avant la bascule. Tout ce qui a été saisi depuis
 ```sh
 docker compose down
 mv postgresql postgresql-fork && mv mediafiles mediafiles-fork     # gardés de côté, à supprimer plus tard
-# dans Komodo : TANDOOR_IMAGE=vabene1111/recipes:<même release>
+# remettre l'image upstream AVANT de relancer : sinon le fork redémarre sur la base restaurée
+sed -i 's#^TANDOOR_IMAGE=.*#TANDOOR_IMAGE=vabene1111/recipes:<même release>#' .env
 docker compose up -d db_recipes
-docker compose exec -T db_recipes sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+until docker compose exec -T db_recipes sh -c 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'; do sleep 2; done
 docker compose exec -T db_recipes sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner' < backups/tandoor-before-fork.dump
 tar xzf backups/mediafiles-before-fork.tgz
 docker compose up -d
+docker compose ps --format '{{.Image}}' web_recipes   # doit afficher l'image upstream
 ```
+
+Puis reporter la même valeur de `TANDOOR_IMAGE` dans l'environnement de la stack Komodo : Komodo réécrit `.env` au
+prochain Deploy, et remettrait sinon l'image du fork.
 
 ## 7. Ce que la CI garantit
 
@@ -136,5 +141,7 @@ docker compose up -d
   - `scripts/fork/pg_upgrade_check.sh`, qui crée une base PostgreSQL avec l'image upstream de la release de base et y
     écrit des données. Les migrations du fork sont ensuite appliquées par-dessus. Enfin, le script joue le retour
     arrière de la section 6 : `migrate kitchen zero`, puis l'image upstream qui doit encore supprimer un aliment.
+- Pour que la porte bloque vraiment les fusions : GitHub › Settings › Branches › règle sur `main` › « Require status
+  checks to pass », cocher `verify.sh`. À faire une fois, après le premier passage du workflow.
 - `Fork image` (fusion dans `main`, et PR qui touchent le Dockerfile ou les dépendances) : construction de l'image,
   publication sur GHCR hors PR.

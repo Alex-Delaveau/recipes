@@ -367,10 +367,19 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
   commité). Conteneur démarré sur PostgreSQL : migrations `kitchen` appliquées par `boot.sh`, `/accounts/login/` en 200,
   endpoints `/api/kitchen/*` présents dans `/openapi/`. (Le nginx de l'image ne démarre pas dans la session faute
   d'IPv6 : contourné à la main pour le test, limite de la session, pas de l'image.)
-- 3 : `fork-verify.yml` (`setup.sh --no-seed`, `verify.sh`, contrôle Postgres), exécuté sur la PR du jalon.
+- 3 : `fork-verify.yml` (`setup.sh --no-seed`, `verify.sh`, contrôle Postgres). Premier passage réel sur la PR du jalon.
 - 4 : `pg_upgrade_check.sh` → `PG UPGRADE CHECK: OK`, avec le code local et avec l'image du fork. Constat : sans
   `migrate kitchen zero`, l'image upstream ne peut plus supprimer un aliment étendu par le fork (DECISIONS.md).
 - 5 : `DEPLOY.md` et `docs/fork/deploy/`. Procédure jouée de bout en bout sur deux stacks compose (production simulée
   avec l'image upstream 2.6.15, puis sauvegarde, essai sur une copie, bascule vers le fork, retour arrière).
 - 6 : `verify.sh --ui m6 --publish` → `VERIFY: OK` (pytest 1368 passés, 1 échec de la baseline ; 137 contrôles de
   parcours).
+- Relectures :
+  - `reviewer` : pas de point bloquant. Majeurs corrigés :
+    - `.dockerignore` : la ligne upstream `venv` avait été collée au commentaire du fork ;
+    - tags de release récupérés d'upstream dans `fork-image.yml` (sinon étiquette fausse après une synchro) ;
+    - retour arrière par la sauvegarde : l'image upstream est remise dans `.env` avant de relancer, et vérifiée.
+
+    Mineurs corrigés : journaux de CI (fichiers cachés), attente de `pg_isready`, « status check » requis sur `main`.
+  - `ui-auditor` : « SHIP », aucune régression par rapport à M5 (aucun fichier d'UI touché). Les remarques mineures
+    (zones tactiles de la vue et de l'éditeur upstream) datent d'avant M6.

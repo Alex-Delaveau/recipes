@@ -83,4 +83,5 @@ jobs:
           path: |
             .fork/*.txt
             .fork/*.log
+          include-hidden-files: true
           if-no-files-found: ignore
