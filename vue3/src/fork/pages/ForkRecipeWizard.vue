@@ -112,11 +112,19 @@
                 <fork-keyword-picker v-model="draft.keywords" :label="$t('Keywords')" class="mb-6"></fork-keyword-picker>
 
                 <div class="fork-wizard__label">{{ $t('Fork_Photo') }}</div>
-                <v-img v-if="photoPreview" :src="photoPreview" :aspect-ratio="16/9" cover class="fork-wizard__photo mb-2"></v-img>
+                <v-img v-if="photoPreview && !photoCrop" :src="photoPreview" :aspect-ratio="16/9" cover class="fork-wizard__photo mb-2"></v-img>
+                <div v-else-if="photoPreview && photoCrop" class="fork-wizard__photo mb-2" role="img" :aria-label="$t('Fork_Crop_Done')"
+                     :style="{aspectRatio: String(photoAspect), ...cropPreviewStyle(photoPreview, photoCrop)}"></div>
                 <input ref="photoInput" type="file" accept="image/*" class="d-none" @change="pickPhoto">
-                <v-btn variant="tonal" size="large" block prepend-icon="fa-solid fa-image" @click="photoInput?.click()">
-                    {{ photoPreview ? $t('Fork_Change_Photo') : $t('Fork_Choose_Photo') }}
-                </v-btn>
+                <div class="fork-wizard__photo-actions">
+                    <v-btn variant="tonal" size="large" prepend-icon="fa-solid fa-image" @click="photoInput?.click()">
+                        {{ photoPreview ? $t('Fork_Change_Photo') : $t('Fork_Choose_Photo') }}
+                    </v-btn>
+                    <v-btn v-if="photoPreview" variant="tonal" size="large" prepend-icon="fa-solid fa-crop-simple" @click="cropOpen = true">
+                        {{ photoCrop ? $t('Fork_Crop_Again') : $t('Fork_Crop') }}
+                    </v-btn>
+                </div>
+                <fork-image-cropper v-model="cropOpen" :src="photoPreview ?? ''" @apply="(c: ImageCrop, a: number) => { photoCrop = c; photoAspect = a }"></fork-image-cropper>
             </section>
         </main>
 
@@ -149,6 +157,8 @@ import {ApiApi, Recipe} from "@/openapi";
 import {ErrorMessageType, MessageType, useMessageStore} from "@/stores/MessageStore";
 import {useFileApi} from "@/composables/useFileApi";
 import {ParsedLine, parseLines} from "@/fork/api";
+import ForkImageCropper from "@/fork/components/ForkImageCropper.vue";
+import {cropPreviewStyle, cropRecipeImage, ImageCrop} from "@/fork/images";
 import {clearDraft, DraftIngredient, DraftStep, draftFromRecipe, draftToRecipe, emptyDraft, fromParsed, loadDraft, newKey, RecipeDraft, storeDraft} from "@/fork/recipeDraft";
 import ForkServingsStepper from "@/fork/components/ForkServingsStepper.vue";
 import ForkIngredientLineSheet from "@/fork/components/ForkIngredientLineSheet.vue";
@@ -299,7 +309,13 @@ function pickPhoto(event: Event) {
     if (!file) return
     photoFile.value = file
     photoPreview.value = URL.createObjectURL(file)
+    photoCrop.value = null
 }
+
+// ---- framing of the photo, applied by the server after the save (new photo or the stored one)
+const cropOpen = ref(false)
+const photoCrop = ref<ImageCrop | null>(null)
+const photoAspect = ref(16 / 9)
 
 // ---- save
 async function save() {
@@ -329,11 +345,14 @@ async function save() {
         savedId.value = saved.id!
         clearDraft(draftId.value)
         ready = false
-        if (photoFile.value) {
+        if (photoFile.value || photoCrop.value) {
             // the recipe is saved: a failed photo upload is reported, it does not undo the save
             try {
-                const image = await updateRecipeImage(saved.id!, photoFile.value)
-                if (!image?.image) throw new Error('image not saved')
+                if (photoFile.value) {
+                    const image = await updateRecipeImage(saved.id!, photoFile.value)
+                    if (!image?.image) throw new Error('image not saved')
+                }
+                if (photoCrop.value) await cropRecipeImage(saved.id!, photoCrop.value)
             } catch {
                 useMessageStore().addMessage(MessageType.WARNING, {title: t('Fork_Photo_Failed'), text: ''}, 5000)
             }
@@ -486,6 +505,12 @@ onMounted(() => load())
     color: rgb(var(--v-theme-on-primary));
     font-weight: 600;
     font-size: var(--fork-text-sm);
+}
+
+.fork-wizard__photo-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--fork-space-2);
 }
 
 .fork-wizard__photo {
