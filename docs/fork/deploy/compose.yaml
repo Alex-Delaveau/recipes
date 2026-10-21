@@ -1,34 +1,48 @@
-# Tandoor (fork) stack for Komodo. Same layout as upstream's docs/install/docker/plain/docker-compose.yml:
-# only the web image changes, so switching between the fork and upstream is a one-variable change.
-# Variables come from the stack environment in Komodo (or a .env file next to this file), see fork.env.example.
+# Tandoor (fork) stack for Komodo, same layout as stacks/tandoor/compose.yaml in homelab-config.
+# Only the web image changes between the fork and upstream: TANDOOR_IMAGE in the Komodo stack environment.
+# TANDOOR_NAME / TANDOOR_HTTP_PORT let a second copy (test stack) run next to production on the same server.
 services:
-  db_recipes:
-    restart: always
+  tandoor-db:
     image: postgres:16-alpine
-    volumes:
-      - ./postgresql:/var/lib/postgresql/data
+    container_name: ${TANDOOR_NAME:-tandoor}-db
+    restart: unless-stopped
     env_file:
       - ./.env
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - tandoor-network
 
-  web_recipes:
-    restart: always
-    # fork: ghcr.io/alex-delaveau/recipes:<release>-fork.<n> ; back to upstream: vabene1111/recipes:<release>
-    image: ${TANDOOR_IMAGE:?set TANDOOR_IMAGE}
+  tandoor-web:
+    # fork: ghcr.io/alex-delaveau/recipes:<release>-fork.<n> ; upstream: ghcr.io/tandoorrecipes/recipes:<release>
+    image: ${TANDOOR_IMAGE:-ghcr.io/tandoorrecipes/recipes:2.6.15}
+    container_name: ${TANDOOR_NAME:-tandoor}-web
+    restart: unless-stopped
     env_file:
       - ./.env
-    ports:
-      - ${TANDOOR_HTTP_PORT:-80}:80
     volumes:
-      - staticfiles:/opt/recipes/staticfiles
+      - tandoor-static:/opt/recipes/staticfiles
       - ./mediafiles:/opt/recipes/mediafiles
     depends_on:
-      db_recipes:
+      tandoor-db:
         condition: service_healthy
+    ports:
+      # local only, Nginx Proxy Manager reaches "tandoor-web:80" through internal-network
+      - "127.0.0.1:${TANDOOR_HTTP_PORT:-8083}:80"
+    networks:
+      - tandoor-network
+      - internal-network
 
 volumes:
-  staticfiles:
+  tandoor-static:
+
+networks:
+  internal-network:
+    external: true
+  tandoor-network:
+    driver: bridge

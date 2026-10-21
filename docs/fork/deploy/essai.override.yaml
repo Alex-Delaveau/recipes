@@ -1,0 +1,6 @@
+# Test copy only: keeps the test web container off internal-network, so Nginx Proxy Manager never resolves
+# "tandoor-web" to it. The test copy is reached through an SSH tunnel to 127.0.0.1:${TANDOOR_HTTP_PORT}.
+services:
+  tandoor-web:
+    networks: !override
+      - tandoor-network
