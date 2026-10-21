@@ -340,3 +340,22 @@ Branche : `claude/clever-fermat-h1cce1` (imposée par la session cloud, au lieu 
 - Aucun changement backend. Upstream touché : `ShoppingStore.ts` (points d'accroche « fork »), `RecipeImportPage.vue`
   (partage), `Tandoor.vue` (barre des minuteurs).
 - Prochain jalon : M6 (livraison sur le homelab).
+
+## M6 — plan
+Branche : `claude/zen-ramanujan-cnfub4` (imposée par la session cloud, au lieu de `fork/m6-livraison`), partie de
+`origin/main` (M5 fusionné). Environnement : `verify.sh --quick` → `VERIFY: OK` avant tout changement (649 erreurs
+vue-tsc). Docker est disponible dans la session (démon lancé à la main), ainsi que PostgreSQL 16.
+
+1. [ ] Étiquette d'image calculée par un script (`scripts/fork/image_tag.sh`) : version upstream (dernier tag de release
+   ancêtre) + suffixe fork. Vérif : sortie du script sur la branche.
+2. [ ] Workflow `fork-image.yml` : build du front, image Docker (Dockerfile upstream inchangé), publication GHCR sur
+   `main` et à la demande ; build sans publication sur les PR. Vérif : build local de la même image avec Docker,
+   démarrage du conteneur, page de connexion servie.
+3. [ ] Workflow `fork-verify.yml` : `setup.sh` puis `verify.sh` complet sur chaque PR vers `main`, échec si la dernière
+   ligne n'est pas `VERIFY: OK`. Vérif : exécution réelle sur la PR du jalon.
+4. [ ] Contrôle Postgres (`scripts/fork/pg_upgrade_check.sh`) : base créée et migrée par l'image upstream, puis
+   migrations du fork appliquées dessus, puis `migrate --check` et retour arrière de `kitchen` (`migrate kitchen zero`).
+   Vérif : exécution dans la session ; job dans `fork-verify.yml`.
+5. [ ] `docs/fork/DEPLOY.md` : stack compose pour Komodo, sauvegarde avant bascule, essai sur une copie, retour arrière
+   vers l'image upstream. Vérif : compose validé par `docker compose config`, commandes jouées dans le contrôle Postgres.
+6. [ ] Porte `verify.sh --ui m6 --publish`, `reviewer`, `ui-auditor`, critères, PR.
