@@ -455,3 +455,30 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
 - Jalon M7 ajouté à ROADMAP.md : niveau 2 retenu par Alex (prix par aliment dans la propriété Prix upstream, prix au
   paquet, dictionnaire de prix moyens marqués « estimés », écran « Aliments sans prix », prix affiché sur la recette,
   la semaine et la liste de courses), plus l'ajustement après les courses par le total payé. Prochain jalon : M7.
+
+## M7 — plan
+Branche : `claude/zen-ramanujan-cnfub4` (imposée par la session cloud, au lieu de `fork/m7-prix`), partie de
+`origin/main` (PR #14 fusionnée). Environnement : `verify.sh --quick` → `VERIFY: OK` avant tout changement (646 erreurs
+vue-tsc, sous la baseline de 649).
+
+1. [ ] Modèle : `KitchenFood` reçoit l'origine du prix (estimé / confirmé), le conditionnement (quantité, unité, prix) et
+   le poids à la pièce (migration `kitchen` 0003). Le prix lui-même reste dans la propriété « Prix » upstream
+   (`PropertyType` catégorie `PRICE`, créé par `ensure_setup`). Vérif : pytest, contrôle Postgres.
+2. [ ] Calcul (`kitchen/prices.py`) : quantité d'un article ramenée en g / ml / pièces (unités de base, noms français
+   courants, conversions upstream, poids à la pièce), prix d'un aliment par sa référence upstream, paquets entiers,
+   articles sans prix ou non convertibles. Vérif : pytest du calcul.
+3. [ ] Dictionnaire (`kitchen/price_dictionary.py`) : ~150 prix moyens et poids à la pièce, appliqués comme « estimés ».
+   Source et date dans DECISIONS.md. Vérif : pytest (correspondance des noms, application sans écraser).
+4. [ ] Endpoints : prix d'un aliment (lecture, saisie), aliments sans prix (+ compteur), application du dictionnaire,
+   estimation d'une recette, d'un lot de recettes, de la liste de courses, et ajustement après les courses (total payé,
+   proportionnel aux seuls prix estimés, lissé ; correction d'un article → confirmé). Vérif : pytest API.
+5. [ ] Fiche aliment : champ prix + unité, conditionnement, poids à la pièce, badge estimé / confirmé ; prix dans la
+   liste des aliments. Vérif : parcours cliqué, captures.
+6. [ ] Écran « Aliments sans prix » (sur le modèle de « À ranger ») et compteur sur la page Aliments. Vérif : parcours.
+7. [ ] Affichage : page recette (« ≈ 6,40 € · 1,60 €/pers. »), carte « Cette semaine » et page du tirage, haut de la
+   liste de courses, toujours avec le nombre d'articles sans prix. Vérif : parcours, captures 360 px.
+8. [ ] « Courses terminées » : total payé, écart affiché, ajustement, correction d'un article, « Passer ».
+   Vérif : parcours cliqué de bout en bout (données remises en place).
+9. [ ] Chaînes fr/en, routes `strict`, porte `verify.sh --ui m7 --publish`, `reviewer`, `ui-auditor`, critères, PR.
+
+### Avancement M7
