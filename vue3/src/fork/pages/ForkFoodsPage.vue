@@ -11,6 +11,7 @@
                 <v-menu activator="parent">
                     <v-list>
                         <v-list-item prepend-icon="fa-solid fa-clone" :title="$t('Fork_Duplicates')" :to="{name: 'ForkDuplicatesPage'}" min-height="48"></v-list-item>
+                        <v-list-item prepend-icon="fa-solid fa-spell-check" :title="$t('Fork_Names_To_Fix')" :to="{name: 'ForkFoodNamesPage'}" min-height="48"></v-list-item>
                         <v-list-item prepend-icon="fa-solid fa-arrow-down-short-wide" :title="$t('Fork_Aisle_Order')" :to="{name: 'ForkAislesPage'}"
                                      min-height="48"></v-list-item>
                         <v-list-item prepend-icon="fa-solid fa-table" :title="$t('Fork_Table_View')" :to="{name: 'ModelListPage', params: {model: 'food'}}"
@@ -26,6 +27,16 @@
                 <v-icon icon="fa-solid fa-inbox"></v-icon>
                 <span class="flex-grow-1 text-body-1">{{ $t('Fork_To_Sort_Count', {n: toSort}, toSort) }}</span>
                 <span class="font-weight-bold">{{ $t('Fork_Sort_Now') }}</span>
+                <v-icon icon="fa-solid fa-chevron-right" size="16"></v-icon>
+            </v-card-text>
+        </v-card>
+
+        <!-- names left over by imports ("à soupe d'huile") -->
+        <v-card v-if="namesToFix > 0" class="fork-foods__queue mb-3" variant="tonal" color="secondary" :to="{name: 'ForkFoodNamesPage'}">
+            <v-card-text class="d-flex align-center ga-3">
+                <v-icon icon="fa-solid fa-spell-check"></v-icon>
+                <span class="flex-grow-1 text-body-1">{{ $t('Fork_Names_To_Fix_Count', {n: namesToFix}, namesToFix) }}</span>
+                <span class="font-weight-bold">{{ $t('Fork_Fix') }}</span>
                 <v-icon icon="fa-solid fa-chevron-right" size="16"></v-icon>
             </v-card-text>
         </v-card>
@@ -123,6 +134,7 @@ const {t} = useI18n()
 const foods = ref<KitchenFoodItem[]>([])
 const aisles = ref<KitchenAisle[]>([])
 const toSort = ref(0)
+const namesToFix = ref(0)
 const loading = ref(true)
 const error = ref(false)
 const query = ref('')
@@ -195,6 +207,7 @@ function load() {
     listKitchenFoods().then(f => listAisles().then(a => [f, a] as const)).then(([f, a]) => {
         foods.value = f.foods.sort((x, y) => x.name.localeCompare(y.name))
         toSort.value = f.toSort
+        namesToFix.value = f.namesToFix
         aisles.value = a.aisles
         if (firstLoad && f.foods.length <= 80) {
             // small collections start unfolded; larger ones start folded to give an overview

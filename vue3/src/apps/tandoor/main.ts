@@ -40,6 +40,7 @@ let routes = [
     {path: '/foods', component: () => import("@/fork/pages/ForkFoodsPage.vue"), name: 'ForkFoodsPage', meta: {title: 'Food'}},
     {path: '/foods/to-sort', component: () => import("@/fork/pages/ForkToSortPage.vue"), name: 'ForkToSortPage', meta: {title: 'Food'}},
     {path: '/foods/aisles', component: () => import("@/fork/pages/ForkAislesPage.vue"), name: 'ForkAislesPage', meta: {title: 'Food'}},
+    {path: '/foods/names', component: () => import("@/fork/pages/ForkFoodNamesPage.vue"), name: 'ForkFoodNamesPage', meta: {title: 'Food'}},
     {path: '/foods/duplicates', component: () => import("@/fork/pages/ForkDuplicatesPage.vue"), name: 'ForkDuplicatesPage', meta: {title: 'Food'}},
     {path: '/list/:model?', component: () => import("@/pages/ModelListPage.vue"), props: true, name: 'ModelListPage'},
     {path: '/edit/:model/:id?', component: () => import("@/pages/ModelEditPage.vue"), props: true, name: 'ModelEditPage', meta: {title: 'Edit'}},
