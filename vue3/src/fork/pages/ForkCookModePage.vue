@@ -11,9 +11,19 @@
             </div>
             <span class="fork-cook__servings" v-if="recipe">{{ $t('Fork_Servings_N', {n: servings}) }}</span>
         </header>
-        <v-progress-linear :model-value="screens.length ? (current + 1) / screens.length * 100 : 0" color="primary" height="4"></v-progress-linear>
+        <v-progress-linear :model-value="finished ? 100 : screens.length ? (current + 1) / screens.length * 100 : 0" color="primary" height="4"></v-progress-linear>
 
-        <main class="fork-cook__content" v-if="recipe && screen" :key="current" aria-live="polite">
+        <main class="fork-cook__content fork-cook__done" v-if="recipe && finished" aria-live="polite">
+            <!-- end of cooking: optional rating and comment; both buttons log the cooking (CookLog) -->
+            <h1 class="fork-cook__done-title">{{ $t('Fork_Done_Title') }}</h1>
+            <p class="fork-cook__done-hint">{{ $t('Fork_Done_Hint', {n: servings}) }}</p>
+            <h2 class="fork-cook__group">{{ $t('Fork_Done_Rating') }}</h2>
+            <v-rating v-model="rating" :length="5" size="x-large" density="comfortable" color="primary" active-color="primary" clearable
+                      class="fork-cook__rating"></v-rating>
+            <v-textarea v-model="comment" :label="$t('Fork_Done_Comment')" rows="3" auto-grow class="mt-4"></v-textarea>
+            <v-alert v-if="saveError" type="error" variant="tonal" :text="$t('Fork_Done_Error')"></v-alert>
+        </main>
+        <main class="fork-cook__content" v-else-if="recipe && screen" :key="current" aria-live="polite">
             <template v-if="screen.kind == 'ingredients'">
                 <h1 class="fork-cook__title">{{ $t('Fork_Cook_Get_Ready') }}</h1>
                 <template v-for="g in groups" :key="g.title ?? 'all'">
@@ -48,14 +58,22 @@
 
         <footer class="fork-cook__nav">
             <fork-timers-bar inline class="fork-cook__timers"></fork-timers-bar>
-            <div class="fork-cook__nav-inner">
+            <div class="fork-cook__nav-inner" v-if="finished">
+                <v-btn size="x-large" variant="tonal" class="flex-grow-1" :disabled="saving" @click="logCooking(false)">
+                    {{ $t('Fork_Done_Skip') }}
+                </v-btn>
+                <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" :loading="saving" append-icon="fa-solid fa-check" @click="logCooking(true)">
+                    {{ $t('Fork_Done_Save') }}
+                </v-btn>
+            </div>
+            <div class="fork-cook__nav-inner" v-else>
             <v-btn size="x-large" variant="tonal" class="flex-grow-1" :disabled="current == 0" prepend-icon="fa-solid fa-arrow-left" @click="previous()">
                 {{ $t('Fork_Previous') }}
             </v-btn>
             <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" append-icon="fa-solid fa-arrow-right" @click="next()" v-if="!isLast">
                 {{ $t('Next') }}
             </v-btn>
-            <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" append-icon="fa-solid fa-check" @click="exit()" v-else>
+            <v-btn size="x-large" color="primary" variant="flat" class="flex-grow-1" append-icon="fa-solid fa-check" @click="finished = true" v-else>
                 {{ $t('Fork_Cook_Done') }}
             </v-btn>
             </div>
@@ -124,11 +142,39 @@ function startStepTimer(step: Step, number: number) {
     if (step.time) timers.start(step.time * 60, timerLabel(number), `${step.time} ${t('min')}`, recipe.value?.id)
 }
 
+const finished = ref(false)
+const rating = ref(0)
+const comment = ref('')
+const saving = ref(false)
+const saveError = ref(false)
+
+/** "Save" keeps the rating and comment, "Skip" logs the cooking alone: both feed "recent" and "not made for a while" */
+function logCooking(withReview: boolean) {
+    if (!recipe.value || saving.value) return
+    saving.value = true
+    saveError.value = false
+    new ApiApi().apiCookLogCreate({
+        cookLog: {
+            recipe: recipe.value.id!,
+            servings: servings.value,
+            rating: withReview && rating.value ? rating.value : null,
+            comment: withReview && comment.value.trim() ? comment.value.trim() : null,
+        }
+    }).then(() => {
+        exit()
+    }).catch(() => {
+        saveError.value = true
+    }).finally(() => {
+        saving.value = false
+    })
+}
+
 function next() {
-    if (!isLast.value) current.value++
+    if (!isLast.value && !finished.value) current.value++
 }
 
 function previous() {
+    if (finished.value) return
     if (current.value > 0) current.value--
 }
 
@@ -240,6 +286,21 @@ onBeforeUnmount(() => {
     background: rgb(var(--v-theme-primary));
     color: rgb(var(--v-theme-on-primary));
     font-size: var(--fork-text-lg);
+}
+
+.fork-cook__done-title {
+    font-size: var(--fork-text-xxl);
+    line-height: 40px;
+    font-weight: 600;
+}
+
+.fork-cook__done-hint {
+    margin: var(--fork-space-2) 0 var(--fork-space-4);
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.fork-cook__rating {
+    margin-left: calc(-1 * var(--fork-space-2));
 }
 
 .fork-cook__group {

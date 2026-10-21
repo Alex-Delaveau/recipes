@@ -298,7 +298,7 @@ Branche : `claude/clever-fermat-h1cce1` (imposée par la session cloud, au lieu 
    globale montée dans la coquille, alarme (son, vibration, notification si autorisée). Vérif : `--quick --ui wip`, flow.
 3. [x] Durées touchables dans le mode cuisine et la vue recette (balisage du HTML rendu, sans toucher `Instructions`),
    puce `step.time` qui lance un minuteur, feuille de choix pour une plage. Vérif : flow « minuteurs ».
-4. [ ] Écran « Bon appétit » après « Terminé » : étoiles et commentaire facultatifs, « Enregistrer » / « Passer », les deux
+4. [x] Écran « Bon appétit » après « Terminé » : étoiles et commentaire facultatifs, « Enregistrer » / « Passer », les deux
    créent un `CookLog` avec les portions, puis retour à la recette. Vérif : flow (CookLog créé puis supprimé).
 5. [ ] Courses en magasin : écran allumé (réglable, actif par défaut), file de coches persistée et rejouée au retour du
    réseau, indicateur « N modifications en attente », dernier état connu affiché hors ligne. Diff minimal dans

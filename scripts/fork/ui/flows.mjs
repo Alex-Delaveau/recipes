@@ -226,6 +226,52 @@ const FLOWS = {
     }
   },
 
+  // M5: "Terminé" opens "Bon appétit": rating and comment are optional, Save and Skip both log the cooking
+  async cookdone(page, ctx) {
+    const logs = async () => {
+      const d = (await api(page, 'GET', `/api/cook-log/?recipe=${ctx.curry}&page_size=100`)).data
+      return d.results ?? d
+    }
+    const before = new Set((await logs()).map((l) => l.id))
+    const created = []
+    try {
+      await page.goto(`${base}/recipe/${ctx.curry}?servings=5`, { waitUntil: 'networkidle' })
+      await page.getByRole('link', { name: 'Mode cuisine' }).click()
+      await page.waitForURL(/\/cook/)
+      await eventually(() => page.getByText('Étape 1 sur 4').isVisible())
+      for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Suivant' }).click()
+      await page.getByRole('button', { name: 'Terminé' }).click()
+      check(await eventually(() => page.getByText('Bon appétit !').isVisible(), 3000), '"Terminé" opens the "Bon appétit" screen')
+      check(await page.getByText('Cuisiné pour 5 portions').isVisible(), 'servings recalled')
+      await page.locator('.fork-cook__rating .v-rating__item').nth(3).locator('button, input').first().click()
+      await page.getByLabel('Commentaire (facultatif)').fill('Un peu plus de citron')
+      await shot(page, 'cook-done')
+      await page.getByRole('button', { name: 'Enregistrer' }).click()
+      await page.waitForURL(/\/recipe\/\d+(\?servings=5)?$/)
+      check(!page.url().includes('/cook'), 'back to the recipe after saving')
+      const saved = (await logs()).filter((l) => !before.has(l.id))
+      saved.forEach((l) => created.push(l.id))
+      check(saved.length === 1 && saved[0].rating === 4 && saved[0].servings === 5 && saved[0].comment === 'Un peu plus de citron',
+        `cook log saved with rating, servings and comment (${JSON.stringify(saved.map((l) => [l.rating, l.servings, l.comment]))})`)
+
+      await page.goto(`${base}/recipe/${ctx.curry}/cook`, { waitUntil: 'networkidle' })
+      await eventually(() => page.getByText('Étape 1 sur 4').isVisible())
+      for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Suivant' }).click()
+      await page.getByRole('button', { name: 'Terminé' }).click()
+      await page.getByRole('button', { name: 'Passer' }).click()
+      await page.waitForURL(/\/recipe\/\d+/)
+      const skipped = (await logs()).filter((l) => !before.has(l.id) && !created.includes(l.id))
+      skipped.forEach((l) => created.push(l.id))
+      check(skipped.length === 1 && skipped[0].rating == null && skipped[0].servings === 3, '"Passer" logs the cooking too, without rating')
+
+      const forgotten = (await api(page, 'GET', '/api/kitchen/recipes/?sort=forgotten&page_size=50')).data
+      const names = (forgotten.results ?? forgotten).map((r) => r.name)
+      check(names[names.length - 1]?.includes('Curry'), `"pas faites depuis longtemps" now lists the curry last (${names.join(', ')})`)
+    } finally {
+      for (const id of created) await api(page, 'DELETE', `/api/cook-log/${id}/`)
+    }
+  },
+
   // P3: add to shopping, untick what you have
   async p3(page, ctx) {
     await page.goto(`${base}/recipe/${ctx.curry}?servings=6`, { waitUntil: 'networkidle' })
