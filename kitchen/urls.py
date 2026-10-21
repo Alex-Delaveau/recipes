@@ -8,6 +8,7 @@ urlpatterns = [
     path('recipes/', views.KitchenRecipeListView.as_view(), name='recipes'),
     path('foods/', views.KitchenFoodListView.as_view(), name='foods'),
     path('foods/to-sort/', views.KitchenToSortView.as_view(), name='foods-to-sort'),
+    path('foods/names/', views.KitchenFoodNamesView.as_view(), name='foods-names'),
     path('foods/match/', views.KitchenFoodMatchView.as_view(), name='foods-match'),
     path('foods/<int:pk>/move/', views.KitchenFoodMoveView.as_view(), name='food-move'),
     path('foods/<int:pk>/aisle/', views.KitchenFoodAisleView.as_view(), name='food-aisle'),

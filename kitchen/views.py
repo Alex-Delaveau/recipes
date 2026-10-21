@@ -130,7 +130,8 @@ class KitchenFoodListView(KitchenUserMixin, APIView):
             d['family'] = by_path.get(d.pop('root_path')) if f.depth > 1 else None
             d.pop('path')
             data.append(d)
-        return Response({'foods': data, 'to_sort': services.to_sort_queryset(request.space).count()})
+        return Response({'foods': data, 'to_sort': services.to_sort_queryset(request.space).count(),
+                         'names_to_fix': len(services.names_to_fix(request.space))})
 
 
 class KitchenFoodMoveView(KitchenUserMixin, APIView):
@@ -178,13 +179,23 @@ class KitchenToSortView(KitchenUserMixin, APIView):
         services.ensure_setup(request.space)
         queryset = services.to_sort_queryset(request.space).select_related('supermarket_category')
         states = {s.food_id: s for s in KitchenFood.objects.filter(space=request.space, food__in=queryset)}
+        foods = list(queryset[:200])
+        counts = services.usage_counts([f.id for f in foods])
         results = []
-        for food in queryset[:200]:
+        for food in foods:
             state = states.get(food.id)
-            results.append({'id': food.id, 'name': food.name,
+            results.append({'id': food.id, 'name': food.name, 'recipes': counts[food.id][0], 'shopping': counts[food.id][1],
                             'suggested': {'id': food.supermarket_category_id, 'name': food.supermarket_category.name} if food.supermarket_category_id else None,
                             'source': state.aisle_source if state else KitchenFood.SOURCE_NONE})
         return Response({'count': queryset.count(), 'results': results})
+
+
+class KitchenFoodNamesView(KitchenUserMixin, APIView):
+    """Food names to fix (left over by imports), with the proposed new name or the food to merge into."""
+
+    def get(self, request):
+        results = services.names_to_fix(request.space)
+        return Response({'count': len(results), 'results': results})
 
 
 class KitchenAislesView(KitchenUserMixin, APIView):
