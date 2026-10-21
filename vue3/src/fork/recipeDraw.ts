@@ -44,40 +44,56 @@ async function servingsOf(r: DrawnRecipe) {
     return recipe.servings && recipe.servings > 0 ? recipe.servings : 1
 }
 
-/** day `i` of the plan, from `start` (a yyyy-mm-dd string, local time) */
-export function planDay(start: string, i: number) {
+/** day `i` of the plan, from `start` (a yyyy-mm-dd string), at `time` ("19:30:00") local time, else noon like upstream */
+export function planDay(start: string, i: number, time?: string | null) {
     const [y, m, d] = start.split('-').map(Number)
-    return new Date(y!, m! - 1, d! + i)
+    const [hh, mm] = (time || '12:00').split(':').map(Number)
+    return new Date(y!, m! - 1, d! + i, hh ?? 12, mm ?? 0)
+}
+
+/** how far a run went: the first `done` recipes are handled; `error` stopped the rest */
+export interface DrawRun {
+    done: number
+    error: unknown
 }
 
 /**
- * one recipe per day from `start`, at the recipe's servings, for the chosen meal; the server adds the ingredients to the
- * shopping list when `addShopping` (upstream "addshopping"). One after the other: stops at the first error.
- * Returns how many meals were planned.
+ * one recipe per day from `start` (day `offset` for the first recipe given), at the recipe's servings, for the chosen
+ * meal, at its time (set here, so the result does not depend on the server's time zone); the server adds the
+ * ingredients to the shopping list when `addShopping` (upstream "addshopping"). Stops at the first error and says how
+ * far it went, so a retry sends only the rest.
  */
-export async function planDraw(recipes: DrawnRecipe[], start: string, mealType: MealType, addShopping: boolean) {
+export async function planDraw(recipes: DrawnRecipe[], start: string, mealType: MealType, addShopping: boolean, offset = 0): Promise<DrawRun> {
     const api = new ApiApi()
     let done = 0
-    for (const [i, r] of recipes.entries()) {
-        const day = planDay(start, i)
-        await api.apiMealPlanCreate({
-            mealPlan: {
-                recipe: {id: r.id, name: r.name} as MealPlan['recipe'], servings: await servingsOf(r), title: '',
-                fromDate: day, toDate: day, mealType, addshopping: addShopping,
-            } as MealPlan,
-        })
-        done++
+    try {
+        for (const r of recipes) {
+            const day = planDay(start, offset + done, mealType.time)
+            await api.apiMealPlanCreate({
+                mealPlan: {
+                    recipe: {id: r.id, name: r.name} as MealPlan['recipe'], servings: await servingsOf(r), title: '',
+                    fromDate: day, toDate: day, mealType, addshopping: addShopping,
+                } as MealPlan,
+            })
+            done++
+        }
+        return {done, error: null}
+    } catch (error) {
+        return {done, error}
     }
-    return done
 }
 
 /** every recipe to the shopping list at its servings, without a meal plan (same server path as the recipe page) */
-export async function shopDraw(recipes: DrawnRecipe[]) {
+export async function shopDraw(recipes: DrawnRecipe[]): Promise<DrawRun> {
     const api = new ApiApi()
     let done = 0
-    for (const r of recipes) {
-        await api.apiRecipeShoppingUpdate({id: r.id, recipeShoppingUpdate: {servings: await servingsOf(r), ingredients: []}})
-        done++
+    try {
+        for (const r of recipes) {
+            await api.apiRecipeShoppingUpdate({id: r.id, recipeShoppingUpdate: {servings: await servingsOf(r), ingredients: []}})
+            done++
+        }
+        return {done, error: null}
+    } catch (error) {
+        return {done, error}
     }
-    return done
 }
