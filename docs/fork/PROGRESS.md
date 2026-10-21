@@ -287,3 +287,24 @@ Branche : `fork/m4-recettes`, partie de `fork/m3-aliments` (PR M3 ouverte, non f
   ligne). Le partage vers l'app échoue quand l'URL est noyée dans du texte.
 - Nouveau jalon M5 « Cuisine et courses au quotidien » ajouté à ROADMAP.md ; la livraison devient M6.
 - Prochain jalon : M5 (branche `fork/m5-quotidien`), puis M6 (livraison).
+
+## M5 — plan
+Branche : `claude/clever-fermat-h1cce1` (imposée par la session cloud, au lieu de `fork/m5-quotidien`), partie de
+`origin/main` (M4 fusionné). Environnement : `verify.sh --quick` → `VERIFY: OK` avant tout changement (649 erreurs vue-tsc).
+
+1. [ ] Détection des durées en français : fonction pure `vue3/src/fork/timers/detect.ts`, testée par `node --test`
+   (`scripts/fork/tests/`), lancé par `verify.sh` (même en `--quick`). Vérif : ≥ 20 phrases réelles, dont faux positifs.
+2. [ ] Minuteurs : store Pinia du fork (heure de fin, pause, +1 min, arrêt, persistance sur l'appareil), barre compacte
+   globale montée dans la coquille, alarme (son, vibration, notification si autorisée). Vérif : `--quick --ui wip`, flow.
+3. [ ] Durées touchables dans le mode cuisine et la vue recette (balisage du HTML rendu, sans toucher `Instructions`),
+   puce `step.time` qui lance un minuteur, feuille de choix pour une plage. Vérif : flow « minuteurs ».
+4. [ ] Écran « Bon appétit » après « Terminé » : étoiles et commentaire facultatifs, « Enregistrer » / « Passer », les deux
+   créent un `CookLog` avec les portions, puis retour à la recette. Vérif : flow (CookLog créé puis supprimé).
+5. [ ] Courses en magasin : écran allumé (réglable, actif par défaut), file de coches persistée et rejouée au retour du
+   réseau, indicateur « N modifications en attente », dernier état connu affiché hors ligne. Diff minimal dans
+   `ShoppingStore` (logique dans `vue3/src/fork/`). Vérif : flow hors ligne (Playwright `setOffline`).
+6. [ ] Carte « Au menu » sur l'accueil téléphone (aujourd'hui, ou demain après 21 h), seulement s'il y a un repas prévu.
+   Vérif : flow (repas créé puis supprimé).
+7. [ ] Partage vers l'app : première URL de `url`, `text` ou `title` (`vue3/src/fork/share.ts`, testé par node), branchée
+   dans `RecipeImportPage.vue`. Vérif : test node + flow `/recipe/import?text=…`.
+8. [ ] Chaînes fr/en, routes `strict`, porte `verify.sh --ui m5 --publish`, `reviewer`, `ui-auditor`, PR.
