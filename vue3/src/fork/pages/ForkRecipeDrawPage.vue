@@ -137,14 +137,16 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from "vue";
+import {computed, onMounted, ref} from "vue";
 import {useI18n} from "vue-i18n";
+import {useRoute} from "vue-router";
 import {ApiApi, MealType} from "@/openapi";
 import {ErrorMessageType, useMessageStore} from "@/stores/MessageStore";
 import {DrawnRecipe, drawnRecipes, drawRecipes, drawSize, planDay, planDraw, shopDraw} from "@/fork/recipeDraw";
 import {forkHomeFilters} from "@/fork/homeFilters";
 
 const {t, d} = useI18n()
+const route = useRoute()
 
 const drawing = ref(false)
 const adding = ref(false)
@@ -365,6 +367,14 @@ function shop() {
         shopping.value = false
     })
 }
+
+// coming from the home "this week" card: open the sheet the button named
+onMounted(() => {
+    const action = route.query.action
+    if (!drawnRecipes.value.length) return
+    if (action == 'plan') openPlan()
+    else if (action == 'shop') openShop()
+})
 
 function clear() {
     remember(t('Fork_Draw_Cleared'))
