@@ -170,6 +170,11 @@ async function save() {
 </script>
 
 <style scoped>
+/* the price fields come last: keep them clear of the actions bar */
+.fork-food-sheet :deep(.v-card-text) {
+    padding-bottom: var(--fork-space-8) !important;
+}
+
 .fork-food-sheet__label {
     font-size: var(--fork-text-md);
     font-weight: 600;

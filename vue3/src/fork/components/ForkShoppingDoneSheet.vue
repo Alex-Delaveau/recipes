@@ -29,6 +29,9 @@
                         <div class="fork-done__percent" v-if="adjustment.percent != null">
                             {{ $t('Fork_Shopping_Gap_Percent', {percent: signed(adjustment.percent)}) }}
                         </div>
+                        <div class="text-body-2" v-if="adjustment.percent != null">
+                            {{ $t('Fork_Shopping_Gap_Detail', {gap: euros(adjustment.paid - adjustment.confirmedPart - adjustment.estimatedPart, locale), part: euros(adjustment.estimatedPart, locale)}) }}
+                        </div>
                         <div class="text-body-2" v-else>{{ $t('Fork_Shopping_Nothing_To_Adjust') }}</div>
                     </div>
                     <v-alert v-if="adjustment.blocked" type="warning" variant="tonal" density="compact" class="mt-3"

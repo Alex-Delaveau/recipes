@@ -38,7 +38,7 @@
                     </v-btn>
                 </div>
                 <p class="fork-week__note" v-if="exhausted">{{ $t('Fork_Draw_No_More') }}</p>
-                <fork-price-summary v-if="price" class="mt-2" compact :total="price.total" :missing="price.missing"
+                <fork-price-summary v-if="price && price.missing.length" class="mt-2" compact :total="price.total" :missing="price.missing"
                                     :label="$t('Fork_Price_These_Dishes', {n: drawnRecipes.length}, drawnRecipes.length)"></fork-price-summary>
                 <div class="fork-week__use">
                     <v-btn color="primary" variant="flat" size="large" prepend-icon="fa-solid fa-calendar-plus" :disabled="busy"

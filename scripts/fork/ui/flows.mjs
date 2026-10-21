@@ -215,7 +215,7 @@ const FLOWS = {
     await page.getByRole('button', { name: 'Une de plus' }).click()
     check(await eventually(async () => (await rows.count()) === 4, 5000), 'one more added')
     await page.getByRole('button', { name: 'Une de plus' }).click()
-    check(await eventually(() => page.getByText("Plus d'autre recette qui corresponde.").isVisible(), 5000), 'says when no other recipe is left (4 in the demo)')
+    check(await eventually(() => page.getByText("Aucune autre recette ne correspond.").isVisible(), 5000), 'says when no other recipe is left (4 in the demo)')
     await shot(page, 'recipe-draw')
 
     await page.reload({ waitUntil: 'networkidle' })
@@ -782,6 +782,9 @@ const FLOWS = {
         await eventually(() => page.locator('.fork-shopping__row--done', { hasText: name }).isVisible(), 3000)
       }
       await page.waitForTimeout(1500) // the checks reach the server
+      check(await eventually(async () => /DANS LE PANIER \(2\) · ≈ 2,04\s€/i.test(await page.locator('.fork-shopping__aisle', { hasText: /panier/i }).innerText()), 4000), 'in-cart total')
+      await page.locator('.fork-shopping__row--done').first().scrollIntoViewIfNeeded()
+      await shot(page, 'shopping-cart-price')
       await page.getByRole('button', { name: 'Options' }).click()
       await page.getByText('Courses terminées').click()
       const done = page.locator('.fork-done')

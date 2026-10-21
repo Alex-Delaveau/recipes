@@ -100,6 +100,7 @@
                     <template #append>
                         <span v-if="food.price" class="fork-foods__price" :class="{'fork-foods__price--estimated': food.price.source == 'estimated'}"
                               :title="food.price.source == 'estimated' ? $t('Fork_Price_Estimated') : $t('Fork_Price_Confirmed')">{{ priceText(food) }}</span>
+                        <span v-else-if="!food.ignoreShopping && !food.isFamily" class="fork-foods__price fork-foods__price--estimated">{{ $t('Fork_Price_Reason_No_Price') }}</span>
                         <v-btn icon variant="text" size="44" :aria-label="$t('Fork_Move_To_Family')" @click.stop="openMove(food)">
                             <v-icon icon="fa-solid fa-folder-open" size="16"></v-icon>
                         </v-btn>

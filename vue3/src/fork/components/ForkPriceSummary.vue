@@ -3,7 +3,7 @@
     <div class="fork-price-summary" :class="{'fork-price-summary--compact': compact}">
         <div class="fork-price-summary__text">
             <span class="fork-price-summary__total">
-                <template v-if="label">{{ label }} </template>≈ {{ euros(total, locale) }}<template v-if="perServing != null"> · {{ $t('Fork_Price_Per_Serving', {price: euros(perServing, locale)}) }}</template>
+                <template v-if="label">{{ label }}&nbsp;</template>≈ {{ euros(total, locale) }}<template v-if="perServing != null"> · {{ $t('Fork_Price_Per_Serving', {price: euros(perServing, locale)}) }}</template>
             </span>
             <button v-if="missing.length" type="button" class="fork-price-summary__missing" @click.stop.prevent="open = true">
                 {{ $t('Fork_Price_Missing', {n: missing.length}, missing.length) }}

@@ -65,7 +65,7 @@
         </v-form>
 
         <!-- estimated price of the list (M7): what is left to buy and what is in the cart -->
-        <fork-price-summary v-if="price && (toBuy.length || inCart.length)" class="fork-shopping__price mt-3" :total="price.total"
+        <fork-price-summary v-if="price && (toBuy.length || inCart.length)" class="fork-shopping__price mt-3" :total="price.total" :label="$t('Fork_Price_Total_Estimated')"
                             :missing="price.missing"></fork-price-summary>
 
         <!-- offline in the shop: checks are kept on the device and sent when the network is back -->

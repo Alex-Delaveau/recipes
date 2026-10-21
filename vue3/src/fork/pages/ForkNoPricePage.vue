@@ -6,7 +6,7 @@
                 <v-icon icon="fa-solid fa-arrow-left"></v-icon>
             </v-btn>
             <h1 class="fork-noprice__title flex-grow-1">{{ $t('Fork_No_Price_Title') }}</h1>
-            <span class="text-body-2 text-medium-emphasis" v-if="queue.length" aria-live="polite">{{ $t('Fork_N_Left', {n: queue.length}, queue.length) }}</span>
+            <span class="text-body-2 text-medium-emphasis text-no-wrap" v-if="queue.length" aria-live="polite">{{ $t('Fork_N_Left', {n: queue.length}, queue.length) }}</span>
         </div>
 
         <v-skeleton-loader v-if="loading" type="heading, button, button"></v-skeleton-loader>
@@ -27,7 +27,7 @@
             <v-card v-if="suggestedCount > 1" variant="tonal" color="secondary" class="mb-2">
                 <v-card-text class="d-flex align-center flex-wrap ga-2">
                     <span class="flex-grow-1 text-body-2">{{ $t('Fork_Price_All_Suggested', {n: suggestedCount}, suggestedCount) }}</span>
-                    <v-btn variant="flat" color="secondary" size="large" :loading="applyingAll" @click="applyAll()">{{ $t('Fork_Price_Apply_All') }}</v-btn>
+                    <v-btn variant="text" color="secondary" size="large" class="font-weight-bold" :loading="applyingAll" @click="applyAll()">{{ $t('Fork_Price_Apply_All') }}</v-btn>
                 </v-card-text>
             </v-card>
 
@@ -49,8 +49,8 @@
                        :disabled="!form.price || priceFormInvalid(form)" :loading="saving == 'save'" @click="save()">
                     {{ $t('Fork_Price_Save') }}
                 </v-btn>
-                <v-btn variant="text" size="large" block class="mt-2" @click="later()">{{ $t('Fork_Later') }}</v-btn>
                 <div class="fork-noprice__other">
+                    <v-btn variant="text" size="large" @click="later()">{{ $t('Fork_Later') }}</v-btn>
                     <v-btn variant="text" size="large" prepend-icon="fa-solid fa-ban" :loading="saving == 'never'" @click="neverShopping()">
                         {{ $t('Fork_Never_In_Shopping') }}
                     </v-btn>
@@ -171,6 +171,7 @@ onMounted(() => load())
 <style scoped>
 .fork-noprice__title {
     font-size: var(--fork-text-xl);
+    min-width: 0;
     line-height: 32px;
     font-weight: 600;
 }
@@ -180,7 +181,7 @@ onMounted(() => load())
     line-height: 40px;
     font-weight: 600;
     text-align: center;
-    margin: var(--fork-space-4) 0 var(--fork-space-1);
+    margin: var(--fork-space-2) 0 var(--fork-space-1);
     overflow-wrap: anywhere;
 }
 
@@ -190,6 +191,7 @@ onMounted(() => load())
 
 .fork-noprice__other {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     margin-top: var(--fork-space-1);
 }
