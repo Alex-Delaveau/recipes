@@ -19,6 +19,11 @@
                 <v-icon icon="fa-solid fa-ellipsis-vertical"></v-icon>
                 <v-menu activator="parent">
                     <v-list>
+                        <v-list-item prepend-icon="fa-solid fa-cart-arrow-down" :title="$t('Fork_Shopping_Clear_Cart')" min-height="48"
+                                     :disabled="!online || inCart.length == 0" @click="askClear('cart')"></v-list-item>
+                        <v-list-item prepend-icon="fa-solid fa-trash-can" :title="$t('Fork_Shopping_Clear_All')" min-height="48"
+                                     :disabled="!online || (toBuy.length == 0 && inCart.length == 0)" @click="askClear('all')"></v-list-item>
+                        <v-divider></v-divider>
                         <v-list-item prepend-icon="fa-solid fa-list" :title="$t('Fork_Detailed_View')" @click="detailedView = true" min-height="48"></v-list-item>
                         <v-list-item prepend-icon="fa-solid fa-sliders" :title="$t('Settings')" :to="{name: 'ShoppingSettings'}" min-height="48"></v-list-item>
                         <v-list-item prepend-icon="fa-solid fa-sun" :title="$t('Fork_Shopping_Keep_Screen_On')" min-height="48"
@@ -117,6 +122,21 @@
                 </v-list>
             </section>
         </template>
+
+        <!-- clear the list (or only what is in the cart): confirmed, then undoable -->
+        <v-dialog v-model="clearDialog" max-width="400">
+            <v-card class="fork-shopping__clear">
+                <v-card-title class="text-wrap">{{ clearMode == 'cart' ? $t('Fork_Shopping_Clear_Cart_Title') : $t('Fork_Shopping_Clear_Title') }}</v-card-title>
+                <v-card-text class="px-4 pt-1">{{ $t('Fork_Shopping_Clear_Text', {n: clearRows.length}, clearRows.length) }}</v-card-text>
+                <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn variant="text" size="large" @click="clearDialog = false">{{ $t('Cancel') }}</v-btn>
+                    <v-btn variant="flat" color="error" size="large" :loading="clearing" @click="clear()">
+                        {{ clearMode == 'cart' ? $t('Fork_Shopping_Clear_Cart_Confirm') : $t('Fork_Shopping_Clear_Confirm') }}
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
 
         <shopping-line-item-dialog v-if="detailsFood" v-model="detailsOpen" v-model:shopping-list-food="detailsFood"></shopping-line-item-dialog>
     </v-container>
@@ -244,6 +264,35 @@ function uncheck(row: ShoppingRow) {
 function undo() {
     useShoppingStore().undoChange()
     undoSnackbar.value = false
+}
+
+// ---- clear the list: only what this device shows (selected lists), all the entries of each row ----
+const clearDialog = ref(false)
+const clearMode = ref<'cart' | 'all'>('all')
+const clearing = ref(false)
+const clearRows = computed(() => clearMode.value == 'cart' ? inCart.value : [...toBuy.value.flatMap(g => g.rows), ...inCart.value])
+
+function askClear(mode: 'cart' | 'all') {
+    clearMode.value = mode
+    clearDialog.value = true
+}
+
+function clear() {
+    const entries = clearRows.value.flatMap(r => r.entries)
+    if (entries.length == 0 || clearing.value) return
+    clearing.value = true
+    Promise.all(entries.map(e => useShoppingStore().deleteObject(e, false))).then(() => {
+        // the store reports failures itself; only what is really gone can be brought back
+        const deleted = entries.filter(e => !useShoppingStore().entries.has(e.id!))
+        if (deleted.length == 0) return
+        useShoppingStore().undoStack.push({type: 'DESTROY', entries: deleted})
+        const items = new Set(deleted.map(e => e.food!.id)).size
+        undoText.value = t('Fork_Shopping_Cleared', {n: items}, items)
+        undoSnackbar.value = true
+    }).finally(() => {
+        clearing.value = false
+        clearDialog.value = false
+    })
 }
 
 function openDetails(row: ShoppingRow) {
