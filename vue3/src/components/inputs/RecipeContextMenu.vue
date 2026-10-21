@@ -3,7 +3,7 @@
         <v-icon icon="fa-solid fa-ellipsis-v"></v-icon>
         <v-menu activator="parent" close-on-content-click>
             <v-list density="compact" class="pt-1 pb-1">
-                <v-list-item :to="{ name: 'ModelEditPage', params: {model: 'recipe', id: recipe.id} }" prepend-icon="$edit">
+                <v-list-item :to="{ name: 'ForkRecipeEditPage', params: {id: recipe.id} }" prepend-icon="$edit"><!-- fork: recipe wizard (M4) -->
                     {{ $t('Edit') }}
                 </v-list-item>
                 <v-list-item prepend-icon="$mealplan" @click="mealPlanDialog = true">

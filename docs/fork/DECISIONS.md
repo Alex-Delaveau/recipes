@@ -3,6 +3,55 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-20 — M4 — Reconnaissance française : enveloppe du parseur upstream, selon la langue
+**Contexte** : ne pas modifier `cookbook/helper/ingredient_parser.py`, mais servir l'import URL, le collage
+multi-ligne de l'éditeur, le texte libre des courses et l'assistant du fork.
+**Choix** : au démarrage de l'app, `kitchen/french.py` enveloppe `IngredientParser.parse`. Tous les appelants partagent
+la même classe et en profitent. La lecture française s'applique quand la **langue active est le français** : réglage de
+Django, donc l'en-tête `Accept-Language` du téléphone ou le choix de langue. Les autres langues gardent le parseur
+upstream tel quel, ce qui garde verts les tests upstream du parseur. Les automatisations upstream s'appliquent :
+`TRANSPOSE_WORDS` avant la lecture, puis `UNIT_ALIAS`, `FOOD_ALIAS` (et leurs variantes regex) sur le texte nettoyé.
+`NEVER_UNIT` n'est pas appliqué en français : la table des unités du fork ne prend jamais un aliment pour une unité.
+**Alternative écartée** : un prétraitement par heuristique sur toutes les lignes (casse les lignes anglaises comme
+« 2 large eggs ») ; un patch du parseur upstream.
+**Réversible ?** Oui.
+
+## 2026-10-20 — M4 — Unités françaises dans le code, pas en `UNIT_ALIAS` semés
+**Choix** : la table des unités (« c. à soupe », « càs », « cs », « cuillère à café », « pincée », « gousse »…) vit dans
+`kitchen/french.py`, avec un nom canonique stocké (« c. à soupe », « g », « pincée »…). Cela évite d'écrire des
+automatisations dans chaque espace, et le comportement est identique et testé partout. Les `UNIT_ALIAS` de
+l'utilisateur restent appliqués après. « filet » n'est une unité que devant un liquide : « un filet d'huile », mais
+« 2 filets de poulet » est un aliment.
+**Réversible ?** Oui.
+
+## 2026-10-20 — M4 — Pluriels et variantes : seulement vers un aliment existant équivalent
+**Choix** : un nom reconnu prend l'aliment existant dont le nom normalisé est identique (pluriel, accents, mot de
+préparation) : « oignons » → « Oignon ». Un nom avec des mots en plus reste un nouvel aliment (« oignons rouges ») ;
+c'est la relecture d'import (M3) qui propose alors l'aliment proche. Fourchettes : « 2-3 » / « 2 à 3 » donnent la
+première quantité, et la fourchette va en note (comme upstream).
+**Réversible ?** Oui.
+
+## 2026-10-20 — M4 — Assistant de saisie
+**Choix** :
+- page plein écran (`/recipe/new`, `/recipe/:id/edit`) en 4 écrans, boutons Précédent/Suivant en bas ;
+- la reconnaissance en direct passe par `POST /api/kitchen/parse/`, qui **ne crée aucun aliment ni unité** (l'API
+  upstream en crée à chaque appel). Les aliments sont créés à l'enregistrement, avec un rayon suggéré (M3) ;
+- brouillon gardé sur l'appareil (localStorage, une clé par recette, écran courant compris). C'est le seul état local
+  autorisé par SPEC.md. Il n'est écrit qu'après une vraie modification, et il est écarté s'il est plus ancien que la
+  recette (modifiée entre-temps ailleurs). La photo n'est pas gardée dans le brouillon (fichier). Si l'envoi de la
+  photo échoue, la recette reste enregistrée et un message le signale ;
+- recette créée : tous les ingrédients dans la première étape, les étapes suivantes en texte ;
+- recette existante : ses champs non édités (sous-recettes, fichiers, nutrition…) sont conservés tels quels. Une recette
+  découpée par étape garde son découpage : les ingrédients s'affichent groupés par étape, et une étape supprimée donne
+  ses ingrédients à la première ;
+- un aliment modifié dans une ligne est envoyé **par son nom seul** : l'aliment existant est retrouvé (ou créé), jamais
+  renommé pour toutes les recettes ;
+- mots-clés : choisis parmi les existants ou tapés (créés à l'enregistrement).
+
+« Modifier » (menu ⋮ d'une recette) ouvre l'assistant ; l'éditeur complet upstream reste accessible depuis son menu.
+Le « + » de l'en-tête desktop garde l'éditeur upstream.
+**Réversible ?** Oui.
+
 ## 2026-10-20 — M3 — Héritage du rayon géré par le fork, pas par `Space.food_inherit`
 **Contexte** : les propositions M0 suggéraient d'activer `supermarket_category` dans `Space.food_inherit`. En pratique :
 - ce réglage n'est appliqué à aucun aliment existant ou nouveau ;

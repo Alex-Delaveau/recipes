@@ -30,6 +30,8 @@ let routes = [
     {path: '/book/:bookId', component: () => import("@/pages/BookViewPage.vue"), name: 'BookViewPage', props: true, meta: {title: 'Book'}},
     {path: '/recipe/import', component: () => import("@/pages/RecipeImportPage.vue"), name: 'RecipeImportPage', meta: {title: 'Import'}},
 
+    {path: '/recipe/new', component: () => import("@/fork/pages/ForkRecipeWizard.vue"), name: 'ForkRecipeNewPage', meta: {title: 'Create Recipe', forkFullscreen: true}}, // fork: recipe wizard (M4)
+    {path: '/recipe/:id/edit', component: () => import("@/fork/pages/ForkRecipeWizard.vue"), name: 'ForkRecipeEditPage', props: true, meta: {title: 'Edit', forkFullscreen: true}},
     {path: '/recipe/:id/cook', component: () => import("@/fork/pages/ForkCookModePage.vue"), name: 'ForkCookModePage', props: true, meta: {title: 'Recipe', forkFullscreen: true}}, // fork: cook mode (P2)
     {path: '/recipe/:id', component: () => import("@/pages/RecipeViewPage.vue"), name: 'RecipeViewPage', props: true, meta: {title: 'Recipe'}},
     {path: '/view/recipe/:id', redirect: {name: 'RecipeViewPage'}}, // old Tandoor v1 url pattern

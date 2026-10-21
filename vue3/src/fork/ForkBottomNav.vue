@@ -28,7 +28,7 @@
                 <v-list-item prepend-icon="fa-solid fa-globe" :title="$t('Fork_Add_From_Url')" min-height="56"
                              :to="{name: 'RecipeImportPage', params: {}}"></v-list-item>
                 <v-list-item prepend-icon="fa-solid fa-pen" :title="$t('Fork_Add_Manual')" min-height="56"
-                             :to="{name: 'ModelEditPage', params: {model: 'recipe'}}"></v-list-item>
+                             :to="{name: 'ForkRecipeNewPage', params: {}}"></v-list-item>
             </v-list>
         </v-card>
     </v-bottom-sheet>
