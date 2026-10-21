@@ -3,6 +3,19 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — Page « Tirer au sort » en grille de grandes photos
+**Contexte** : Alex trouve les vignettes de la liste tirée trop petites, une recette par ligne.
+**Choix** :
+- Une grille de grandes photos carrées : 2 colonnes sur téléphone, 3 sur tablette, 4 sur ordinateur. Le nom et la
+  durée sont en dessous.
+- « Remplacer » et « Retirer » sont deux boutons ronds de 44 px posés sur la photo, avec un fond clair lisible sur
+  toute image.
+- Les boutons du bas prennent les libellés courts de la carte de l'accueil, « Au menu » et « Aux courses » ; le
+  libellé complet reste pour les lecteurs d'écran.
+- La carte « Cette semaine » de l'accueil garde ses lignes compactes : elle doit rester courte au-dessus des étagères.
+**Alternative écartée** : une bascule liste / grille (inutile pour 5 à 10 plats).
+**Réversible ?** Oui.
+
 ## 2026-10-21 — hors jalon — Recadrer la photo d'une recette (import et saisie)
 **Contexte** : à l'import depuis Jow, l'image est prise telle quelle. Alex veut pouvoir la recadrer et la redimensionner.
 **Choix** :

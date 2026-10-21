@@ -449,3 +449,4 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
 - Recadrage de la photo : fenêtre « Recadrer » (glisser, zoomer, 16:9 / 4:3 / 1:1) à l'import (étape Image et
   dernière étape) et dans l'assistant de saisie ; coupe faite par le serveur (`kitchen/images.py`). Tests pytest
   (`test_images.py`), parcours `importcrop` et `wizard` étendu (photo recadrée en carré vérifiée).
+- Page « Tirer au sort » : grille de grandes photos (2 colonnes sur téléphone), boutons remplacer / retirer posés sur la photo.
