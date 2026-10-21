@@ -163,6 +163,48 @@ const FLOWS = {
     await page.goto(base + '/', { waitUntil: 'networkidle' })
     check(await eventually(() => page.locator('.fork-home__shortcuts .v-chip', { hasText: /Tirer au sort\s*\(4\)/ }).isVisible(), 3000), 'home shortcut shows the list size')
     await page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Tirer au sort' }).click()
+    await eventually(async () => (await rows.count()) === 4, 4000)
+
+    // the drawn list goes to the meal plan (one a day, ingredients to shopping) and to the shopping list alone
+    const ids = async (path) => new Set(((await api(page, 'GET', path)).data.results ?? []).map((x) => x.id))
+    const plansBefore = await ids('/api/meal-plan/?page_size=200')
+    const listsBefore = await ids('/api/shopping-list-recipe/?page_size=200')
+    const entriesBefore = await ids('/api/shopping-list-entry/?page_size=500')
+    const typesBefore = await ids('/api/meal-type/?page_size=100')
+    await page.getByRole('button', { name: 'Ajouter au menu' }).click()
+    const sheet = page.locator('.fork-draw__plan')
+    if (typesBefore.size === 0) {
+      await eventually(() => sheet.getByRole('button', { name: 'Créer « Dîner »' }).isVisible(), 5000)
+      await sheet.getByRole('button', { name: 'Créer « Dîner »' }).click()
+      check(await eventually(async () => (await ids('/api/meal-type/?page_size=100')).size === 1, 5000), 'no meal type yet: "Dîner" created in one tap')
+    }
+    check(await eventually(() => sheet.getByRole('button', { name: 'Planifier 4 repas' }).isEnabled(), 5000), 'plan sheet ready (meal type chosen by default)')
+    await shot(page, 'recipe-draw-plan')
+    await sheet.getByRole('button', { name: 'Planifier 4 repas' }).click()
+    check(await eventually(() => page.getByText('4 repas ajoutés au menu').isVisible(), 10000), '4 meals planned')
+    const plans = ((await api(page, 'GET', '/api/meal-plan/?page_size=200')).data.results ?? []).filter((p) => !plansBefore.has(p.id))
+    const days = plans.map((p) => p.from_date.slice(0, 10)).sort()
+    const consecutive = days.every((d, i) => i === 0 || (new Date(d) - new Date(days[i - 1])) / 86400000 === 1)
+    check(plans.length === 4 && consecutive, `one recipe a day, 4 days in a row (${days.join(', ')})`)
+    check(plans.every((p) => p.meal_type?.id === plans[0].meal_type?.id), `same meal for all (${plans[0]?.meal_type?.name})`)
+    const plannedLists = ((await api(page, 'GET', '/api/shopping-list-recipe/?page_size=200')).data.results ?? []).filter((l) => !listsBefore.has(l.id))
+    check(plannedLists.length === 4, `their ingredients went to the shopping list (${plannedLists.length} recipes)`)
+
+    await page.getByRole('button', { name: 'Ajouter aux courses' }).click()
+    await page.locator('.fork-draw__shop').getByRole('button', { name: 'Ajouter' }).click()
+    check(await eventually(() => page.getByText('4 recettes ajoutées aux courses').isVisible(), 10000), '4 recipes added to shopping')
+    const allLists = ((await api(page, 'GET', '/api/shopping-list-recipe/?page_size=200')).data.results ?? []).filter((l) => !listsBefore.has(l.id))
+    check(allLists.length === 8, `shopping alone adds 4 more recipes (${allLists.length})`)
+
+    // restore
+    for (const p of plans) await api(page, 'DELETE', `/api/meal-plan/${p.id}/`)
+    for (const l of allLists) await api(page, 'DELETE', `/api/shopping-list-recipe/${l.id}/`)
+    for (const e of ((await api(page, 'GET', '/api/shopping-list-entry/?page_size=500')).data.results ?? []).filter((x) => !entriesBefore.has(x.id))) {
+      await api(page, 'DELETE', `/api/shopping-list-entry/${e.id}/`)
+    }
+    check((await ids('/api/meal-plan/?page_size=200')).size === plansBefore.size, 'meal plan restored')
+    for (const id of await ids('/api/meal-type/?page_size=100')) if (!typesBefore.has(id)) await api(page, 'DELETE', `/api/meal-type/${id}/`)
+
     await page.getByRole('button', { name: 'Vider la liste' }).click()
     check(await eventually(async () => (await rows.count()) === 0, 3000), 'list cleared')
   },
