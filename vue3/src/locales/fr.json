@@ -452,6 +452,8 @@
     "Fork_Shopping_Adjust": "Ajuster les prix",
     "Fork_Shopping_Adjust_Help": "Seuls les prix estimés bougent, et à moitié du chemin au plus : un ticket inhabituel ne fausse pas tout. Corrigez un article si vous connaissez son prix.",
     "Fork_Shopping_Adjusted": "Aucun prix ajusté | {n} prix ajusté | {n} prix ajustés",
+    "Fork_Shopping_Already_Adjusted": "Les prix ont déjà été ajustés avec ce panier.",
+    "Fork_Shopping_Blocked": "Tout a un prix. | {n} article du panier n'a pas de prix : son coût est dans le ticket mais pas dans l'estimation. Corrigez-le d'abord, sinon l'écart serait mis à tort sur les prix estimés. | {n} articles du panier n'ont pas de prix : leur coût est dans le ticket mais pas dans l'estimation. Corrigez-les d'abord, sinon l'écart serait mis à tort sur les prix estimés.",
     "Fork_Shopping_Clear_All": "Vider la liste",
     "Fork_Shopping_Clear_Cart": "Retirer les articles du panier",
     "Fork_Shopping_Clear_Cart_Confirm": "Retirer",

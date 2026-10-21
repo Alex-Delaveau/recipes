@@ -3,6 +3,56 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — M7 — Cache du service worker (hors périmètre, nécessaire au jalon)
+**Contexte** : avec M7, le parcours hors ligne (M5) échouait une fois sur deux : page blanche après un rechargement
+hors ligne. La cause existait déjà dans le service worker upstream :
+- le précache enregistre les fichiers sous `/assets/…` ;
+- les pages les chargent depuis `/static/vue3/assets/…`. `/assets/…` renvoie une redirection vers la connexion : le
+  précache garde 313 redirections et ne sert jamais rien ;
+- tout passe donc par le cache d'exécution « assets », limité à 50 entrées, alors que la liste de courses charge à
+  elle seule 134 fichiers. Ce qui survit hors ligne dépend du hasard. Les nouveaux composants de M7 l'ont fait basculer.
+
+**Choix** : porter la limite du cache « assets » de 50 à 400 entrées dans `vue3/src/service-worker.ts` (une ligne).
+Le parcours `offline` passe 3 fois sur 3.
+
+**Alternative écartée** : réécrire les URL du précache vers `/static/vue3/`. Le préfixe dépend de `STATIC_URL` et du
+sous-chemin de déploiement, que le service worker ne connaît pas. Une erreur ferait échouer son installation. C'est à
+corriger upstream.
+
+**Réversible ?** Oui (une ligne).
+
+## 2026-10-21 — M7 — Points de la relecture
+**Contexte** : la relecture (`reviewer`) a relevé un point bloquant et trois majeurs.
+
+**Choix** :
+- **Bloquant** : un aliment qui a des valeurs nutritionnelles pour une référence illisible (« 100 portion », sans
+  unité) ne reçoit plus de prix. Avant, sa référence était réécrite et ses valeurs nutritionnelles devenaient fausses.
+  L'écran explique pourquoi, et « Tout appliquer » passe ces aliments.
+- **Ajustement bloqué tant que le panier contient des articles sans prix** : leur coût est dans le ticket mais pas dans
+  l'estimation, et l'écart irait à tort sur les prix estimés. L'écran le dit ; on corrige ces articles (ce qui fixe
+  leur prix) ou on passe. Une entrée sans quantité compte comme non convertible.
+- **Type de propriété** : si un « Prix » d'une autre catégorie existe déjà (nom unique dans un espace), le fork crée
+  « Prix (estimation) ». Une création concurrente est gérée.
+- **Prix modifié ailleurs** : le fork retient la valeur qu'il a écrite (`price_value`, migration 0003). Si l'écran
+  upstream la change, le prix compte comme confirmé et ne bouge plus.
+- **Autres corrections** :
+  - un même panier n'ajuste les prix qu'une fois sur cet appareil ;
+  - nombres refusés : NaN, infini, au-delà de 10 millions ;
+  - un prix refusé n'enregistre rien d'autre de la même saisie ;
+  - les réponses tardives d'une autre recette ou d'un autre aliment sont ignorées ;
+  - le total du tirage s'efface quand la liste change ;
+  - le dictionnaire couvre « bouillon » (un cube pour 500 ml), « fond de veau », « jus de citron » et « beurre de
+    cacahuète », qui prenaient le prix d'un autre aliment ;
+  - le parcours remet en place le prix de tous les aliments.
+
+**Non traité** :
+- les endpoints d'estimation acceptent toute entrée de courses de l'espace, pas seulement celles de l'utilisateur.
+  L'espace correspond au foyer, et seuls les noms et les coûts seraient exposés ;
+- les correspondances approximatives du dictionnaire restent possibles. C'est pour cela que les prix restent
+  « estimés » et corrigeables.
+
+**Réversible ?** Oui.
+
 ## 2026-10-21 — M7 — Branche de travail
 **Contexte** : la session cloud impose la branche `claude/zen-ramanujan-cnfub4`.
 **Choix** : M7 est développé sur cette branche, au lieu de `fork/m7-prix`, comme pour M5 et M6.

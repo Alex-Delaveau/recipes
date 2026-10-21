@@ -709,16 +709,18 @@ const FLOWS = {
     const kfoods = async () => (await api(page, 'GET', '/api/kitchen/foods/')).data
     const byName = async (name) => (await kfoods()).foods.find((f) => f.name === name)
     const priceOf = async (name) => (await api(page, 'GET', `/api/kitchen/foods/${(await byName(name)).id}/price/`)).data.price
-    const names = ['Lardons', 'Lait de coco', 'Parmesan', 'Citron']
-    const before = {}
+    // every food's price, to put back whatever the flow changes (the queue may hold other foods than the demo's)
+    const snapshot = async () => Object.fromEntries((await kfoods()).foods.map((f) => [f.id, f.price ? JSON.stringify(f.price) : null]))
+    const before = await snapshot()
     let cartBefore = null
-    for (const n of names) before[n] = { id: (await byName(n)).id, price: await priceOf(n) }
     const restore = async () => {
-      for (const n of names) {
-        const b = before[n]
-        if (!b.price) await api(page, 'PUT', `/api/kitchen/foods/${b.id}/price/`, { price: null })
-        else if (b.price.source === 'estimated') await api(page, 'PUT', `/api/kitchen/foods/${b.id}/price/`, { suggest: true })
-        else await api(page, 'PUT', `/api/kitchen/foods/${b.id}/price/`, { price: b.price.price, per: b.price.per })
+      const now = await snapshot()
+      for (const [id, price] of Object.entries(before)) {
+        if (now[id] === price) continue
+        const b = price && JSON.parse(price)
+        if (!b) await api(page, 'PUT', `/api/kitchen/foods/${id}/price/`, { price: null })
+        else if (b.source === 'estimated') await api(page, 'PUT', `/api/kitchen/foods/${id}/price/`, { suggest: true })
+        else await api(page, 'PUT', `/api/kitchen/foods/${id}/price/`, { price: b.price, per: b.per })
       }
     }
     try {
@@ -830,7 +832,8 @@ const FLOWS = {
       }
       await restore()
     }
-    check(JSON.stringify(await priceOf('Citron')) === JSON.stringify(before.Citron.price), 'prices restored')
+    const after = await snapshot()
+    check(Object.keys(before).every((id) => after[id] === before[id]), 'every price restored')
   },
 
   async foods(page) {

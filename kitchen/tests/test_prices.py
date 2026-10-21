@@ -256,3 +256,70 @@ def test_other_space_entries_are_ignored(space_1, space_2, u1_s1, u1_s2, units):
         e = ShoppingListEntry.objects.create(food=other, amount=1, created_by=auth.get_user(u1_s2), space=space_2)
     data = u1_s1.post(reverse('kitchen:prices-shopping'), {'entries': [e.id]}, content_type='application/json').json()
     assert data['items'] == [] and data['total'] == 0
+
+
+# ---------------------------------------------------------------- safety (review)
+
+def test_unreadable_reference_with_nutrition_is_never_rewritten(space_1, units):
+    with scopes_disabled():
+        portion = Unit.objects.create(name='portion', space=space_1)
+        beurre = Food.objects.create(name='Beurre', space=space_1, properties_food_amount=100, properties_food_unit=portion)
+        kcal = PropertyType.objects.create(name='Calories', space=space_1, category=PropertyType.NUTRITION)
+        beurre.properties.add(Property.objects.create(property_type=kcal, property_amount=740, space=space_1))
+        with pytest.raises(prices.PriceError):
+            prices.set_food_price(beurre, Decimal(11), 'kg')
+        assert prices.apply_suggestion(beurre) == 'reference'
+        beurre.refresh_from_db()
+        assert beurre.properties_food_unit == portion and beurre.properties_food_amount == 100
+        assert not Property.objects.filter(foodproperty__food=beurre, property_type__category=PropertyType.PRICE).exists()
+
+
+def test_price_type_named_prix_of_another_category(space_1):
+    with scopes_disabled():
+        PropertyType.objects.create(name='Prix', space=space_1, category=PropertyType.OTHER)
+        pt = prices.price_type(space_1)
+        assert pt.category == PropertyType.PRICE and pt.name != 'Prix'
+        assert prices.price_type(space_1) == pt
+
+
+def test_price_changed_in_upstream_screens_counts_as_confirmed(space_1, units):
+    pomme = food(space_1, 'Pomme', 2, 'kg')
+    assert stored_price(pomme)['source'] == 'estimated'
+    with scopes_disabled():
+        Property.objects.filter(foodproperty__food=pomme, property_type__category=PropertyType.PRICE).update(property_amount=Decimal('2.4'))
+    assert stored_price(pomme) == {'price': 2.4, 'per': 'kg', 'source': 'confirmed'}
+
+
+def test_no_adjustment_while_cart_items_have_no_price(space_1, u1_s1, units):
+    user = auth.get_user(u1_s1)
+    pomme = food(space_1, 'Pomme', 2, 'kg')
+    entries = [entry(space_1, user, pomme, 1000, units['g'], True), entry(space_1, user, food(space_1, 'Safran'), 1, units['g'], True),
+               entry(space_1, user, food(space_1, 'Sel', 1), 0, None, True)]
+    result = u1_s1.post(reverse('kitchen:prices-adjust'), {'entries': [e.id for e in entries], 'paid': '9', 'apply': True},
+                        content_type='application/json').json()
+    assert result['blocked'] and result['adjusted'] == 0 and {m['name'] for m in result['missing']} == {'Safran', 'Sel'}
+    assert stored_price(pomme)['price'] == 2
+
+
+def test_numbers_are_validated(space_1, u1_s1, units):
+    pomme = food(space_1, 'Pomme', 2, 'kg')
+    url = reverse('kitchen:food-price', args=[pomme.id])
+    for bad in ('nan', 'Infinity', '1e12', '-1'):
+        assert u1_s1.put(url, {'price': bad, 'per': 'kg'}, content_type='application/json').status_code == 400
+    # a refused price keeps nothing of the same request
+    with scopes_disabled():
+        portion = Unit.objects.create(name='portion', space=space_1)
+        Food.objects.filter(id=pomme.id).update(properties_food_unit=portion)
+        kcal = PropertyType.objects.create(name='Calories', space=space_1, category=PropertyType.NUTRITION)
+        pomme.properties.add(Property.objects.create(property_type=kcal, property_amount=52, space=space_1))
+    response = u1_s1.put(url, {'price': 3, 'per': 'kg', 'piece_weight': 180}, content_type='application/json')
+    assert response.status_code == 400 and response.json()['reason'] == 'reference'
+    with scopes_disabled():
+        assert KitchenFood.objects.get(food=pomme).piece_weight is None
+
+
+def test_private_recipes_of_others_are_not_estimated(space_1, u1_s1, u2_s1, units):
+    with scopes_disabled():
+        private = Recipe.objects.create(name='Secret', servings=2, private=True, created_by=auth.get_user(u2_s1), space=space_1)
+    data = u1_s1.post(reverse('kitchen:prices-recipes'), {'recipes': [{'id': private.id}]}, content_type='application/json').json()
+    assert data['recipes'] == []

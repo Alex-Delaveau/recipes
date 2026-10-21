@@ -101,7 +101,10 @@ watch(sheet, (open) => {
 async function loadPrice(id: number) {
     priceLoading.value = true
     try {
-        priceDetail.value = await getFoodPrice(id)
+        const detail = await getFoodPrice(id)
+        // a late answer for the food opened before is dropped
+        if (props.food?.id != id || !sheet.value) return
+        priceDetail.value = detail
         priceForm.value = priceFormOf(priceDetail.value, locale.value)
         priceInitial = {...priceForm.value}
     } catch {

@@ -115,7 +115,10 @@ async function run(kind: 'suggest' | 'save' | 'never', action: (food: Item) => P
         await action(food)
         done(food.id)
     } catch (err) {
-        if (err instanceof PriceError) formError.value = err.reason == 'reference' ? t('Fork_Price_Reference_Error') : t('Fork_Price_Number')
+        if (err instanceof PriceError) {
+            formError.value = err.reason == 'reference' ? t('Fork_Price_Reference_Error')
+                : err.reason == 'no_suggestion' ? t('Fork_Price_No_Suggestion') : t('Fork_Price_Number')
+        }
         else useMessageStore().addError(ErrorMessageType.UPDATE_ERROR, err)
     } finally {
         saving.value = null

@@ -1,5 +1,6 @@
 from decimal import Decimal, InvalidOperation
 
+from django.db import transaction
 from django.db.models import Count, F, IntegerField, Max, Q, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
@@ -334,6 +335,10 @@ class KitchenParseView(KitchenUserMixin, APIView):
 
 # ------------------------------------------------------------------------- price estimate (M7)
 
+# prices, weights and packages above this are typing errors (and beyond the database columns)
+MAX_NUMBER = Decimal(10) ** 7
+
+
 def _decimal_or_none(data, key, positive=True):
     value = data.get(key)
     if value in (None, ''):
@@ -341,6 +346,8 @@ def _decimal_or_none(data, key, positive=True):
     try:
         number = Decimal(str(value).replace(',', '.'))
     except InvalidOperation:
+        raise ValidationError({key: 'must be a number'})
+    if not number.is_finite() or number >= MAX_NUMBER:
         raise ValidationError({key: 'must be a number'})
     if number < 0 or (positive and number == 0):
         raise ValidationError({key: 'must be positive'})
@@ -379,10 +386,22 @@ class KitchenFoodPriceView(KitchenUserMixin, APIView):
         food = _food_or_404(request, pk)
         data = request.data
         if data.get('suggest'):
-            if not prices.apply_suggestion(food):
-                return Response({'error': True, 'msg': 'no dictionary price'}, status=status.HTTP_400_BAD_REQUEST)
+            reason = prices.apply_suggestion(food)
+            if reason:
+                return Response({'error': True, 'reason': reason}, status=status.HTTP_400_BAD_REQUEST)
             food.refresh_from_db()
             return Response(_price_payload(food))
+        try:
+            with transaction.atomic():
+                self._update(food, data)
+        except prices.PriceError as e:
+            # nothing saved: the package or weight typed with a refused price is not kept half way
+            return Response({'error': True, 'reason': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        food.refresh_from_db()
+        return Response(_price_payload(food))
+
+    @staticmethod
+    def _update(food, data):
         state = services.kitchen_food(food)
         if 'piece_weight' in data:
             state.piece_weight = _decimal_or_none(data, 'piece_weight')
@@ -396,13 +415,7 @@ class KitchenFoodPriceView(KitchenUserMixin, APIView):
             state.package_price = _decimal_or_none(data, 'package_price') if amount is not None else None
         state.save()
         if 'price' in data:
-            price = _decimal_or_none(data, 'price', positive=False)
-            try:
-                prices.set_food_price(food, price, data.get('per') or 'kg')
-            except prices.PriceError as e:
-                return Response({'error': True, 'reason': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        food.refresh_from_db()
-        return Response(_price_payload(food))
+            prices.set_food_price(food, _decimal_or_none(data, 'price', positive=False), data.get('per') or 'kg')
 
 
 class KitchenPriceMissingView(KitchenUserMixin, APIView):

@@ -43,6 +43,8 @@ class KitchenFood(models.Model):
     # number of observations the price stands for (estimate = 1, each adjustment after shopping adds one, capped):
     # the weight of the current price in the smoothing of the next adjustment
     price_weight = models.PositiveSmallIntegerField(default=1)
+    # the property amount the fork last wrote: a different amount was set by hand elsewhere, so it is no longer an estimate
+    price_value = models.DecimalField(max_digits=32, decimal_places=4, null=True, blank=True)
     # optional package bought as a whole ("500 g for 1.20 €"): amount in grams, millilitres or pieces
     KIND_WEIGHT = 'g'
     KIND_VOLUME = 'ml'

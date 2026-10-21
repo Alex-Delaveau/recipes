@@ -152,7 +152,8 @@ watch(() => recipe.value.id, (id) => {
     price.value = null
     if (id == undefined || props.shared || !useUserPreferenceStore().isAuthenticated) return
     estimateRecipes([{id}]).then(r => {
-        price.value = r.recipes[0] ?? null
+        // a late answer for the recipe shown before is dropped
+        if (recipe.value.id == id) price.value = r.recipes[0] ?? null
     }).catch(() => {})
 }, {immediate: true})
 

@@ -31,6 +31,10 @@
                         </div>
                         <div class="text-body-2" v-else>{{ $t('Fork_Shopping_Nothing_To_Adjust') }}</div>
                     </div>
+                    <v-alert v-if="adjustment.blocked" type="warning" variant="tonal" density="compact" class="mt-3"
+                             :text="$t('Fork_Shopping_Blocked', {n: adjustment.missing.length}, adjustment.missing.length)"></v-alert>
+                    <v-alert v-else-if="alreadyAdjusted" type="info" variant="tonal" density="compact" class="mt-3"
+                             :text="$t('Fork_Shopping_Already_Adjusted')"></v-alert>
                     <p class="text-body-2 text-medium-emphasis mt-2">{{ $t('Fork_Shopping_Adjust_Help') }}</p>
 
                     <h3 class="fork-done__section">{{ $t('Fork_Shopping_Items') }}</h3>
@@ -81,7 +85,8 @@
                 <template v-else-if="step == 'compare'">
                     <v-btn variant="text" size="large" @click="skip()">{{ $t('Fork_Skip') }}</v-btn>
                     <v-spacer></v-spacer>
-                    <v-btn color="primary" variant="flat" size="large" :loading="busy" :disabled="!adjustment || adjustment.factor == null"
+                    <v-btn color="primary" variant="flat" size="large" :loading="busy"
+                           :disabled="!adjustment || adjustment.factor == null || adjustment.blocked || alreadyAdjusted"
                            @click="apply()">{{ $t('Fork_Shopping_Adjust') }}</v-btn>
                 </template>
                 <template v-else>
@@ -96,6 +101,7 @@
 
 <script setup lang="ts">
 import {computed, PropType, ref, watch} from "vue";
+import {useStorage} from "@vueuse/core";
 import {useI18n} from "vue-i18n";
 import {Adjustment, adjustAfterShopping, correctShoppingItem, estimateShopping, euros, parseAmount, PriceError, ShoppingPrice,
     ShoppingPriceItem} from "@/fork/prices";
@@ -118,6 +124,11 @@ const error = ref(false)
 const correcting = ref<number | null>(null)
 const itemPaidText = ref('')
 const itemError = ref('')
+
+// a cart adjusts the prices once: reopening "shopping done" before clearing the cart does not move them again
+const lastAdjustedCart = useStorage('fork_price_adjusted_cart', '')
+const cartKey = computed(() => [...props.entries].sort((a, b) => a - b).join(','))
+const alreadyAdjusted = computed(() => cartKey.value != '' && lastAdjustedCart.value == cartKey.value)
 
 const cartItems = computed(() => estimate.value?.items.filter(i => i.checked) ?? [])
 const cartMissing = computed(() => cartItems.value.filter(i => i.cost == null).length)
@@ -168,6 +179,7 @@ function apply() {
     if (!paid) return
     guard(async () => {
         adjusted.value = (await adjustAfterShopping(props.entries, paid, true)).adjusted
+        lastAdjustedCart.value = cartKey.value
         step.value = 'done'
         emit('changed')
     })

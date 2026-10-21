@@ -16,7 +16,7 @@ import math
 from collections import OrderedDict
 from decimal import Decimal
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django_scopes import scopes_disabled
 
@@ -27,7 +27,7 @@ from kitchen.models import KitchenFood
 from kitchen.names import strip_accents
 
 G, ML, PIECE = KitchenFood.KIND_WEIGHT, KitchenFood.KIND_VOLUME, KitchenFood.KIND_PIECE
-PRICE_TYPE_NAME = 'Prix'
+PRICE_TYPE_NAMES = ('Prix', 'Prix (estimation)', 'Prix des courses')
 
 # price units offered to the user: (quantity, kind) they stand for
 PERS = {'kg': (Decimal(1000), G), 'l': (Decimal(1000), ML), 'piece': (Decimal(1), PIECE)}
@@ -111,10 +111,23 @@ def price_type(space):
     """The space's price property type: the first one of category PRICE, created ("Prix", €) when there is none."""
     with scopes_disabled():
         pt = PropertyType.objects.filter(space=space, category=PropertyType.PRICE).order_by('order', 'id').first()
-        if pt is None:
-            pt = PropertyType.objects.create(space=space, name=PRICE_TYPE_NAME, unit='€', category=PropertyType.PRICE,
-                                             description='Prix moyen, estimé ou confirmé (fork).')
-        return pt
+        if pt is not None:
+            return pt
+        # the name is unique in a space: a "Prix" of another category (made by hand) keeps its name, ours takes another
+        taken = set(PropertyType.objects.filter(space=space, name__in=PRICE_TYPE_NAMES).values_list('name', flat=True))
+        name = next((n for n in PRICE_TYPE_NAMES if n not in taken), None)
+        if name is None:
+            raise PriceError('price_type')
+        try:
+            with transaction.atomic():
+                return PropertyType.objects.create(space=space, name=name, unit='€', category=PropertyType.PRICE,
+                                                   description='Prix moyen, estimé ou confirmé (fork).')
+        except IntegrityError:
+            # created by a concurrent request
+            pt = PropertyType.objects.filter(space=space, category=PropertyType.PRICE).order_by('order', 'id').first()
+            if pt is None:
+                raise
+            return pt
 
 
 class PriceBook:
@@ -143,8 +156,15 @@ class PriceBook:
         return entry['piece_weight'] if entry else None
 
     def source(self, food):
+        """Where the price comes from. A price set outside the fork, or changed there since the fork wrote it (upstream
+        property editor), is the user's: confirmed."""
         state = self.state(food)
-        return state.price_source if state and state.price_source else KitchenFood.PRICE_CONFIRMED
+        if not state or state.price_source != KitchenFood.PRICE_ESTIMATED:
+            return KitchenFood.PRICE_CONFIRMED
+        amount = self.amounts.get(food.id)
+        if state.price_value is None or amount is None or abs(Decimal(state.price_value) - amount) > Decimal('0.00005'):
+            return KitchenFood.PRICE_CONFIRMED
+        return KitchenFood.PRICE_ESTIMATED
 
     def price(self, food):
         """(euros per gram / millilitre / piece, kind) of a food, or None (no price, or a reference that cannot be read)."""
@@ -248,7 +268,8 @@ def _group_cost(book, food, entries):
             return {'cost': None, 'reason': 'no_conversion'}
         quantities.append(base)
     if not quantities:
-        return {'cost': Decimal(0), 'reason': None}
+        # "some salt": what it cost is unknown, and it was paid for
+        return {'cost': None, 'reason': 'no_conversion'}
     state = book.state(food)
     weight = book.piece_weight(food)
     price = book.price(food)
@@ -368,6 +389,10 @@ def set_food_price(food, price, per, source=KitchenFood.PRICE_CONFIRMED, weight=
     ref = to_base(food.properties_food_amount, food.properties_food_unit, food, space) if food.properties_food_unit_id and food.properties_food_amount else None
     others = Property.objects.filter(foodproperty__food=food).exclude(property_type=pt).exists()
     ref_in_kind = convert(ref[0], ref[1], kind, PriceBook(space, [food]).piece_weight(food)) if ref else None
+    if ref is None and others:
+        # nutrition values for a reference that cannot be read ("100 portion", no unit): rewriting the reference
+        # would silently change them
+        raise PriceError('reference')
     if ref is None or (not others and ref[1] != kind):
         unit, amount = _reference_unit(space, per)
         Food.objects.filter(id=food.id).update(properties_food_unit=unit, properties_food_amount=amount)
@@ -378,6 +403,7 @@ def set_food_price(food, price, per, source=KitchenFood.PRICE_CONFIRMED, weight=
         raise PriceError('reference')
     else:
         value = price / quantity * ref_in_kind
+    value = value.quantize(Decimal('0.0001'))  # what the database keeps: the fork compares it later
     if existing:
         existing.property_amount = value
         existing.save()
@@ -386,6 +412,7 @@ def set_food_price(food, price, per, source=KitchenFood.PRICE_CONFIRMED, weight=
         food.properties.add(existing)
     state.price_source = source
     state.price_weight = weight
+    state.price_value = existing.property_amount
     state.save()
 
 
@@ -399,19 +426,21 @@ def suggestion(food):
 
 
 def apply_suggestion(food):
-    """Store the dictionary price of a food as "estimated" (with the weight of a piece if the food has none)."""
+    """Store the dictionary price of a food as "estimated" (with the weight of a piece if the food has none).
+    Returns None, or why it could not: "no_suggestion", "reference"."""
     entry = price_dictionary.lookup(food.name)
     if not entry:
-        return False
-    state = _state(food)
-    if entry['piece_weight'] and not state.piece_weight:
-        state.piece_weight = entry['piece_weight']
-        state.save()
+        return 'no_suggestion'
     try:
-        set_food_price(food, entry['price'], entry['per'], KitchenFood.PRICE_ESTIMATED)
-    except PriceError:
-        return False
-    return True
+        with transaction.atomic():
+            state = _state(food)
+            if entry['piece_weight'] and not state.piece_weight:
+                state.piece_weight = entry['piece_weight']
+                state.save()
+            set_food_price(food, entry['price'], entry['per'], KitchenFood.PRICE_ESTIMATED)
+    except PriceError as e:
+        return str(e)
+    return None
 
 
 def missing_queryset(space):
@@ -427,7 +456,7 @@ def missing_queryset(space):
 
 def apply_all_suggestions(space):
     """Dictionary prices for every food without a price that the dictionary knows: number of prices set."""
-    return sum(1 for food in list(missing_queryset(space)) if price_dictionary.lookup(food.name) and apply_suggestion(food))
+    return sum(1 for food in list(missing_queryset(space)) if price_dictionary.lookup(food.name) and apply_suggestion(food) is None)
 
 
 # ---------------------------------------------------------------- after shopping
@@ -437,10 +466,11 @@ def _scale_price(food, ratio, weight):
     prop = Property.objects.filter(foodproperty__food=food, property_type=pt).first()
     if prop is None or prop.property_amount is None:
         return
-    prop.property_amount = Decimal(prop.property_amount) * ratio
+    prop.property_amount = (Decimal(prop.property_amount) * ratio).quantize(Decimal('0.0001'))
     prop.save()
     state = _state(food)
     state.price_weight = weight
+    state.price_value = prop.property_amount
     state.save()
 
 
@@ -450,6 +480,8 @@ def adjust_after_shopping(space, entries, paid, apply=True):
     gap is spread over the estimated prices, proportionally: factor = (paid - confirmed part) / estimated part.
     Each estimated price then moves towards its new value by 1 / (observations + 1) (weighted average), so one unusual
     receipt does not undo everything. Returns the comparison shown before saving, and what was changed.
+    Items without a price are in what was paid but not in the estimate: while there are some, nothing is adjusted
+    (they would read as an error of the estimated prices); the user corrects them first, or skips.
     """
     paid = Decimal(str(paid))
     estimate = estimate_entries(space, entries)
@@ -460,13 +492,14 @@ def adjust_after_shopping(space, entries, paid, apply=True):
     total = estimated_part + fixed_part
     result = {'paid': _round(paid), 'estimated': _round(total), 'estimated_part': _round(estimated_part),
               'confirmed_part': _round(fixed_part), 'factor': None, 'percent': None, 'adjusted': 0,
-              'missing': estimate['missing']}
+              'missing': estimate['missing'], 'blocked': bool(estimate['missing'])}
     if estimated_part <= 0:
         return result
     factor = min(MAX_FACTOR, max(MIN_FACTOR, (paid - fixed_part) / estimated_part))
     result['factor'] = _round(factor, 4)
     result['percent'] = int(round((factor - 1) * 100))
-    if not apply:
+    result['blocked'] = bool(estimate['missing'])
+    if not apply or result['blocked']:
         return result
     with transaction.atomic():
         done = set()

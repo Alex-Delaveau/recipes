@@ -82,6 +82,7 @@ pamplemousse ; 3.00 ; kg ; 350
 # dairy, eggs
 lait ; 1.10 ; l
 beurre ; 11.00 ; kg
+beurre de cacahuete ; 10.00 ; kg
 creme fraiche ; 6.50 ; l
 creme liquide ; 5.00 ; l
 creme ; 6.00 ; l
@@ -173,7 +174,10 @@ sauce soja ; 8.00 ; l
 concentre de tomate ; 6.00 ; kg
 coulis de tomate ; 2.50 ; kg
 sauce tomate ; 3.50 ; kg
-bouillon cube ; 0.15 ; piece ; 10
+# a stock cube makes 500 ml: "2 cubes" and "1 l de bouillon" cost the same
+bouillon ; 0.30 ; l ; 500
+fond de veau ; 25.00 ; kg
+fond de volaille ; 25.00 ; kg
 chocolat noir ; 12.00 ; kg
 chocolat ; 12.00 ; kg
 cacao ; 12.00 ; kg
@@ -220,6 +224,7 @@ eau ; 0.30 ; l
 eau gazeuse ; 0.60 ; l
 jus d orange ; 2.00 ; l
 jus de pomme ; 1.80 ; l
+jus de citron ; 8.00 ; l
 vin blanc ; 6.00 ; l
 vin rouge ; 6.00 ; l
 biere ; 3.00 ; l

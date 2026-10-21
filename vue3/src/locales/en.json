@@ -483,6 +483,8 @@
   "Fork_Shopping_Adjust": "Adjust prices",
   "Fork_Shopping_Adjust_Help": "Only estimated prices move, at most half way: one unusual receipt does not spoil everything. Correct an item if you know its price.",
   "Fork_Shopping_Adjusted": "No price adjusted | {n} price adjusted | {n} prices adjusted",
+  "Fork_Shopping_Already_Adjusted": "Prices were already adjusted with this cart.",
+  "Fork_Shopping_Blocked": "Everything has a price. | {n} item in the cart has no price: its cost is in the receipt but not in the estimate. Correct it first, otherwise the gap would wrongly go to the estimated prices. | {n} items in the cart have no price: their cost is in the receipt but not in the estimate. Correct them first, otherwise the gap would wrongly go to the estimated prices.",
   "Fork_Shopping_Clear_All": "Clear the list",
   "Fork_Shopping_Clear_Cart": "Remove items in the cart",
   "Fork_Shopping_Clear_Cart_Confirm": "Remove",

@@ -56,6 +56,8 @@ export interface Adjustment {
     percent: number | null
     adjusted: number
     missing: MissingPrice[]
+    /** items without a price in the cart: nothing is adjusted until they are corrected */
+    blocked: boolean
 }
 
 export class PriceError extends Error {
@@ -146,7 +148,7 @@ export async function adjustAfterShopping(entries: number[], paid: number, apply
     const d = await kitchenFetch('prices/shopping/adjust/', {method: 'POST', body: JSON.stringify({entries, paid, apply})})
     return {
         paid: d.paid, estimated: d.estimated, estimatedPart: d.estimated_part, confirmedPart: d.confirmed_part,
-        factor: d.factor, percent: d.percent, adjusted: d.adjusted, missing: d.missing,
+        factor: d.factor, percent: d.percent, adjusted: d.adjusted, missing: d.missing, blocked: d.blocked,
     }
 }
 

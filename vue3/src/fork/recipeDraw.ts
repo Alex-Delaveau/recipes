@@ -33,10 +33,9 @@ export function useDrawPrice() {
     watch(() => drawnRecipes.value.map(r => r.id).join(','), (key) => {
         if (key == drawPriceKey) return
         drawPriceKey = key
-        if (!key) {
-            drawPrice.value = null
-            return
-        }
+        // the old total never stands for a new list
+        drawPrice.value = null
+        if (!key) return
         estimateRecipes(drawnRecipes.value.map(r => ({id: r.id}))).then(p => {
             if (key == drawPriceKey) drawPrice.value = {total: p.total, missing: p.missing}
         }).catch(() => {
