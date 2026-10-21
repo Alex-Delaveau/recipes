@@ -63,6 +63,7 @@ FOODS = {
 UNITS = ["g", "ml", "c. à soupe", "c. à café", "pièce"]
 
 # names left by imports: duplicates and foods with no confirmed aisle, for the food organisation screens
+UNPRICED = ("Lardons", "Lait de coco")
 MESSY_FOODS = ["oignons", "Oignon jaune", "Échalote", "échalotes", "Tomates cerises", "Gingembre frais", "Sauce soja"]
 
 # warm palettes for the generated placeholder photos (no external image service)
@@ -233,6 +234,16 @@ def main():
                 ShoppingListEntry.objects.create(food=foods[food_name], unit=units[unit_name], amount=Decimal(amount),
                                                  checked=checked, completed_at=now if checked else None,
                                                  created_by=user, space=space)
+
+        # M7 prices: the dictionary's average prices (estimated), pasta bought in 500 g packages; two foods are left
+        # without a price so that the "foods without a price" queue and the "N items without a price" notes show up
+        from kitchen import prices
+        from kitchen.models import KitchenFood
+        for food in list(prices.missing_queryset(space)):
+            if food.name not in UNPRICED:
+                prices.apply_suggestion(food)
+        KitchenFood.objects.filter(food=foods["Pâtes"], package_amount__isnull=True).update(
+            package_amount=Decimal(500), package_kind=KitchenFood.KIND_WEIGHT, package_price=Decimal("1.20"))
 
         print(f"seed ok: user={USERNAME}/{PASSWORD} space='{space.name}' "
               f"foods={Food.objects.filter(space=space).count()} recipes={Recipe.objects.filter(space=space).count()}")

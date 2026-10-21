@@ -21,6 +21,7 @@
     { "name": "foods-aisles", "path": "/foods/aisles", "strict": true },
     { "name": "foods-duplicates", "path": "/foods/duplicates", "strict": true },
     { "name": "foods-names", "path": "/foods/names", "strict": true },
+    { "name": "foods-no-price", "path": "/foods/no-price", "strict": true },
     { "name": "shopping", "path": "/shopping", "strict": true },
     { "name": "mealplan", "path": "/mealplan", "strict": true },
     { "name": "pantry", "path": "/pantry", "strict": true },

@@ -1,7 +1,6 @@
 <template>
     <!-- Estimated price ("≈ 6,40 € · 1,60 €/pers."), always with what it leaves out ("2 articles sans prix", tap for the list) -->
     <div class="fork-price-summary" :class="{'fork-price-summary--compact': compact}">
-        <v-icon icon="fa-solid fa-euro-sign" size="16" class="fork-price-summary__icon" aria-hidden="true" v-if="!compact"></v-icon>
         <div class="fork-price-summary__text">
             <span class="fork-price-summary__total">
                 <template v-if="label">{{ label }} </template>≈ {{ euros(total, locale) }}<template v-if="perServing != null"> · {{ $t('Fork_Price_Per_Serving', {price: euros(perServing, locale)}) }}</template>
@@ -10,7 +9,6 @@
                 {{ $t('Fork_Price_Missing', {n: missing.length}, missing.length) }}
             </button>
         </div>
-    </div>
 
     <v-dialog v-model="open" max-width="440" scrollable>
         <v-card :title="$t('Fork_Price_Missing_Title')">
@@ -30,6 +28,7 @@
             </v-card-actions>
         </v-card>
     </v-dialog>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -55,11 +54,6 @@ const open = ref(false)
     display: flex;
     align-items: flex-start;
     gap: var(--fork-space-2);
-}
-
-.fork-price-summary__icon {
-    margin-top: 3px;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .fork-price-summary__text {
