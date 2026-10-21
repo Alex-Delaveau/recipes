@@ -21,6 +21,8 @@ export interface KitchenRecipeQuery {
     have?: number[]
     maxTime?: number | null
     sort?: KitchenRecipeSort | null
+    /** upstream RecipeSearch order ("name"), when no shortcut sort is set */
+    sortOrder?: string
     page?: number
     pageSize?: number
 }
@@ -44,6 +46,7 @@ export async function listKitchenRecipes(q: KitchenRecipeQuery): Promise<Kitchen
     q.have?.forEach(f => params.append('have', String(f)))
     if (q.maxTime) params.set('max_time', String(q.maxTime))
     if (q.sort) params.set('sort', q.sort)
+    if (q.sortOrder) params.set('sort_order', q.sortOrder)
     params.set('page', String(q.page ?? 1))
     params.set('page_size', String(q.pageSize ?? 24))
 

@@ -1,4 +1,4 @@
-from django.db.models import Count, F, IntegerField, Q, Value
+from django.db.models import Count, F, IntegerField, Max, Q, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
@@ -58,7 +58,7 @@ class KitchenRecipeListView(generics.ListAPIView):
         if max_time and max_time.isdigit():
             queryset = queryset.annotate(
                 fork_total_time=Coalesce('working_time', Value(0)) + Coalesce('waiting_time', Value(0))
-            ).filter(fork_total_time__lte=int(max_time))
+            ).filter(fork_total_time__gt=0, fork_total_time__lte=int(max_time))  # no time given: unknown, not "quick"
 
         queryset = queryset.with_last_cooked(user, space)
 
@@ -79,8 +79,10 @@ class KitchenRecipeListView(generics.ListAPIView):
             queryset = queryset.with_last_viewed(user, space).filter(lastviewed__isnull=False)
             ordering = [F('lastviewed').desc()]
         elif sort == 'forgotten':
-            # never cooked first, then the longest ago
-            ordering = [F('lastcooked').asc(nulls_first=True), 'name']
+            # never cooked first, then the longest ago; by anyone of the space (the household cooks for everyone),
+            # where upstream's "lastcooked" only counts the current user
+            queryset = queryset.annotate(fork_last_cooked=Max('cooklog__created_at', filter=Q(cooklog__space=space)))
+            ordering = [F('fork_last_cooked').asc(nulls_first=True), 'name']
 
         return queryset.order_by(*ordering).prefetch_related('keywords', 'created_by')
 

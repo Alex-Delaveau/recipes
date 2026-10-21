@@ -27,11 +27,14 @@
         <!-- phone: what is planned today; the desktop has the week banner below -->
         <fork-menu-card v-if="!mdAndUp"></fork-menu-card>
 
-        <!-- shortcuts: browse without a filter -->
-        <v-chip-group v-model="filters.sort" column selected-class="text-primary" class="mt-2 fork-home__shortcuts">
-            <v-chip value="recent" filter variant="outlined" prepend-icon="fa-solid fa-clock-rotate-left">{{ $t('Fork_Shortcut_Recent') }}</v-chip>
-            <v-chip value="random" filter variant="outlined" prepend-icon="fa-solid fa-shuffle" @click.capture="reshuffle">{{ $t('Fork_Shortcut_Random') }}</v-chip>
-            <v-chip value="forgotten" filter variant="outlined" prepend-icon="fa-solid fa-hourglass-half">{{ $t('Fork_Shortcut_Forgotten') }}</v-chip>
+        <!-- shortcuts: lists without a filter (tap again to switch off) -->
+        <v-chip-group v-model="filters.sort" selected-class="fork-home__chip--on" class="mt-2 fork-home__shortcuts">
+            <v-chip value="recent" variant="outlined" prepend-icon="fa-solid fa-clock-rotate-left" :aria-pressed="filters.sort == 'recent'">
+                {{ $t('Fork_Shortcut_Recent') }}
+            </v-chip>
+            <v-chip value="forgotten" variant="outlined" prepend-icon="fa-solid fa-hourglass-half" :aria-pressed="filters.sort == 'forgotten'">
+                {{ $t('Fork_Shortcut_Forgotten') }}
+            </v-chip>
         </v-chip-group>
 
         <!-- active filters, removable in one tap -->
@@ -47,18 +50,23 @@
             </v-chip>
         </div>
 
-        <horizontal-meal-plan-window class="mt-4" v-if="mdAndUp && useUserPreferenceStore().deviceSettings.start_showMealPlan"></horizontal-meal-plan-window>
+        <!-- browsing (no search, no filter): the week first, then a few shelves, then every recipe -->
+        <template v-if="browsing && totalRecipes != 0">
+            <fork-week-card class="mt-3"></fork-week-card>
+            <horizontal-meal-plan-window class="mt-4" v-if="mdAndUp && useUserPreferenceStore().deviceSettings.start_showMealPlan"></horizontal-meal-plan-window>
+            <fork-recipe-shelf class="mt-5" :title="$t('Fork_Shelf_Quick')" :recipes="quickShelf" @see-all="filters.maxTime = 30"></fork-recipe-shelf>
+            <fork-recipe-shelf class="mt-4" :title="$t('Fork_Shortcut_Forgotten')" :recipes="forgottenShelf" @see-all="filters.sort = 'forgotten'"></fork-recipe-shelf>
+            <h2 class="fork-home__all mt-5" v-if="!loading || recipes.length">{{ $t('Fork_All_Recipes', {n: count}) }}</h2>
+        </template>
 
-        <p class="text-body-2 text-medium-emphasis mt-4 mb-2" v-if="!loading && !error && totalRecipes != 0" aria-live="polite">
+        <p class="text-body-2 text-medium-emphasis mt-4 mb-1" v-else-if="!loading && !error && totalRecipes != 0" aria-live="polite">
             {{ $t('Fork_Recipes_Count', {n: count}, count) }}
         </p>
 
         <!-- loading -->
-        <v-row v-if="loading && recipes.length == 0" class="mt-2">
-            <v-col cols="12" sm="6" md="4" lg="3" v-for="i in 4" :key="i">
-                <v-skeleton-loader type="image, list-item-two-line" class="rounded-lg"></v-skeleton-loader>
-            </v-col>
-        </v-row>
+        <div v-if="loading && recipes.length == 0" class="mt-2">
+            <v-skeleton-loader v-for="i in 4" :key="i" type="list-item-avatar-two-line"></v-skeleton-loader>
+        </div>
 
         <!-- error -->
         <v-alert v-else-if="error" type="error" variant="tonal" class="mt-4" :text="$t('Fork_Load_Error')">
@@ -86,11 +94,10 @@
             <v-btn class="mt-4" variant="tonal" @click="resetAll()">{{ $t('Fork_Reset') }}</v-btn>
         </v-card>
 
-        <v-row v-else>
-            <v-col cols="12" sm="6" md="4" lg="3" v-for="r in recipes" :key="r.id">
-                <fork-recipe-card :recipe="r"></fork-recipe-card>
-            </v-col>
-        </v-row>
+        <!-- one recipe per line: quick to scan, two columns on a wide screen -->
+        <div v-else class="fork-home__list">
+            <fork-recipe-row v-for="r in recipes" :key="r.id" :recipe="r"></fork-recipe-row>
+        </div>
 
         <div class="text-center my-4" v-if="hasMore && !error">
             <v-btn variant="tonal" size="large" :loading="loading" @click="loadPage(page + 1)">{{ $t('Fork_Load_More') }}</v-btn>
@@ -132,7 +139,9 @@ import {useDisplay} from "vuetify";
 import {ApiApi} from "@/openapi";
 import {KitchenRecipe, listKitchenRecipes} from "@/fork/api";
 import {forkHomeFilters as filters} from "@/fork/homeFilters";
-import ForkRecipeCard from "@/fork/components/ForkRecipeCard.vue";
+import ForkRecipeRow from "@/fork/components/ForkRecipeRow.vue";
+import ForkRecipeShelf from "@/fork/components/ForkRecipeShelf.vue";
+import ForkWeekCard from "@/fork/components/ForkWeekCard.vue";
 import ForkModelAutocomplete from "@/fork/components/ForkModelAutocomplete.vue";
 import ForkMenuCard from "@/fork/components/ForkMenuCard.vue";
 import HorizontalMealPlanWindow from "@/components/display/HorizontalMealPlanWindow.vue";
@@ -154,6 +163,25 @@ const totalRecipes = ref(-1)
 let requestId = 0
 
 const activeFilterCount = computed(() => filters.have.length + filters.keywords.length + (filters.maxTime ? 1 : 0))
+/** nothing searched or filtered: the home shows the week, the shelves and every recipe by name */
+const browsing = computed(() => !filters.query && activeFilterCount.value == 0 && !filters.sort)
+
+const SHELF_SIZE = 10
+const quickShelf = ref<KitchenRecipe[]>([])
+const forgottenShelf = ref<KitchenRecipe[]>([])
+
+function loadShelves() {
+    listKitchenRecipes({maxTime: 30, page: 1, pageSize: SHELF_SIZE}).then(r => {
+        quickShelf.value = r.results
+    }).catch(() => {
+        quickShelf.value = []
+    })
+    listKitchenRecipes({sort: 'forgotten', page: 1, pageSize: SHELF_SIZE}).then(r => {
+        forgottenShelf.value = r.results
+    }).catch(() => {
+        forgottenShelf.value = []
+    })
+}
 
 function loadPage(p: number) {
     const id = ++requestId
@@ -165,6 +193,7 @@ function loadPage(p: number) {
         keywords: filters.keywords.map(k => k.id),
         maxTime: filters.maxTime,
         sort: filters.sort,
+        sortOrder: browsing.value ? 'name' : undefined,
         page: p,
         pageSize: PAGE_SIZE,
     }).then(r => {
@@ -185,15 +214,6 @@ function reload() {
     loadPage(1)
 }
 
-function reshuffle() {
-    // tapping "random" again draws a new selection instead of switching the shortcut off
-    if (filters.sort == 'random') {
-        setTimeout(() => {
-            filters.sort = 'random'
-        })
-    }
-}
-
 function resetFilters() {
     filters.have = []
     filters.keywords = []
@@ -211,6 +231,7 @@ watchDebounced(() => filters.query, () => reload(), {debounce: 300})
 
 onMounted(() => {
     reload()
+    loadShelves()
     new ApiApi().apiRecipeList({pageSize: 1}).then(r => {
         totalRecipes.value = r.count
     }).catch(() => {
@@ -220,8 +241,30 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.fork-home__all {
+    font-size: var(--fork-text-lg);
+    font-weight: 600;
+    padding-bottom: var(--fork-space-2);
+    border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+@media (min-width: 960px) {
+    .fork-home__list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: var(--fork-space-6);
+    }
+}
+
 .fork-home__shortcuts :deep(.v-chip) {
     min-height: var(--fork-tap);
+}
+
+/* selected shortcut: filled, a single icon (no extra check mark next to the shortcut's own icon) */
+.fork-home__shortcuts :deep(.fork-home__chip--on) {
+    background: rgba(var(--v-theme-primary), 0.12);
+    border-color: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-primary));
 }
 
 .fork-home__section {

@@ -39,6 +39,9 @@ DUPLICATES = [
     ('Persil plat', 'persil'),
     ('Farine T55', 'farine'),
     ('Crème fraîche épaisse', 'Crème fraîche'),
+    ('Pomme de terre', 'Pomme de terre à chair ferme'),  # whole compound + variety
+    ('Pommes de terre', 'Pomme de terre Yukon Gold'),
+    ("Huile d'olive", "Huile d'olive vierge extra"),
 ]
 
 DIFFERENT = [
@@ -49,6 +52,8 @@ DIFFERENT = [
     ('Citron', 'Citronnelle'),
     ('Poivre', 'Poivron'),
     ('Sel', 'Sucre'),
+    ('Poulet au curry', 'Poulet'),
+    ('Pomme de terre', 'Pomme de pin'),
 ]
 
 
@@ -396,3 +401,12 @@ def test_delete_only_unused_foods_that_are_not_families(setup_space, u1_s1, reci
         assert Food.objects.filter(id__in=[family.id, child.id]).count() == 2
         assert not Food.objects.filter(id=free.id).exists()
         assert Ingredient.objects.count() == lines
+
+
+def test_varieties_of_a_compound_food_are_proposed(setup_space, u1_s1):
+    with scopes_disabled():
+        for name in ('Pomme de terre', 'Pomme de terre à chair ferme', 'Pomme de terre Yukon Gold', 'Pomme'):
+            Food.objects.create(name=name, space=setup_space)
+    pairs = u1_s1.get(reverse('kitchen:duplicates')).json()['results']
+    assert sorted((p['drop']['name'], p['keep']['name']) for p in pairs) == [
+        ('Pomme de terre Yukon Gold', 'Pomme de terre'), ('Pomme de terre à chair ferme', 'Pomme de terre')]

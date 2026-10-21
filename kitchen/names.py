@@ -80,6 +80,21 @@ def is_compound(name):
     return bool(COMPOUND.search(text))
 
 
+def _tokens(name):
+    """all the words of a name, small words included, accent-free and singular: 'Pommes de terre' -> pomme de terre"""
+    text = re.sub(r"[’'`]", ' ', strip_accents(str(name).lower()))
+    return [singular(w) for w in re.sub(r'[^a-z0-9 ]+', ' ', text).split()]
+
+
+def extends_compound(shorter, longer):
+    """
+    'Pomme de terre' -> 'Pomme de terre à chair ferme': the whole compound name, then more words (a variety).
+    Not 'Pomme' -> 'Pomme de terre': there the preposition belongs to the longer name.
+    """
+    short, long = _tokens(shorter), _tokens(longer)
+    return is_compound(shorter) and len(long) > len(short) and long[:len(short)] == short
+
+
 def normalize(name):
     """Comparison key of a food name: "Oignons émincés" -> "oignon"."""
     return ' '.join(words(name))
@@ -99,9 +114,12 @@ def similarity(a, b):
     sa, sb = set(wa), set(wb)
     small, big = (sa, sb) if len(sa) <= len(sb) else (sb, sa)
     # "oignon" ~ "oignon jaune": every word of the shorter name is in the longer one, at most 2 words more.
-    # Not for compounds built with a preposition: "pomme de terre", "lait de coco", "huile d'olive" are other foods.
-    longer = a if len(wa) >= len(wb) else b
-    if small <= big and len(big) - len(small) <= 2 and len(' '.join(sorted(small))) >= 3 and not is_compound(longer):
+    # Not when the extra words make a compound with a preposition: "pomme de terre", "lait de coco", "huile d'olive" are
+    # other foods than "pomme", "lait", "huile". A whole compound followed by more words is a variety, though:
+    # "pomme de terre à chair ferme" ~ "pomme de terre".
+    longer, shorter = (a, b) if len(wa) >= len(wb) else (b, a)
+    compound_ok = not is_compound(longer) or extends_compound(shorter, longer)
+    if small <= big and len(big) - len(small) <= 2 and len(' '.join(sorted(small))) >= 3 and compound_ok:
         return 0.9 - 0.05 * (len(big) - len(small)), 'extra_words'
     ratio = SequenceMatcher(None, na, nb).ratio()
     if ratio >= 0.88 and min(len(na), len(nb)) >= 5:

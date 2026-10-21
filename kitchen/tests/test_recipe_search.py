@@ -102,3 +102,20 @@ def test_forgotten_puts_never_cooked_then_oldest_first(kitchen_data, u1_s1, spac
 
 def test_random_returns_everything(kitchen_data, u1_s1):
     assert len(names(u1_s1.get(URL, {'sort': 'random'}))) == 3
+
+
+def test_max_time_leaves_out_recipes_without_a_time(kitchen_data, u1_s1, space_1):
+    with scopes_disabled():
+        make_recipe(space_1, kitchen_data['user'], 'Sans durée', [], 0, 0)
+    assert 'Sans durée' not in names(u1_s1.get(URL, {'max_time': 30}))
+    assert 'Sans durée' in names(u1_s1.get(URL))
+
+
+def test_forgotten_counts_the_other_household_member(kitchen_data, u1_s1, u2_s1, space_1):
+    """cooked last week by the other member of the household: not "forgotten" for me either"""
+    d = kitchen_data
+    with scopes_disabled():
+        for key, days in (('both', 7), ('riz', 60), ('none', 30)):
+            CookLog.objects.create(recipe=d['recipes'][key], created_by=auth.get_user(u2_s1), space=space_1,
+                                   created_at=timezone.now() - timedelta(days=days))
+    assert names(u1_s1.get(URL, {'sort': 'forgotten'})) == ['Riz cantonais', 'Omelette', 'Riz aux courgettes']

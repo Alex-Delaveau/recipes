@@ -3,6 +3,104 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — Règles des étagères « En moins de 30 min » et « Pas faites depuis longtemps »
+**Contexte** : Alex demande comment ces catégories sont calculées. En relisant, deux défauts sont apparus :
+- une recette sans durée comptait comme « 0 min », donc « rapide » ;
+- « Pas faites depuis longtemps » ne comptait que les cuissons de l'utilisateur connecté (`lastcooked` upstream).
+**Choix** :
+- **En moins de 30 min** : temps total = préparation + attente, entre 1 et 30 min. Une recette sans durée n'y est plus
+  (inconnue, pas rapide). Même règle pour le filtre « ≤ 15/30/60 min ».
+- **Pas faites depuis longtemps** : un tri, pas un seuil. Les recettes jamais cuisinées viennent d'abord (par nom),
+  puis celles dont la dernière cuisson est la plus ancienne. Une cuisson compte quel que soit le membre du foyer qui
+  l'a faite. Elle est enregistrée par « Terminé » / « Bon appétit » à la fin du mode cuisine (M5) ou par le bouton
+  « cuisiné » upstream. L'étagère montre les 10 premières.
+**Alternative écartée** : garder l'annotation upstream par utilisateur (la recette faite hier par l'autre membre du
+foyer serait « oubliée ») ; un seuil fixe (6 semaines) qui viderait l'étagère au début.
+**Réversible ?** Oui.
+
+## 2026-10-21 — hors jalon — Accueil des recettes : piste D, la semaine d'abord
+**Contexte** : Alex choisit la piste D des maquettes (https://claude.ai/artifact/1jE7ee7MLBGGFvTv8inbX3). Il veut
+pouvoir réduire ou étendre la partie « au hasard ».
+**Choix** : sans recherche ni filtre, l'accueil affiche dans l'ordre :
+1. **« Cette semaine »** : les plats tirés au sort, repliable. Repliée, c'est une ligne avec les vignettes ; l'état est
+   gardé sur l'appareil.
+   - On retire ou remplace un plat, on en ajoute un, ou on refait un nouveau tirage, avec annulation.
+   - « Au menu » et « Aux courses » ouvrent la page du tirage sur la bonne feuille.
+   - Le dé ouvre la page du tirage (nombre de plats).
+2. Deux étagères : « En moins de 30 min » et « Pas faites depuis longtemps ». « Tout voir » applique le filtre
+   correspondant. Pas d'étagère par mot-clé : Alex ne fait que des plats principaux.
+3. **« Toutes les recettes »**, triées par nom, une par ligne : vignette de 52 px, nom, durée. Sur ordinateur, deux
+   colonnes.
+
+Une recherche, un filtre ou un raccourci n'affichent que les résultats, en lignes. Une recette sans photo a une tuile
+de couleur avec son initiale, au lieu d'un rectangle gris. Le chip « Tirer au sort » disparaît : la carte le remplace.
+**Alternative écartée** : pistes A, B et C (voir RECETTES-ACCUEIL.md).
+**Réversible ?** Oui. `ForkRecipeCard` reste dans le code.
+
+## 2026-10-21 — hors jalon — Le tirage remplit le menu de la semaine et les courses
+**Contexte** : Alex veut que le tirage alimente directement le menu de la semaine et la liste de courses, comme chez
+Jow.
+**Choix** : deux boutons sous la liste tirée.
+- **« Ajouter au menu »** : une recette par jour à partir du premier jour (aujourd'hui, demain après 21 h, modifiable),
+  pour un type de repas (« Dîner » par défaut s'il existe, sinon le plus tardif), aux portions de la recette.
+  - L'option « Ajouter aussi les ingrédients aux courses » est cochée par défaut. Elle passe par `addshopping` de
+    l'API upstream des repas.
+  - Sans aucun type de repas, un bouton crée « Dîner » (19:30).
+- **« Ajouter aux courses »** : toutes les recettes, sans planifier (`/api/recipe/<id>/shopping/`, comme la page
+  recette upstream), après confirmation.
+- Aucun changement backend. La liste tirée reste après l'ajout : on peut la vider soi-même.
+
+**Alternative écartée** :
+- Choisir le jour de chaque recette : plus lent. On déplace ensuite dans le menu de la semaine.
+- Passer par la feuille « décocher ce qu'on a » pour chaque recette : trop d'étapes pour 5 recettes. On décoche dans
+  la liste de courses.
+
+**Réversible ?** Oui.
+
+## 2026-10-21 — hors jalon — « Tirer au sort » remplace le chip « Au hasard »
+**Contexte** : Alex veut tirer X recettes au hasard, puis en retirer au cas par cas. Le chip « Au hasard » restait
+sélectionné (un nouveau clic relançait le tirage au lieu de le désélectionner). Les chips choisis montraient deux
+icônes côte à côte.
+**Choix** :
+- Page `/recipes/draw`. On choisit X (1 à 14, 5 par défaut), on tire, puis on retire, remplace, ajoute une recette ou
+  refait le tirage, avec annulation.
+- Le tirage suit les filtres de l'accueil. La liste est gardée sur l'appareil (`localStorage`), pas partagée avec le
+  foyer.
+- Le chip « Au hasard » devient « Tirer au sort » (lien vers la page, avec le nombre de recettes tirées).
+- « Récentes » et « Pas faites depuis longtemps » se désélectionnent par un deuxième clic. Un chip choisi est rempli
+  de couleur, sans la coche Vuetify.
+
+**Alternative écartée** :
+- Garder un tri « au hasard » de la liste complète : il ne répond pas à « quoi manger cette semaine ».
+- Partager le tirage avec le foyer : il faudrait un modèle `kitchen`. On le fera si le tirage alimente le menu de la
+  semaine.
+
+**Réversible ?** Oui.
+
+## 2026-10-21 — hors jalon — Accueil des recettes : réflexion, pas encore de refonte
+**Contexte** : l'accueil est jugé fatigant (« plein de plats dans lesquels on se perd »).
+**Choix** : analyse et recommandation dans `docs/fork/RECETTES-ACCUEIL.md` :
+- la décision d'abord (le tirage) ;
+- des étagères thématiques ;
+- la liste complète en lignes compactes.
+
+L'écran n'est pas refait avant validation par Alex : c'est un choix produit qui change le parcours P1 de SPEC.md.
+**Alternative écartée** : refaire tout de suite en grille dense (piste A). Elle réduit le défilement, mais pas
+l'effet « liste plate ».
+**Réversible ?** Oui.
+
+## 2026-10-21 — hors jalon — Doublons : variétés d'un nom composé
+**Contexte** : « Pomme de terre », « Pomme de terre à chair ferme » et « Pomme de terre Yukon Gold » n'étaient pas
+proposés comme doublons. La règle « mêmes mots + au plus 2 de plus » était coupée dès que le nom long contenait une
+préposition. Le but était de séparer « Pomme » de « Pomme de terre », mais la coupure touchait aussi les variétés.
+**Choix** : la règle s'applique quand le nom long commence par le nom composé entier (« Pomme de terre » + « à chair
+ferme »). « Pomme » / « Pomme de terre », « Lait » / « Lait de coco » et « Poulet » / « Poulet au curry » restent
+séparés. Cas limite assumé : « Pomme de terre douce » serait proposé, et « Pas un doublon » l'écarte une fois pour
+toutes.
+**Alternative écartée** : les traiter en famille plutôt qu'en doublons. Si Alex veut garder les variétés, il les
+écarte et les range dans une famille « Pomme de terre ».
+**Réversible ?** Oui.
+
 ## 2026-10-21 — hors jalon — Nettoyage des aliments : noms abîmés, « À ranger », doublons
 **Contexte** : Alex a 439 aliments « sans famille ». Beaucoup sont des noms abîmés par d'anciens imports (« à café
 coriandre en poudre », « à soupe d'huile », « d'eau + 30 ml »). « À ranger » n'offre pas d'issue pour un aliment qui ne

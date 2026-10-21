@@ -93,34 +93,168 @@ const FLOWS = {
   async p1(page) {
     await page.goto(base + '/', { waitUntil: 'networkidle' })
     check(await page.getByPlaceholder('Rechercher une recette').isVisible(), 'search field visible on the home screen')
-    const all = await eventually(async () => (await texts(page, '.fork-recipe-card__title')).length >= 4 && texts(page, '.fork-recipe-card__title'))
+    const all = await eventually(async () => (await texts(page, '.fork-recipe-row__title')).length >= 4 && texts(page, '.fork-recipe-row__title'))
     check(all && all.length >= 4, `photo cards listed (${all?.length})`)
 
     await page.getByPlaceholder('Rechercher une recette').fill('curry')
-    const found = await eventually(async () => { const t = await texts(page, '.fork-recipe-card__title'); return t.length === 1 && t })
+    const found = await eventually(async () => { const t = await texts(page, '.fork-recipe-row__title'); return t.length === 1 && t })
     check(found && found[0].includes('Curry'), 'text search narrows the list')
     await page.getByPlaceholder('Rechercher une recette').fill('')
 
     await page.getByRole('button', { name: 'Filtres' }).click()
     await page.locator('.v-bottom-sheet .v-chip', { hasText: '≤ 30 min' }).click()
-    const quick = await eventually(async () => { const t = await texts(page, '.fork-recipe-card__title'); return t.length === 3 && t })
+    const quick = await eventually(async () => { const t = await texts(page, '.fork-recipe-row__title'); return t.length === 3 && t })
     check(quick && !quick.some((t) => t.includes('Curry')), 'total time ≤ 30 min drops the 35 min curry')
     await page.locator('.v-bottom-sheet .v-chip', { hasText: '≤ 30 min' }).click() // off again
 
     await page.locator('.v-bottom-sheet .v-autocomplete input').first().fill('Courg')
     await page.locator('.v-overlay .v-list-item', { hasText: 'Courgette' }).first().click()
     await page.keyboard.press('Escape')
-    const ranked = await eventually(async () => { const t = await texts(page, '.fork-recipe-card__title'); return t.length === 1 && t })
+    const ranked = await eventually(async () => { const t = await texts(page, '.fork-recipe-row__title'); return t.length === 1 && t })
     check(ranked && ranked[0].includes('Poêlée'), 'ingredient on hand lists the recipes using it')
-    check(await page.locator('.fork-recipe-card', { hasText: '1/4 ingrédients' }).count() === 1, 'card shows how many ingredients are on hand')
+    check(await page.locator('.fork-recipe-row', { hasText: '1/4 ingrédients' }).count() === 1, 'card shows how many ingredients are on hand')
     await page.goto(base + '/', { waitUntil: 'networkidle' }) // module state survives SPA navigation only
 
     await page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Pas faites depuis longtemps' }).click()
-    const forgotten = await eventually(async () => { const t = await texts(page, '.fork-recipe-card__title'); return t.length >= 4 && t })
+    const forgotten = await eventually(async () => { const t = await texts(page, '.fork-recipe-row__title'); return t.length >= 4 && t })
     check(forgotten && forgotten.length >= 4, 'shortcut "pas faites depuis longtemps" lists recipes')
     await page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Récentes' }).click()
     await page.waitForTimeout(800)
     check(!(await page.locator('.v-alert--variant-tonal.text-error').count()), 'shortcut "récentes" loads without error')
+    const recent = page.locator('.fork-home__shortcuts .v-chip', { hasText: 'Récentes' })
+    check((await recent.getAttribute('aria-pressed')) === 'true' && !(await recent.locator('.v-chip__filter').count()), 'selected shortcut: one icon, no extra check mark')
+    await recent.click()
+    check(await eventually(async () => (await recent.getAttribute('aria-pressed')) === 'false', 3000), 'tapping it again switches it off')
+  },
+
+  // home "this week" card: the drawn dishes first, folds to one line (kept on the device), replace / remove / undo
+  async week(page) {
+    await page.goto(base + '/', { waitUntil: 'networkidle' })
+    await page.evaluate(() => { localStorage.removeItem('fork_recipe_draw'); localStorage.setItem('fork_recipe_draw_size', '3'); localStorage.removeItem('fork_week_open') })
+    await page.reload({ waitUntil: 'networkidle' })
+    const card = page.locator('.fork-week')
+    check(await eventually(() => card.getByRole('button', { name: 'Tirer 3 recettes' }).isVisible(), 5000), 'empty week: one button draws the dishes')
+    await card.getByRole('button', { name: 'Tirer 3 recettes' }).click()
+    const rows = card.locator('.fork-week__row')
+    check(await eventually(async () => (await rows.count()) === 3, 5000), '3 dishes drawn on the home')
+    check(await page.locator('.fork-shelf').count() >= 1 && (await page.locator('.fork-recipe-row').count()) >= 4, 'then the shelves and every recipe, one per line')
+    await shot(page, 'home-week')
+    const toggle = card.locator('.fork-week__toggle')
+    await toggle.click()
+    check(await eventually(async () => (await toggle.getAttribute('aria-expanded')) === 'false' && !(await rows.count()), 3000), 'folds to one line')
+    check((await card.locator('.fork-week__strip .fork-thumb').count()) === 3, 'folded: the dishes stay visible as thumbnails')
+    await shot(page, 'home-week-folded')
+    await page.reload({ waitUntil: 'networkidle' })
+    check(await eventually(async () => (await card.locator('.fork-week__toggle').getAttribute('aria-expanded')) === 'false', 4000), 'stays folded after a reload')
+    await card.locator('.fork-week__toggle').click()
+    await eventually(async () => (await rows.count()) === 3, 3000)
+    const names = async () => texts(page, '.fork-week__recipe')
+    const before = await names()
+    await rows.first().getByRole('button', { name: /Retirer/ }).click()
+    check(await eventually(async () => (await rows.count()) === 2, 3000), 'remove from the home')
+    await page.locator('.v-snackbar').getByRole('button', { name: 'Annuler' }).click()
+    check(await eventually(async () => (await rows.count()) === 3, 3000), 'undo')
+    await rows.first().getByRole('button', { name: /Remplacer/ }).click()
+    check(await eventually(async () => (await names())[0] !== before[0], 5000), 'replace from the home')
+    await card.getByRole('link', { name: 'Ajouter au menu' }).click()
+    check(await eventually(() => page.locator('.fork-draw__plan').isVisible(), 5000), '"add to the meal plan" opens the plan sheet')
+    await page.evaluate(() => localStorage.removeItem('fork_recipe_draw'))
+  },
+
+  // draw X recipes at random: a short list, remove or replace one at a time, kept on the device
+  async draw(page) {
+    await page.goto(base + '/', { waitUntil: 'networkidle' })
+    await page.evaluate(() => { localStorage.removeItem('fork_recipe_draw'); localStorage.setItem('fork_recipe_draw_size', '3') })
+    await page.reload({ waitUntil: 'networkidle' }) // the stored values are read when the app starts
+    await page.goto(base + '/recipes/draw', { waitUntil: 'networkidle' })
+    await eventually(() => page.getByRole('button', { name: 'Tirer 3 recettes' }).isVisible())
+    await page.getByRole('button', { name: 'Une recette de moins' }).click()
+    await page.getByRole('button', { name: 'Une recette de plus' }).click()
+    await page.getByRole('button', { name: 'Tirer 3 recettes' }).click()
+    const rows = page.locator('.fork-draw__row')
+    check(await eventually(async () => (await rows.count()) === 3, 5000), '3 recipes drawn')
+    const names = async () => texts(page, '.fork-draw__name')
+    const first = await names()
+    check(new Set(first).size === 3, 'no recipe twice')
+
+    await rows.first().getByRole('button', { name: /Retirer/ }).click()
+    check(await eventually(async () => (await rows.count()) === 2, 3000), 'one removed')
+    await page.locator('.v-snackbar').getByRole('button', { name: 'Annuler' }).click()
+    check(await eventually(async () => (await rows.count()) === 3, 3000), 'undo puts it back')
+
+    await rows.first().getByRole('button', { name: /Remplacer/ }).click()
+    const replaced = await eventually(async () => { const n = await names(); return n[0] !== first[0] && n }, 5000)
+    check(replaced && replaced.length === 3 && new Set(replaced).size === 3, `replaced in place by another recipe (${replaced && replaced[0]})`)
+
+    await page.getByRole('button', { name: 'Une de plus' }).click()
+    check(await eventually(async () => (await rows.count()) === 4, 5000), 'one more added')
+    await page.getByRole('button', { name: 'Une de plus' }).click()
+    check(await eventually(() => page.getByText("Plus d'autre recette qui corresponde.").isVisible(), 5000), 'says when no other recipe is left (4 in the demo)')
+    await shot(page, 'recipe-draw')
+
+    await page.reload({ waitUntil: 'networkidle' })
+    check(await eventually(async () => (await rows.count()) === 4, 4000), 'the list stays on the device after a reload')
+    await page.goto(base + '/', { waitUntil: 'networkidle' })
+    check(await eventually(() => page.locator('.fork-week').getByText('4 plats tirés au sort').isVisible(), 3000), 'the home "this week" card shows the list')
+    await page.goto(base + '/recipes/draw', { waitUntil: 'networkidle' })
+    await eventually(async () => (await rows.count()) === 4, 4000)
+
+    // the drawn list goes to the meal plan (one a day, ingredients to shopping) and to the shopping list alone
+    const ids = async (path) => new Set(((await api(page, 'GET', path)).data.results ?? []).map((x) => x.id))
+    const plansBefore = await ids('/api/meal-plan/?page_size=200')
+    const listsBefore = await ids('/api/shopping-list-recipe/?page_size=200')
+    const entriesBefore = await ids('/api/shopping-list-entry/?page_size=500')
+    const typesBefore = await ids('/api/meal-type/?page_size=100')
+    await page.getByRole('button', { name: 'Ajouter au menu' }).click()
+    const sheet = page.locator('.fork-draw__plan')
+    if (typesBefore.size === 0) {
+      await eventually(() => sheet.getByRole('button', { name: 'Créer « Dîner »' }).isVisible(), 5000)
+      await sheet.getByRole('button', { name: 'Créer « Dîner »' }).click()
+      check(await eventually(async () => (await ids('/api/meal-type/?page_size=100')).size === 1, 5000), 'no meal type yet: "Dîner" created in one tap')
+    }
+    check(await eventually(() => sheet.getByRole('button', { name: 'Planifier 4 repas' }).isEnabled(), 5000), 'plan sheet ready (meal type chosen by default)')
+    await shot(page, 'recipe-draw-plan')
+    const firstDay = await sheet.getByLabel('Premier jour').inputValue()
+    // the 3rd meal fails once: 2 are planned, the retry sends only the 2 others (no duplicate)
+    let posts = 0
+    await page.route('**/api/meal-plan/', (route) => {
+      if (route.request().method() === 'POST' && ++posts === 3) return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' })
+      return route.fallback()
+    })
+    await sheet.getByRole('button', { name: 'Planifier 4 repas' }).click()
+    check(await eventually(() => sheet.getByText("2 sur 4 faits, puis une erreur. Réessayer n'envoie que le reste.").isVisible(), 10000), 'a failure part way says how far it went')
+    await sheet.getByRole('button', { name: 'Planifier 2 repas' }).click()
+    check(await eventually(() => page.getByText('4 repas ajoutés au menu').isVisible(), 10000), 'the retry plans the rest: 4 meals in all')
+    await page.unroute('**/api/meal-plan/')
+    const plans = ((await api(page, 'GET', '/api/meal-plan/?page_size=200')).data.results ?? []).filter((p) => !plansBefore.has(p.id))
+    const days = plans.map((p) => p.from_date.slice(0, 10)).sort()
+    const consecutive = days.every((d, i) => i === 0 || (new Date(d) - new Date(days[i - 1])) / 86400000 === 1)
+    check(plans.length === 4 && new Set(plans.map((p) => p.recipe?.id)).size === 4 && consecutive, `one recipe a day, 4 days in a row, no duplicate (${days.join(', ')})`)
+    check(days[0] === firstDay, `starts on the chosen first day (${firstDay})`)
+    const mealTime = (plans[0]?.meal_type?.time || '12:00').slice(0, 5)
+    check(plans.every((p) => p.meal_type?.id === plans[0].meal_type?.id && p.from_date.includes(`T${mealTime}`)), `same meal for all, at its time (${plans[0]?.meal_type?.name} ${mealTime})`)
+    const plannedLists = ((await api(page, 'GET', '/api/shopping-list-recipe/?page_size=200')).data.results ?? []).filter((l) => !listsBefore.has(l.id))
+    const newEntries = ((await api(page, 'GET', '/api/shopping-list-entry/?page_size=500')).data.results ?? []).filter((x) => !entriesBefore.has(x.id))
+    check(plannedLists.length === 4 && newEntries.length > 0, `their ingredients went to the shopping list (${plannedLists.length} recipes, ${newEntries.length} items)`)
+
+    await page.getByRole('button', { name: 'Ajouter aux courses' }).click()
+    check(await eventually(() => page.locator('.fork-draw__shop').getByText(/sont déjà dans les courses/).isVisible(), 3000), 'warns that these recipes are already on the shopping list')
+    await page.locator('.fork-draw__shop').getByRole('button', { name: 'Ajouter' }).click()
+    check(await eventually(() => page.getByText('4 recettes ajoutées aux courses').isVisible(), 10000), '4 recipes added to shopping')
+    const allLists = ((await api(page, 'GET', '/api/shopping-list-recipe/?page_size=200')).data.results ?? []).filter((l) => !listsBefore.has(l.id))
+    check(allLists.length === 8, `shopping alone adds 4 more recipes (${allLists.length})`)
+
+    // restore
+    for (const p of plans) await api(page, 'DELETE', `/api/meal-plan/${p.id}/`)
+    for (const l of allLists) await api(page, 'DELETE', `/api/shopping-list-recipe/${l.id}/`)
+    for (const e of ((await api(page, 'GET', '/api/shopping-list-entry/?page_size=500')).data.results ?? []).filter((x) => !entriesBefore.has(x.id))) {
+      await api(page, 'DELETE', `/api/shopping-list-entry/${e.id}/`)
+    }
+    check((await ids('/api/meal-plan/?page_size=200')).size === plansBefore.size, 'meal plan restored')
+    for (const id of await ids('/api/meal-type/?page_size=100')) if (!typesBefore.has(id)) await api(page, 'DELETE', `/api/meal-type/${id}/`)
+
+    await page.getByRole('button', { name: 'Vider la liste' }).click()
+    check(await eventually(async () => (await rows.count()) === 0, 3000), 'list cleared')
   },
 
   // P2: servings scale every quantity, cook mode one step per screen
