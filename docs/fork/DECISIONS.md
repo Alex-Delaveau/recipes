@@ -3,6 +3,36 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — cadrage — M7 « Estimation du prix des courses »
+**Contexte** : Alex veut un estimateur de prix. Trois niveaux ont été proposés :
+1. un prix par aliment saisi à la main ;
+2. le même, avec un dictionnaire de prix moyens et le prix au paquet ;
+3. les prix des enseignes en ligne.
+
+**Choix** : Alex retient le niveau 2 et y ajoute une façon simple d'ajuster les prix après les courses, d'après le
+total payé. Le jalon M7 est ajouté à ROADMAP.md.
+- Les prix vivent dans la propriété Prix upstream. Ce qu'elle ne sait pas porter (origine estimé / confirmé, paquet,
+  poids à la pièce) va dans `kitchen/`.
+- L'ajustement au total payé ne touche que les prix « estimés », proportionnellement et lissé. Un prix corrigé à la main
+  devient « confirmé » et ne bouge plus.
+
+**Alternative écartée** : niveau 3 (pas d'API publique, fragile, contraire aux conditions des sites) ; saisir chaque
+article du ticket (trop long).
+**Réversible ?** Oui. Le jalon n'est pas commencé.
+
+## 2026-10-21 — hors jalon — Page « Tirer au sort » en grille de grandes photos
+**Contexte** : Alex trouve les vignettes de la liste tirée trop petites, une recette par ligne.
+**Choix** :
+- Une grille de grandes photos carrées : 2 colonnes sur téléphone, 3 sur tablette, 4 sur ordinateur. Le nom et la
+  durée sont en dessous.
+- « Remplacer » et « Retirer » sont deux boutons ronds de 44 px posés sur la photo, avec un fond clair lisible sur
+  toute image.
+- Les boutons du bas prennent les libellés courts de la carte de l'accueil, « Au menu » et « Aux courses » ; le
+  libellé complet reste pour les lecteurs d'écran.
+- La carte « Cette semaine » de l'accueil garde ses lignes compactes : elle doit rester courte au-dessus des étagères.
+**Alternative écartée** : une bascule liste / grille (inutile pour 5 à 10 plats).
+**Réversible ?** Oui.
+
 ## 2026-10-21 — hors jalon — Recadrer la photo d'une recette (import et saisie)
 **Contexte** : à l'import depuis Jow, l'image est prise telle quelle. Alex veut pouvoir la recadrer et la redimensionner.
 **Choix** :

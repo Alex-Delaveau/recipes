@@ -28,37 +28,36 @@
 
         <template v-if="drawnRecipes.length">
             <h2 class="fork-draw__section mt-6">{{ $t('Fork_Draw_List', {n: drawnRecipes.length}, drawnRecipes.length) }}</h2>
-            <v-list class="py-0" bg-color="transparent">
-                <v-list-item v-for="r in drawnRecipes" :key="r.id" class="fork-draw__row" min-height="72">
-                    <template #prepend>
-                        <v-avatar size="56" rounded="lg" class="me-3 fork-draw__thumb">
-                            <v-img v-if="r.image" :src="r.image" cover :alt="r.name"></v-img>
-                            <v-icon v-else icon="$recipes" size="22"></v-icon>
-                        </v-avatar>
-                    </template>
-                    <v-list-item-title class="fork-draw__name">
-                        <router-link :to="{name: 'RecipeViewPage', params: {id: r.id}}" class="fork-draw__link">{{ r.name }}</router-link>
-                    </v-list-item-title>
-                    <v-list-item-subtitle v-if="r.totalTime > 0">
+            <!-- big photos, two per row on a phone: the dishes are recognised at a glance -->
+            <div class="fork-draw__grid">
+                <article v-for="r in drawnRecipes" :key="r.id" class="fork-draw__row">
+                    <div class="fork-draw__photo">
+                        <router-link :to="{name: 'RecipeViewPage', params: {id: r.id}}" tabindex="-1" aria-hidden="true">
+                            <fork-recipe-thumb :name="r.name" :image="r.image" :size="96" fluid></fork-recipe-thumb>
+                        </router-link>
+                        <div class="fork-draw__actions">
+                            <v-btn icon variant="flat" size="44" rounded="circle" class="fork-draw__action" :aria-label="$t('Fork_Draw_Replace', {name: r.name})"
+                                   :loading="replacing == r.id" :disabled="busy && replacing != r.id" @click="replace(r)">
+                                <v-icon icon="fa-solid fa-shuffle" size="15"></v-icon>
+                            </v-btn>
+                            <v-btn icon variant="flat" size="44" rounded="circle" class="fork-draw__action" :aria-label="$t('Fork_Draw_Remove', {name: r.name})"
+                                   :disabled="busy" @click="remove(r)">
+                                <v-icon icon="fa-solid fa-xmark" size="17"></v-icon>
+                            </v-btn>
+                        </div>
+                    </div>
+                    <router-link :to="{name: 'RecipeViewPage', params: {id: r.id}}" class="fork-draw__link fork-draw__name">{{ r.name }}</router-link>
+                    <span class="fork-draw__time" v-if="r.totalTime > 0">
                         <v-icon icon="fa-regular fa-clock" size="12" class="me-1"></v-icon>{{ r.totalTime }} {{ $t('min') }}
-                    </v-list-item-subtitle>
-                    <template #append>
-                        <v-btn icon variant="text" size="44" :aria-label="$t('Fork_Draw_Replace', {name: r.name})" :loading="replacing == r.id"
-                               :disabled="busy && replacing != r.id" @click="replace(r)">
-                            <v-icon icon="fa-solid fa-shuffle" size="16"></v-icon>
-                        </v-btn>
-                        <v-btn icon variant="text" size="44" :aria-label="$t('Fork_Draw_Remove', {name: r.name})" :disabled="busy" @click="remove(r)">
-                            <v-icon icon="fa-solid fa-xmark" size="18"></v-icon>
-                        </v-btn>
-                    </template>
-                </v-list-item>
-            </v-list>
+                    </span>
+                </article>
+            </div>
             <p class="text-body-2 text-medium-emphasis mt-2" v-if="exhausted">{{ $t('Fork_Draw_No_More') }}</p>
 
             <!-- the drawn week goes to the meal plan (one recipe a day) and/or the shopping list -->
             <div class="fork-draw__use mt-4">
-                <v-btn color="primary" variant="flat" size="large" prepend-icon="fa-solid fa-calendar-plus" :disabled="busy" @click="openPlan()">{{ $t('Fork_Draw_To_Plan') }}</v-btn>
-                <v-btn color="primary" variant="outlined" size="large" prepend-icon="$shopping" :disabled="busy" @click="openShop()">{{ $t('Fork_Draw_To_Shopping') }}</v-btn>
+                <v-btn color="primary" variant="flat" size="large" prepend-icon="fa-solid fa-calendar-plus" :disabled="busy" :aria-label="$t('Fork_Draw_To_Plan')" @click="openPlan()">{{ $t('Fork_Week_To_Plan') }}</v-btn>
+                <v-btn color="primary" variant="outlined" size="large" prepend-icon="$shopping" :disabled="busy" :aria-label="$t('Fork_Draw_To_Shopping')" @click="openShop()">{{ $t('Fork_Week_To_Shopping') }}</v-btn>
             </div>
             <div class="d-flex flex-wrap ga-2 mt-4">
                 <v-btn variant="tonal" size="large" prepend-icon="fa-solid fa-plus" :loading="adding" :disabled="busy && !adding" @click="addOne()">{{ $t('Fork_Draw_Add_One') }}</v-btn>
@@ -144,6 +143,7 @@ import {ApiApi, MealType} from "@/openapi";
 import {ErrorMessageType, useMessageStore} from "@/stores/MessageStore";
 import {DrawnRecipe, drawnRecipes, drawRecipes, drawSize, planDay, planDraw, shopDraw} from "@/fork/recipeDraw";
 import {forkHomeFilters} from "@/fork/homeFilters";
+import ForkRecipeThumb from "@/fork/components/ForkRecipeThumb.vue";
 
 const {t, d} = useI18n()
 const route = useRoute()
@@ -413,15 +413,63 @@ function clear() {
     border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 
+.fork-draw__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--fork-space-4) var(--fork-space-3);
+    margin-top: var(--fork-space-3);
+}
+
+@media (min-width: 600px) {
+    .fork-draw__grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 960px) {
+    .fork-draw__grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
 .fork-draw__row {
-    padding-inline: 0 !important;
-    border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+    display: flex;
+    flex-direction: column;
+    gap: var(--fork-space-1);
+    min-width: 0;
+}
+
+.fork-draw__photo {
+    position: relative;
+}
+
+/* replace / remove on the photo, readable on any picture */
+.fork-draw__actions {
+    position: absolute;
+    top: var(--fork-space-1);
+    right: var(--fork-space-1);
+    display: flex;
+    gap: var(--fork-space-1);
+}
+
+.fork-draw__action {
+    background: rgba(var(--v-theme-surface-bright), 0.92) !important;
+    color: rgb(var(--v-theme-on-surface)) !important;
 }
 
 .fork-draw__name {
     font-size: var(--fork-text-md);
     font-weight: 600;
-    white-space: normal;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.fork-draw__time {
+    font-size: var(--fork-text-sm);
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .fork-draw__use {
@@ -445,7 +493,6 @@ function clear() {
 .fork-draw__link {
     color: inherit;
     text-decoration: none;
-    display: inline-block;
     min-height: 24px;
 }
 
@@ -453,10 +500,6 @@ function clear() {
     text-decoration: underline;
 }
 
-.fork-draw__thumb {
-    background: rgb(var(--v-theme-surface-variant));
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
 
 /* keep the undo bar above the bottom navigation */
 .fork-draw__snackbar :deep(.v-snackbar__wrapper) {
