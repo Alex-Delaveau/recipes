@@ -3,6 +3,86 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-20 — M3 — Héritage du rayon géré par le fork, pas par `Space.food_inherit`
+**Contexte** : les propositions M0 suggéraient d'activer `supermarket_category` dans `Space.food_inherit`. En pratique :
+- ce réglage n'est appliqué à aucun aliment existant ou nouveau ;
+- il faut passer par `Food.reset_inheritance`, qui efface les liens d'héritage de **tous** les espaces (bug upstream) ;
+- un membre suit ensuite toujours sa famille et ne peut plus avoir un autre rayon.
+
+**Choix** : le fork applique la règle « un aliment hérite du rayon de sa famille par défaut » dans `kitchen/services.py` :
+- un aliment créé dans une famille prend son rayon ;
+- un aliment déplacé dans une famille prend son rayon ;
+- quand le rayon d'une famille change, ses membres le suivent, sauf ceux dont l'utilisateur a choisi le rayon.
+
+Les champs upstream ne changent pas de sens.
+**Alternative écartée** : `Space.food_inherit` + `reset_inheritance` (bug multi-espaces, pas d'exception possible).
+**Réversible ?** Oui.
+
+## 2026-10-20 — M3 — Rayon suggéré appliqué tout de suite, puis confirmé
+**Contexte** : SPEC.md veut un rayon suggéré à chaque création d'aliment, confirmé en un tap, et une file « à ranger ».
+**Choix** :
+- à la création d'un aliment (signal `post_save`, donc import, saisie, liste de courses et API), le fork calcule une
+  suggestion : rayon de la famille, puis dictionnaire français (`kitchen/aisles.py`, environ 300 aliments courants),
+  puis rayon d'un aliment au nom proche ;
+- la suggestion est **appliquée aussitôt** : la liste de courses est triée sans attendre ;
+- l'aliment reste « non confirmé » et entre dans la file « à ranger », où un tap confirme ou corrige le rayon.
+
+Un aliment créé avec un rayon (choisi par l'utilisateur, ou venu de l'open data) est déjà confirmé. Les espaces qui
+n'ont jamais ouvert les écrans du fork ne sont pas touchés, ce qui garde intacts les tests upstream.
+**Alternative écartée** : ne rien écrire avant confirmation. Les articles resteraient « sans rayon » jusqu'au tri,
+contre le critère de succès n° 1.
+**Réversible ?** Oui.
+
+## 2026-10-20 — M3 — Ordre générique = un `Supermarket` upstream
+**Choix** :
+- un `Supermarket` « Ordre générique », créé au premier usage, ordonne les rayons
+  (`SupermarketCategoryRelation.order`) ;
+- les catégories existantes sont reprises quand leur nom correspond (« Crèmerie » tient lieu de « Frais »,
+  « Fruits & légumes » de « Fruits et légumes ») ; les rayons manquants sont créés ; les autres catégories viennent
+  après ;
+- la liste de courses du fork suit cet ordre quand aucun magasin n'est choisi sur l'appareil. L'ordre se règle dans
+  Aliments › Ordre des rayons (boutons monter/descendre, sans glisser-déposer).
+
+**Alternative écartée** : une table d'ordre dans `kitchen/` (doublon de ce que fait upstream).
+**Réversible ?** Oui.
+
+## 2026-10-20 — M3 — Familles
+**Contexte** : dans l'arbre upstream, rien ne distingue une famille vide d'un aliment isolé.
+**Choix** : une famille est un aliment de premier niveau qui a des enfants, ou qui est marqué « famille »
+(`KitchenFood.is_family`, interrupteur dans la feuille d'édition). Les aliments de premier niveau qui ne sont pas des
+familles sont regroupés sous « Sans famille ». Les niveaux plus profonds s'affichent dans leur famille de premier niveau.
+Les familles sont dépliées par défaut tant qu'il y a 80 aliments au plus.
+**Réversible ?** Oui.
+
+## 2026-10-20 — M3 — Règle de similarité des doublons
+**Choix** : `kitchen/names.py`, une règle simple et explicable, testée sur des exemples français. Deux noms sont
+probablement le même aliment dans trois cas :
+- ils ne diffèrent que par les majuscules, les accents, le pluriel, une quantité ou un mot de préparation
+  (« émincé », « frais », « bio ») ;
+- les mots de l'un sont tous dans l'autre, avec au plus deux mots en plus (« oignon » / « oignon jaune ») ;
+- leur orthographe est proche (≥ 88 %).
+
+Les noms composés avec une préposition restent distincts : « pomme de terre », « lait de coco », « huile d'olive ».
+Côté écran, on garde l'aliment le plus utilisé, puis le nom le plus court ; un bouton inverse le choix. « Pas un
+doublon » mémorise la paire (`NotDuplicate`).
+**Réversible ?** Oui.
+
+## 2026-10-20 — M3 — Fusion upstream, alias côté client
+**Choix** : la fusion appelle l'API upstream (`PUT /api/food/{id}/merge/{target}/`), puis crée l'alias `FOOD_ALIAS`
+(nom fusionné → nom gardé), exactement comme `ModelMergeDialog`. Pour que la fusion générique upstream fonctionne
+encore, la relation inverse de `KitchenFood` est masquée (`related_name='+'`) : sinon `MergeMixin` rencontre un
+OneToOne qu'il ne sait pas traiter. Un test pytest le garantit.
+**Réversible ?** Oui.
+
+## 2026-10-20 — M3 — Relecture d'import : proposition d'aliment proche
+**Choix** : un encart « Aliments inconnus » est inséré dans l'étape « Étapes » de l'assistant d'import upstream
+(3 lignes dans `RecipeImportPage.vue`). Pour chaque aliment inconnu (nom, pluriel ou alias), il propose l'aliment
+existant le plus proche :
+- « Utiliser l'existant » renomme l'ingrédient et crée l'alias ;
+- « Garder le nouveau » laisse créer l'aliment, qui recevra un rayon suggéré.
+
+**Réversible ?** Oui.
+
 ## 2026-10-20 — M2 — Branches par jalon
 **Contexte** : l'objectif de session demande une branche et une PR par jalon (M2, M3, M4), chaque branche partant de
 la précédente tant que sa PR n'est pas fusionnée. En M0 et M1, la session imposait une branche `claude/...`.

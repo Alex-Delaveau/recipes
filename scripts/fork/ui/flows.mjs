@@ -219,6 +219,136 @@ const FLOWS = {
     check(await eventually(async () => (await rowsToCheck.count()) === total, 4000), 'undo restores every item')
     await page.waitForTimeout(1500)
   },
+
+  // M3: food tree, move in 2 taps, quick edit, "no aisle" filter
+  async foods(page) {
+    await page.goto(base + '/foods', { waitUntil: 'networkidle' })
+    const family = page.locator('.fork-foods__family', { hasText: 'Légumes' })
+    check(await eventually(() => family.isVisible()), 'families listed (Légumes)')
+    check(await page.locator('.fork-foods__row', { hasText: 'Courgette' }).isVisible(), 'members listed under their family')
+    check(!(await page.locator('table').count()), 'no table on the food screen')
+    await family.locator('.fork-foods__family-toggle').click()
+    check(!(await page.locator('.fork-foods__row', { hasText: 'Courgette' }).count()), 'family folds')
+    await family.locator('.fork-foods__family-toggle').click()
+
+    await page.getByPlaceholder('Rechercher un aliment').fill('echal')
+    const found = await eventually(async () => { const t = await texts(page, '.fork-foods__name'); return t.length === 2 && t })
+    check(found && found.every((t) => /chalote/i.test(t)), 'instant search ignores accents and case')
+    await page.getByPlaceholder('Rechercher un aliment').fill('')
+
+    // move "Citron" into "Légumes": move button, then the family
+    const citron = page.locator('.fork-foods__row', { hasText: /^\s*Citron/ })
+    await citron.getByRole('button', { name: 'Déplacer vers une autre famille' }).click()
+    await page.locator('.v-bottom-sheet .v-list-item', { hasText: 'Légumes' }).click()
+    const moved = await eventually(async () => (await page.locator('.fork-foods__group', { has: page.locator('.fork-foods__family', { hasText: 'Légumes' }) })
+      .locator('.fork-foods__row', { hasText: /^\s*Citron/ }).count()) === 1)
+    check(moved, 'food moved to another family in 2 taps')
+    await page.locator('.fork-foods__row', { hasText: /^\s*Citron/ }).getByRole('button', { name: 'Déplacer vers une autre famille' }).click()
+    await page.locator('.v-bottom-sheet .v-list-item', { hasText: 'Aucune famille' }).click()
+    check(await eventually(async () => (await page.locator('.fork-foods__group', { hasText: 'Sans famille' }).locator('.fork-foods__row', { hasText: /^\s*Citron/ }).count()) === 1),
+      'moved back to the top level')
+
+    // quick edit in a bottom sheet: never in shopping
+    await page.locator('.fork-foods__row', { hasText: /^\s*Citron/ }).click()
+    const sheet = page.locator('.fork-food-sheet')
+    await sheet.getByLabel('Jamais en courses').check()
+    await sheet.getByRole('button', { name: 'Sauvegarder' }).click()
+    check(await eventually(() => page.locator('.fork-foods__row', { hasText: /^\s*Citron/ }).getByText('Jamais en courses').isVisible()), 'quick edit saved without leaving the page')
+    await page.locator('.fork-foods__row', { hasText: /^\s*Citron/ }).click()
+    await sheet.getByLabel('Jamais en courses').uncheck()
+    await sheet.getByRole('button', { name: 'Sauvegarder' }).click()
+    await page.waitForTimeout(800)
+  },
+
+  // M3: "to sort" queue, one tap per aisle; a food created from the shopping list gets its aisle
+  async tosort(page) {
+    const created = await api(page, 'POST', '/api/food/', { name: 'Aaa navets flow' })
+    check(created.status === 201, 'food created (as an import or a typed line would)')
+    const food = (await api(page, 'GET', `/api/food/${created.data.id}/`)).data
+    check(food.supermarket_category?.name === 'Fruits & légumes', `suggested aisle applied at creation (${food.supermarket_category?.name})`)
+    await page.goto(base + '/foods/to-sort', { waitUntil: 'networkidle' })
+    await eventually(() => page.locator('.fork-sort__food').isVisible())
+    check((await page.locator('.fork-sort__food').innerText()).includes('Aaa navets flow'), 'new food waits in the queue')
+    const left = await page.locator('text=/encore \\d+/').innerText()
+    await page.locator('.fork-sort__aisle', { hasText: 'Épicerie salée' }).click()
+    check(await eventually(async () => !(await page.locator('.fork-sort__food', { hasText: 'Aaa navets flow' }).count())), 'one tap files it and shows the next food')
+    const after = (await api(page, 'GET', `/api/food/${food.id}/`)).data
+    check(after.supermarket_category?.name === 'Épicerie salée', 'aisle saved')
+    check(left !== (await page.locator('text=/encore \\d+|Tous les aliments/').first().innerText()), 'queue counter decreases')
+    await api(page, 'DELETE', `/api/food/${food.id}/`)
+  },
+
+  // M3: generic aisle order, set once, followed by the shopping list
+  async aisles(page) {
+    await page.goto(base + '/foods/aisles', { waitUntil: 'networkidle' })
+    await eventually(() => page.locator('.fork-aisles__row').first().isVisible())
+    const before = await texts(page, '.fork-aisles__name')
+    check(before[0].includes('légumes') && before[before.length - 1].length > 0, 'generic order starts with fruits and vegetables')
+    await page.getByRole('button', { name: /^Descendre/ }).first().click()
+    const changed = await eventually(async () => { const t = await texts(page, '.fork-aisles__name'); return t[1] === before[0] && t })
+    check(changed, 'an aisle moves down')
+    await page.reload({ waitUntil: 'networkidle' })
+    check((await texts(page, '.fork-aisles__name'))[1] === before[0], 'order saved')
+    await page.locator('.fork-aisles__row').nth(1).getByRole('button', { name: /^Monter/ }).click()
+    check(await eventually(async () => (await texts(page, '.fork-aisles__name'))[0] === before[0]), 'order restored')
+    await page.waitForTimeout(500)
+
+    await page.goto(base + '/shopping', { waitUntil: 'networkidle' })
+    await eventually(() => page.locator('.fork-shopping__aisle').first().isVisible())
+    const aisles = (await texts(page, '.fork-shopping__aisle')).filter((t) => !/PANIER/.test(t))
+    const rank = (t) => before.findIndex((b) => b.split('\n')[0].toUpperCase().trim() === t.trim())
+    const ranks = aisles.map(rank)
+    check(ranks.every((r, i) => r >= 0 && (i === 0 || r > ranks[i - 1])), `shopping list follows the generic order (${aisles.join(' / ')})`)
+  },
+
+  // M3: probable duplicates, merge with preview, FOOD_ALIAS created
+  async duplicates(page) {
+    const a = (await api(page, 'POST', '/api/food/', { name: 'Zzflow poireau' })).data
+    const b = (await api(page, 'POST', '/api/food/', { name: 'zzflow poireaux' })).data
+    await page.goto(base + '/foods/duplicates', { waitUntil: 'networkidle' })
+    const card = page.locator('.v-card', { hasText: /zzflow poireaux/i }).filter({ hasText: /Zzflow poireau\b/ })
+    check(await eventually(() => card.first().isVisible()), 'plural duplicate proposed')
+    check((await card.first().innerText()).includes('À rattacher à'), 'merge preview shown (recipes and items)')
+    await card.first().getByRole('button', { name: 'Fusionner' }).click()
+    await page.locator('.v-dialog').getByRole('button', { name: 'Fusionner' }).click()
+    check(await eventually(async () => !(await card.count()), 5000), 'pair gone after the merge')
+    const left = [(await api(page, 'GET', `/api/food/${a.id}/`)).status, (await api(page, 'GET', `/api/food/${b.id}/`)).status]
+    check(left.filter((s) => s === 200).length === 1, 'one food left')
+    const autos = (await api(page, 'GET', '/api/automation/?page_size=100')).data
+    const alias = (autos.results ?? autos).find((x) => x.type === 'FOOD_ALIAS' && /zzflow/i.test(x.param_1 || ''))
+    check(alias && /zzflow/i.test(alias.param_2), `FOOD_ALIAS created (${alias?.param_1} -> ${alias?.param_2})`)
+    if (alias) await api(page, 'DELETE', `/api/automation/${alias.id}/`)
+    for (const f of [a, b]) await api(page, 'DELETE', `/api/food/${f.id}/`)
+  },
+
+  // M3: URL import review proposes the closest existing food; choosing it creates a FOOD_ALIAS
+  async importreview(page) {
+    const jsonld = JSON.stringify({ '@context': 'https://schema.org', '@type': 'Recipe', name: 'Flow import test',
+      recipeIngredient: ['1 Citrons', '100 g Gingembre'], recipeInstructions: [{ '@type': 'HowToStep', text: 'Mélanger.' }] })
+    await page.goto(base + '/recipe/import', { waitUntil: 'networkidle' })
+    await page.locator('.v-card', { hasText: 'JSON/HTML' }).first().click()
+    await page.getByRole('button', { name: 'Suivant' }).first().click()
+    await page.locator('textarea').first().fill(`<script type="application/ld+json">${jsonld}</` + 'script>')
+    await page.getByRole('button', { name: 'Chargement' }).click()
+    const card = page.locator('.fork-matches')
+    // walk the wizard (image, keywords...) up to the step editor
+    for (let i = 0; i < 5 && !(await card.isVisible()); i++) {
+      await page.waitForTimeout(800)
+      if (await card.isVisible()) break
+      await page.locator('button:visible', { hasText: /^\s*Suivant\s*$/ }).last().click().catch(() => {})
+    }
+    check(await eventually(() => card.isVisible(), 10000), 'unknown foods listed in the import review')
+    const text = await card.innerText()
+    check(/Citrons\s*\S*\s*Citron/.test(text.replace(/\n/g, ' ')), 'closest existing food proposed (Citrons -> Citron)')
+    await card.locator('.fork-matches__row', { hasText: 'Citrons' }).getByRole('button', { name: "Utiliser l'existant" }).click()
+    check(await eventually(async () => !(await card.locator('.fork-matches__row', { hasText: 'Citrons' }).count())), 'choice applied')
+    const chips = await texts(page, '.v-stepper-window .v-chip')
+    check(chips.some((c) => c.trim() === 'Citron') && !chips.some((c) => c.trim() === 'Citrons'), 'ingredient now uses the existing food')
+    const autos = (await api(page, 'GET', '/api/automation/?page_size=100')).data
+    const alias = (autos.results ?? autos).find((x) => x.type === 'FOOD_ALIAS' && x.param_1 === 'Citrons')
+    check(alias && alias.param_2 === 'Citron', 'FOOD_ALIAS Citrons -> Citron created')
+    if (alias) await api(page, 'DELETE', `/api/automation/${alias.id}/`)
+  },
 }
 
 async function main() {
@@ -251,6 +381,8 @@ async function main() {
       await flow(page, ctx)
     } catch (e) {
       check(false, `flow crashed: ${String(e).split('\n')[0]}`)
+      await page.screenshot({ path: join(ROOT, `.fork/flow-${name}.png`) }).catch(() => {})
+      console.log(`    [info] screenshot: .fork/flow-${name}.png; ${String(e).split('\n').slice(1, 4).join(' ')}`)
     }
   }
   if (errors.length) {

@@ -127,6 +127,7 @@ import {isEntryVisible} from "@/utils/logic_utils";
 import {pluralString} from "@/utils/model_utils";
 import {roundDecimals} from "@/utils/number_utils";
 import ShoppingListView from "@/components/display/ShoppingListView.vue";
+import {listAisles} from "@/fork/api";
 import ShoppingLineItemDialog from "@/components/dialogs/ShoppingLineItemDialog.vue";
 
 type ShoppingFood = NonNullable<ShoppingListEntry['food']>
@@ -179,7 +180,10 @@ function rowsOf(entries: ShoppingListEntry[]): ShoppingRow[] {
     }).sort((a, b) => a.label.localeCompare(b.label))
 }
 
-/** what is left to buy, grouped by aisle in the order of the selected supermarket (alphabetical otherwise) */
+/** generic aisle order of the fork (kitchen), used when no supermarket is selected on this device */
+const genericOrder = ref<string[]>([])
+
+/** what is left to buy, grouped by aisle in the order of the selected supermarket, else the generic order */
 const toBuy = computed<AisleGroup[]>(() => {
     const groups = new Map<string, ShoppingListEntry[]>()
     visibleEntries.value.filter(e => !e.checked).forEach(e => {
@@ -187,7 +191,7 @@ const toBuy = computed<AisleGroup[]>(() => {
         groups.set(name, [...(groups.get(name) ?? []), e])
     })
     const supermarket = useUserPreferenceStore().deviceSettings.shopping_selected_supermarket
-    const order = supermarket ? supermarket.categoryToSupermarket.map(c => c.category.name) : []
+    const order = supermarket ? supermarket.categoryToSupermarket.map(c => c.category.name) : genericOrder.value
     const rank = (name: string) => {
         if (name == '') return Number.MAX_SAFE_INTEGER // no aisle: last, so the walk through the shop comes first
         const i = order.indexOf(name)
@@ -270,6 +274,10 @@ onMounted(() => {
     useShoppingStore().autoSyncHasFocus = document.visibilityState === 'visible'
     useShoppingStore().refreshFromAPI()
     useShoppingStore().loadShoppingLists()
+    listAisles().then(r => {
+        genericOrder.value = r.aisles.map(a => a.name)
+    }).catch(() => {
+    })
     if (useUserPreferenceStore().deviceSettings.shopping_selected_supermarket != null) {
         // aisle order may have changed on another device
         new ApiApi().apiSupermarketRetrieve({id: useUserPreferenceStore().deviceSettings.shopping_selected_supermarket!.id!}).then(r => {
