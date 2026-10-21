@@ -127,6 +127,32 @@ const FLOWS = {
     check(await eventually(async () => (await recent.getAttribute('aria-pressed')) === 'false', 3000), 'tapping it again switches it off')
   },
 
+  // every recipe: a preview on the home, "see all" opens a grid grouped by letter, a letter bar, a list view, a search
+  async allrecipes(page) {
+    await page.goto(base + '/', { waitUntil: 'networkidle' })
+    const total = (await api(page, 'GET', '/api/kitchen/recipes/?page_size=1')).data.count
+    check(await eventually(async () => (await page.locator('.fork-home__list .fork-recipe-row').count()) === Math.min(total, 6), 5000), `home shows a preview of every recipe (${Math.min(total, 6)})`)
+    await page.locator('.fork-home__all').getByRole('link', { name: 'Tout voir' }).click()
+    await page.waitForURL('**/recipes/all')
+    await page.evaluate(() => localStorage.removeItem('fork_all_recipes_view'))
+    await page.reload({ waitUntil: 'networkidle' })
+    const cards = page.locator('.fork-all__card')
+    check(await eventually(async () => (await cards.count()) === total, 5000), `all ${total} recipes, as a grid by default`)
+    const letters = await texts(page, '.fork-all__group-letter')
+    check(letters.length >= 2 && letters.join('') === [...letters].sort().join(''), `grouped by letter, in order (${letters.join(' ')})`)
+    await shot(page, 'recipes-all')
+    const last = letters[letters.length - 1]
+    await page.locator('.fork-all__letter', { hasText: new RegExp(`^${last}$`) }).click()
+    check(await eventually(async () => page.evaluate((l) => { const r = document.getElementById('fork-letter-' + l).getBoundingClientRect(); return r.top >= 0 && r.top < 260 }, last), 3000), `the letter bar jumps to "${last}"`)
+    await page.getByRole('button', { name: 'Afficher en liste' }).click()
+    check(await eventually(async () => (await page.locator('.fork-all__list .fork-recipe-row').count()) === total, 3000), 'list view')
+    await page.reload({ waitUntil: 'networkidle' })
+    check(await eventually(async () => (await page.locator('.fork-all__list .fork-recipe-row').count()) === total, 5000), 'the chosen view stays after a reload')
+    await page.getByPlaceholder('Rechercher une recette').fill('carbo')
+    check(await eventually(async () => (await page.locator('.fork-recipe-row').count()) === 1, 3000), 'search narrows the list')
+    await page.evaluate(() => localStorage.removeItem('fork_all_recipes_view'))
+  },
+
   // home "this week" card: the drawn dishes first, folds to one line (kept on the device), replace / remove / undo
   async week(page) {
     await page.goto(base + '/', { waitUntil: 'networkidle' })

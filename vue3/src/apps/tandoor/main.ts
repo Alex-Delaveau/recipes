@@ -17,6 +17,7 @@ import {TANDOOR_PLUGINS, TandoorPlugin} from "@/types/Plugins.ts";
 let routes = [
     {path: '/', component: () => import("@/fork/pages/ForkRecipesHome.vue"), name: 'StartPage'}, // fork: recipes home (P1)
     {path: '/search', redirect: {name: 'StartPage'}},
+    {path: '/recipes/all', component: () => import("@/fork/pages/ForkAllRecipesPage.vue"), name: 'ForkAllRecipesPage', meta: {title: 'Recipes'}}, // fork: every recipe, to browse
     {path: '/recipes/draw', component: () => import("@/fork/pages/ForkRecipeDrawPage.vue"), name: 'ForkRecipeDrawPage', meta: {title: 'Recipes'}}, // fork: draw X recipes
     {path: '/test', component: () => import("@/pages/TestPage.vue"), name: 'view_test'},
     {path: '/welcome', component: () => import("@/pages/WelcomePage.vue"), name: 'WelcomePage', meta: {title: 'Welcome'}},
