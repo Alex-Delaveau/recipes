@@ -27,12 +27,20 @@
         <!-- phone: what is planned today; the desktop has the week banner below -->
         <fork-menu-card v-if="!mdAndUp"></fork-menu-card>
 
-        <!-- shortcuts: browse without a filter -->
-        <v-chip-group v-model="filters.sort" column selected-class="text-primary" class="mt-2 fork-home__shortcuts">
-            <v-chip value="recent" filter variant="outlined" prepend-icon="fa-solid fa-clock-rotate-left">{{ $t('Fork_Shortcut_Recent') }}</v-chip>
-            <v-chip value="random" filter variant="outlined" prepend-icon="fa-solid fa-shuffle" @click.capture="reshuffle">{{ $t('Fork_Shortcut_Random') }}</v-chip>
-            <v-chip value="forgotten" filter variant="outlined" prepend-icon="fa-solid fa-hourglass-half">{{ $t('Fork_Shortcut_Forgotten') }}</v-chip>
-        </v-chip-group>
+        <!-- shortcuts: browse without a filter (tap again to switch off); the draw has its own page -->
+        <div class="d-flex flex-wrap align-center ga-2 mt-2 fork-home__shortcuts">
+            <v-chip :to="{name: 'ForkRecipeDrawPage'}" variant="flat" color="primary" prepend-icon="fa-solid fa-dice">
+                {{ $t('Fork_Draw') }}<span v-if="drawnRecipes.length" class="ms-1">({{ drawnRecipes.length }})</span>
+            </v-chip>
+            <v-chip-group v-model="filters.sort" selected-class="fork-home__chip--on" class="py-0">
+                <v-chip value="recent" variant="outlined" prepend-icon="fa-solid fa-clock-rotate-left" :aria-pressed="filters.sort == 'recent'">
+                    {{ $t('Fork_Shortcut_Recent') }}
+                </v-chip>
+                <v-chip value="forgotten" variant="outlined" prepend-icon="fa-solid fa-hourglass-half" :aria-pressed="filters.sort == 'forgotten'">
+                    {{ $t('Fork_Shortcut_Forgotten') }}
+                </v-chip>
+            </v-chip-group>
+        </div>
 
         <!-- active filters, removable in one tap -->
         <div class="d-flex flex-wrap ga-2 mt-1" v-if="activeFilterCount > 0">
@@ -132,6 +140,7 @@ import {useDisplay} from "vuetify";
 import {ApiApi} from "@/openapi";
 import {KitchenRecipe, listKitchenRecipes} from "@/fork/api";
 import {forkHomeFilters as filters} from "@/fork/homeFilters";
+import {drawnRecipes} from "@/fork/recipeDraw";
 import ForkRecipeCard from "@/fork/components/ForkRecipeCard.vue";
 import ForkModelAutocomplete from "@/fork/components/ForkModelAutocomplete.vue";
 import ForkMenuCard from "@/fork/components/ForkMenuCard.vue";
@@ -185,15 +194,6 @@ function reload() {
     loadPage(1)
 }
 
-function reshuffle() {
-    // tapping "random" again draws a new selection instead of switching the shortcut off
-    if (filters.sort == 'random') {
-        setTimeout(() => {
-            filters.sort = 'random'
-        })
-    }
-}
-
 function resetFilters() {
     filters.have = []
     filters.keywords = []
@@ -222,6 +222,13 @@ onMounted(() => {
 <style scoped>
 .fork-home__shortcuts :deep(.v-chip) {
     min-height: var(--fork-tap);
+}
+
+/* selected shortcut: filled, a single icon (no extra check mark next to the shortcut's own icon) */
+.fork-home__shortcuts :deep(.fork-home__chip--on) {
+    background: rgba(var(--v-theme-primary), 0.12);
+    border-color: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-primary));
 }
 
 .fork-home__section {
