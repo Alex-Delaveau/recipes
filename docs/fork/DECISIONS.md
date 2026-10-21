@@ -3,6 +3,18 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — hors jalon — Doublons : variétés d'un nom composé
+**Contexte** : « Pomme de terre », « Pomme de terre à chair ferme » et « Pomme de terre Yukon Gold » n'étaient pas
+proposés comme doublons. La règle « mêmes mots + au plus 2 de plus » était coupée dès que le nom long contenait une
+préposition. Le but était de séparer « Pomme » de « Pomme de terre », mais la coupure touchait aussi les variétés.
+**Choix** : la règle s'applique quand le nom long commence par le nom composé entier (« Pomme de terre » + « à chair
+ferme »). « Pomme » / « Pomme de terre », « Lait » / « Lait de coco » et « Poulet » / « Poulet au curry » restent
+séparés. Cas limite assumé : « Pomme de terre douce » serait proposé, et « Pas un doublon » l'écarte une fois pour
+toutes.
+**Alternative écartée** : les traiter en famille plutôt qu'en doublons. Si Alex veut garder les variétés, il les
+écarte et les range dans une famille « Pomme de terre ».
+**Réversible ?** Oui.
+
 ## 2026-10-21 — hors jalon — Nettoyage des aliments : noms abîmés, « À ranger », doublons
 **Contexte** : Alex a 439 aliments « sans famille ». Beaucoup sont des noms abîmés par d'anciens imports (« à café
 coriandre en poudre », « à soupe d'huile », « d'eau + 30 ml »). « À ranger » n'offre pas d'issue pour un aliment qui ne
