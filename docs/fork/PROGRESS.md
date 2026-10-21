@@ -401,3 +401,16 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
   d'articles) et annulation. Seulement ce que l'appareil affiche ; grisé hors ligne. Aucun changement backend.
 - Parcours cliqué `clearshopping` : panier retiré côté serveur, « Annuler » ne supprime rien, liste vidée, les deux
   annulations recréent tout, données de démo remises en place.
+
+## 2026-10-21 — Nettoyage des aliments (demande d'Alex)
+- « Noms à corriger » : noms abîmés par les imports corrigés (fusion avec l'aliment existant ou renommage, ancien nom en
+  alias), un par un, « Autre nom… », « Garder ce nom » ou « Tout corriger ». Carte sur la page Aliments.
+- Parseur : « c.s. », « c.c. », « cuillerée(s) », « + 30 ml » hors du nom.
+- À ranger : Renommer, Jamais en courses, Supprimer (refusé côté serveur pour une famille ou un aliment utilisé).
+- Doublons : « Tout fusionner » et « Autre nom… » (ognion + Ognions → Oignon).
+- Migration `kitchen 0002` (champ `kept_name`). `serve.sh` applique désormais les migrations au démarrage.
+- `reviewer` : 1 bloquant corrigé (la suppression pouvait emporter des sous-aliments utilisés dans des recettes).
+  Majeurs corrigés : vrais noms modifiés (« 4 épices », « 100% cacao », « Du Barry »), pas de « Garder ce nom »,
+  fusions par nom au lieu de l'identifiant. Mineurs corrigés : pluriel dans la recherche par nom, décisions notées.
+  Mineurs non traités : un double échec de fusion dans « Autre nom… » laisse la paire à moitié fusionnée (sans perte
+  de données, erreur affichée) ; le compte des noms à corriger est recalculé à chaque chargement de la page Aliments.
