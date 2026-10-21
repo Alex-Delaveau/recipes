@@ -272,6 +272,26 @@ const FLOWS = {
     }
   },
 
+  // M5: a link shared to the PWA (share_target) imports the first URL of url, text or title
+  async share(page) {
+    const sent = []
+    await page.route('**/api/recipe-from-source/', (r) => {
+      sent.push(JSON.parse(r.request().postData() || '{}').url)
+      return r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: true, msg: 'test' }) })
+    })
+    try {
+      const text = encodeURIComponent('Recette de tarte aux pommes https://www.example.org/recettes/tarte-123 à essayer')
+      await page.goto(`${base}/recipe/import?title=Tarte&text=${text}&url=`, { waitUntil: 'networkidle' })
+      check(await eventually(() => sent.length >= 1, 5000), 'opening the share target starts an import')
+      check(sent.length === 1 && sent[0] === 'https://www.example.org/recettes/tarte-123', `only the URL found in the shared text is imported (${sent.join(', ')})`)
+      sent.length = 0
+      await page.goto(`${base}/recipe/import?title=${encodeURIComponent('Tarte https://x.example.org/t')}`, { waitUntil: 'networkidle' })
+      check(await eventually(() => sent[0] === 'https://x.example.org/t', 5000), 'a URL in the title only works too')
+    } finally {
+      await page.unroute('**/api/recipe-from-source/')
+    }
+  },
+
   // P3: add to shopping, untick what you have
   async p3(page, ctx) {
     await page.goto(`${base}/recipe/${ctx.curry}?servings=6`, { waitUntil: 'networkidle' })

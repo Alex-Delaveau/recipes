@@ -305,6 +305,6 @@ Branche : `claude/clever-fermat-h1cce1` (imposée par la session cloud, au lieu 
    `ShoppingStore` (logique dans `vue3/src/fork/`). Vérif : flow hors ligne (Playwright `setOffline`).
 6. [ ] Carte « Au menu » sur l'accueil téléphone (aujourd'hui, ou demain après 21 h), seulement s'il y a un repas prévu.
    Vérif : flow (repas créé puis supprimé).
-7. [ ] Partage vers l'app : première URL de `url`, `text` ou `title` (`vue3/src/fork/share.ts`, testé par node), branchée
+7. [x] Partage vers l'app : première URL de `url`, `text` ou `title` (`vue3/src/fork/share.ts`, testé par node), branchée
    dans `RecipeImportPage.vue`. Vérif : test node + flow `/recipe/import?text=…`.
 8. [ ] Chaînes fr/en, routes `strict`, porte `verify.sh --ui m5 --publish`, `reviewer`, `ui-auditor`, PR.
