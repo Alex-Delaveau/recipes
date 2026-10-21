@@ -479,7 +479,7 @@ vue-tsc, sous la baseline de 649).
    liste de courses, toujours avec le nombre d'articles sans prix. Vérif : parcours, captures 360 px.
 8. [x] « Courses terminées » : total payé, écart affiché, ajustement, correction d'un article, « Passer ».
    Vérif : parcours cliqué de bout en bout (données remises en place).
-9. [ ] Chaînes fr/en, routes `strict`, porte `verify.sh --ui m7 --publish`, `reviewer`, `ui-auditor`, critères, PR.
+9. [x] Chaînes fr/en, routes `strict`, porte `verify.sh --ui m7 --publish`, `reviewer`, `ui-auditor`, critères, PR.
 
 ### Avancement M7
 - 1-4 : `KitchenFood` étendu (migration 0003), `kitchen/prices.py` (calcul), `kitchen/price_dictionary.py` (~200 prix),
@@ -496,4 +496,33 @@ vue-tsc, sous la baseline de 649).
   « Passer ». Parcours `prices` (25 vérifications, données remises en place). Données de démo : prix du dictionnaire,
   pâtes en paquets de 500 g, deux aliments sans prix.
 - Constat hors jalon : 4 tests du parseur français (`test_french_parser.py`) échouent quand on les lance seuls,
-  y compris sur `main` ; ils passent dans la suite complète de `verify.sh`.
+  y compris sur `main`. Ils passent dans la suite complète de `verify.sh`, que les deux portes finales confirment.
+- Constat hors jalon : `test_reset_inherit_space_fields` (upstream) échoue au hasard, environ 1 fois sur 16. Sa
+  fabrique de rayons fait un `get_or_create` sur un mot aléatoire, si bien que deux rayons « différents » peuvent être
+  le même. Sans lien avec M7.
+
+## M7 — summary
+- **Prix des aliments** :
+  - stockés dans la propriété « Prix » upstream ; `kitchen` ajoute l'origine (estimé / confirmé), le paquet et le poids
+    à la pièce (migration 0003, contrôle Postgres OK) ;
+  - dictionnaire d'environ 200 prix moyens ;
+  - écran « Aliments sans prix » et compteur sur la page Aliments.
+- **Estimation affichée** :
+  - sur la recette, aux portions choisies ;
+  - sur « Cette semaine » et sur la page du tirage ;
+  - en haut de la liste de courses, et dans le panier ;
+  - les paquets sont entiers, et les articles sans prix sont toujours signalés.
+- **« Courses terminées »** :
+  - on saisit le total payé et on voit l'écart avant d'enregistrer ;
+  - seuls les prix estimés bougent, de façon lissée ;
+  - un article se corrige d'un tap ; « Passer » ne change rien ;
+  - l'ajustement est bloqué tant que le panier contient des articles sans prix.
+- **Relectures** :
+  - `reviewer` : un point bloquant (référence nutritionnelle réécrite) et trois majeurs, corrigés (DECISIONS.md) ;
+  - `ui-auditor` : les points peu coûteux sont corrigés. Le reste est listé dans la PR.
+- **Hors périmètre, nécessaire au jalon** : le cache « assets » du service worker passe de 50 à 400 entrées. Le
+  précache upstream ne sert rien (URL `/assets/…` au lieu de `/static/vue3/assets/…`), et l'appli ne démarrait plus
+  hors ligne une fois sur deux.
+- **Preuves** :
+  - `verify.sh --ui m7 --publish` → `VERIFY: OK` (243 vérifications de parcours) ;
+  - `pg_upgrade_check.sh` → `PG UPGRADE CHECK: OK`.
