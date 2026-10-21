@@ -321,7 +321,8 @@ CLEAN_NAMES = [
     ('de la crème', 'crème'),
 ]
 KEEP_NAMES = ['nouveaux', 'Abricot', 'aiguillettes de poulet', 'Pomme de terre', 'Crème fraîche', "Huile d'olive", 'Ail',
-              'Pâte de curry', 'Sauce à la crème']
+              'Pâte de curry', 'Sauce à la crème', '4 épices', '5 baies', '3 fromages', '7 Up', '2 en 1', '100% cacao',
+              'Du Barry', 'Des de jambon']
 
 
 @pytest.mark.parametrize('name,clean', CLEAN_NAMES)
@@ -362,3 +363,36 @@ def test_to_sort_tells_usage(setup_space, u1_s1):
         Food.objects.create(name='nouveaux', space=setup_space)
     item = u1_s1.get(reverse('kitchen:foods-to-sort')).json()['results'][0]
     assert item['name'] == 'nouveaux' and item['recipes'] == 0 and item['shopping'] == 0
+
+
+def test_kept_name_is_not_proposed_again(setup_space, u1_s1):
+    with scopes_disabled():
+        food = Food.objects.create(name='de la crème', space=setup_space)
+    assert u1_s1.get(reverse('kitchen:foods-names')).json()['count'] == 1
+    assert u1_s1.post(reverse('kitchen:food-keep-name', args=[food.id])).status_code == 200
+    assert u1_s1.get(reverse('kitchen:foods-names')).json()['count'] == 0
+    with scopes_disabled():  # renamed later: checked again
+        food.name = 'de la crème liquide'
+        food.save()
+    assert u1_s1.get(reverse('kitchen:foods-names')).json()['count'] == 1
+
+
+def test_delete_only_unused_foods_that_are_not_families(setup_space, u1_s1, recipe_1_s1):
+    with scopes_disabled():
+        family = Food.add_root(name='Zzoignon', space=setup_space)
+        child = family.add_child(name='Zzoignon rouge', space=setup_space)
+        ingredient = Ingredient.objects.filter(step__recipe=recipe_1_s1).first()
+        ingredient.food = child
+        ingredient.save()
+        free = Food.objects.create(name='nouveaux', space=setup_space)
+        lines = Ingredient.objects.count()
+    # a family: its children (and their recipe lines) would go with it
+    response = u1_s1.post(reverse('kitchen:food-delete', args=[family.id]))
+    assert response.status_code == 409 and response.json()['reason'] == 'family'
+    response = u1_s1.post(reverse('kitchen:food-delete', args=[child.id]))
+    assert response.status_code == 409 and response.json()['reason'] == 'used'
+    assert u1_s1.post(reverse('kitchen:food-delete', args=[free.id])).status_code == 204
+    with scopes_disabled():
+        assert Food.objects.filter(id__in=[family.id, child.id]).count() == 2
+        assert not Food.objects.filter(id=free.id).exists()
+        assert Ingredient.objects.count() == lines

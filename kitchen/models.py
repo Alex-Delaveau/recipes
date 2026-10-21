@@ -31,6 +31,8 @@ class KitchenFood(models.Model):
     is_family = models.BooleanField(default=False)
     aisle_source = models.CharField(max_length=16, choices=SOURCES, default=SOURCE_NONE)
     aisle_confirmed = models.BooleanField(default=False)
+    # name the user chose to keep on the "names to fix" screen ("4 épices"): not proposed again while it stays the same
+    kept_name = models.CharField(max_length=128, blank=True, default='')
     space = models.ForeignKey(Space, on_delete=models.CASCADE)
 
     objects = ScopedManager(space='space')

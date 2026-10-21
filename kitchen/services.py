@@ -296,8 +296,11 @@ def names_to_fix(space, limit=500):
     """
     from kitchen.french import clean_food_name
     foods = list(Food.objects.filter(space=space).values_list('id', 'name', 'plural_name'))
+    kept = dict(KitchenFood.objects.filter(space=space).exclude(kept_name='').values_list('food_id', 'kept_name'))
     dirty = {}
     for fid, name, _plural in foods:
+        if kept.get(fid) == name:
+            continue
         clean = clean_food_name(name)
         if clean != name and normalize(clean):
             dirty[fid] = (name, clean)
@@ -328,6 +331,29 @@ def names_to_fix(space, limit=500):
     # renames first, so that the merges into a renamed food find it under its new name
     result.sort(key=lambda r: (r['target'] is not None, r['clean'].lower()))
     return result[:limit]
+
+
+def keep_food_name(food):
+    """the user keeps this name: no longer proposed on the "names to fix" screen (until it changes)"""
+    state = kitchen_food(food)
+    state.kept_name = food.name
+    state.save(update_fields=['kept_name'])
+
+
+def delete_unused_food(food):
+    """
+    Delete a food only when nothing in a recipe depends on it. Upstream deletes the ingredient lines of a deleted food
+    (and of its children, the tree deletes them too), so a family or a food used in a recipe is refused.
+    Returns None when deleted, else the reason: 'family' or 'used'.
+    """
+    with transaction.atomic():
+        food = Food.objects.select_for_update().get(pk=food.pk)
+        if food.numchild > 0:
+            return 'family'
+        if Ingredient.objects.filter(food=food).exists():
+            return 'used'
+        food.delete()
+    return None
 
 
 def dismiss_duplicate(space, id_a, id_b):

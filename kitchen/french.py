@@ -250,6 +250,8 @@ def parse_french(parser, text):
 # "+ 30 ml", "+ 1 c. à soupe" after the food: a second quantity, never part of the name
 _EXTRA_AMOUNT = re.compile(rf'\s*\+\s*{_NUMBER}.*$')
 # what an old import left in front of a food name: the end of "c. à soupe", "cuillère à café"...
+# a quantity followed by a space (never "100% cacao")
+_LEADING_AMOUNT = re.compile(rf'^{_NUMBER}(?=\s)\s*')
 _UNIT_LEFTOVER = re.compile(r'^(?:(?:c\.?|cuill[eè]re?s?|cuiller[ée]es?)\s*)?(?:à|a)\s+(?:soupe|caf[ée]|th[ée])\b\.?\s*'
                             r'(?:(?:ras|rases?|bomb[ée]e?s?|pleines?)\b\s*)?', re.IGNORECASE)
 
@@ -258,22 +260,30 @@ def clean_food_name(name):
     """
     Food name without what an import left around it: "à café coriandre en poudre" -> "coriandre en poudre",
     "à soupe d'huile" -> "huile", "d'eau + 30 ml" -> "eau", "200 g de farine" -> "farine". Returns the name unchanged
-    when there is nothing to remove; descriptions such as "en poudre" stay (they make a different food).
+    when there is nothing to remove. Careful with real names: "4 épices", "7 Up", "100% cacao", "Du Barry" stay, and
+    descriptions such as "en poudre" stay too (they make a different food).
     """
     text = re.sub(r'\s+', ' ', str(name)).strip()
+    # a lower case leading article is a leftover ("de la crème"); a capital one is part of a name ("Du Barry")
+    removed = bool(re.match(r"^(?:de la |de l['’]|des |du |de |d['’])", text))
     for _ in range(3):  # "2 c. à soupe de ..." needs several passes
         before = text
         text = _EXTRA_AMOUNT.sub('', text).strip()
         text = _UNIT_LEFTOVER.sub('', text).strip()
-        m = _AMOUNT.match(text)
-        if m and text[m.end():].strip():
+        m = _LEADING_AMOUNT.match(text)
+        if m:
             unit, rest = match_unit(text[m.end():])
-            text = rest if unit else text[m.end():].strip()
+            if unit:  # "200 g de farine"; a bare number stays ("4 épices")
+                text = rest
+            elif _ARTICLE.match(text[m.end():]):  # "2 de ..."
+                text = text[m.end():]
         elif _key(text).startswith(('c a ', 'cuillere', 'cuilleree')):
             unit, rest = match_unit(text)
             if unit:
                 text = rest
-        text = _ARTICLE.sub('', text).strip(' ,;:-')
+        removed = removed or text != before
+        if removed:
+            text = _ARTICLE.sub('', text).strip(' ,;:-')
         if text == before:
             break
     return text or str(name).strip()
