@@ -3,6 +3,93 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — M5 — Branche et libellé de la porte finale
+**Contexte** : le skill prévoit la branche `fork/m5-quotidien` et la porte `verify.sh --ui m5 --publish`. La session cloud
+impose la branche `claude/clever-fermat-h1cce1`, et la consigne de la session demande `verify.sh --ui m1 --publish`.
+**Choix** : travail et PR sur `claude/clever-fermat-h1cce1`. Les captures du jalon sont publiées sous `m5` (celles de la
+PR) ; la porte est aussi lancée avec le libellé `m1` comme demandé, sans commiter ses captures, pour ne pas écraser
+l'historique de M1.
+**Alternative écartée** : renommer la branche (interdit par la session) ; republier `docs/fork/screens/m1`.
+**Réversible ?** Oui.
+
+## 2026-10-21 — M5 — Tests de la détection des durées : `node --test`, sans vitest
+**Contexte** : la détection doit être testée par `verify.sh`, et `vue3` n'a pas de vitest.
+**Choix** : les fonctions pures (`fork/timers/detect.ts`, `fork/timers/markup.ts`, `fork/share.ts`) n'importent rien
+d'autre que des fichiers du même genre. Node 22 lit le TypeScript tel quel (suppression des types), donc
+`node --test scripts/fork/tests/*.test.mjs` les teste sans dépendance. `verify.sh` lance cette étape, même en `--quick`.
+28 phrases françaises réelles, dont les faux positifs « 4 personnes », « 180 °C », « farine T55 », « 2 œufs », « 2 cm ».
+**Alternative écartée** : ajouter vitest à `vue3` (dépendance et configuration de plus) ; seulement un test de parcours
+(lent, et il ne couvre pas les cas limites).
+**Réversible ?** Oui.
+
+## 2026-10-21 — M5 — Durées touchables : balisage du HTML de l'étape, `Instructions` intact
+**Contexte** : le texte des étapes arrive en HTML et passe par le composant upstream `Instructions`, qui le compile
+comme un gabarit Vue (pour les quantités qui suivent les portions).
+**Choix** : `ForkStepText` balise les durées dans ce HTML **avant** `Instructions` (`<span role="button">`), en ne
+touchant qu'au texte, jamais aux balises, aux liens ni aux quantités. Le texte est ré-échappé, accolades comprises : aucun
+texte d'étape ne peut devenir une expression du gabarit. Un clic sur une durée lance un minuteur ; une plage ouvre une
+feuille « Quelle durée ? » avec le bas, le milieu (arrondi à la minute au-delà de 2 min) et le haut. La zone tactile fait
+44 px de haut grâce à un rembourrage vertical qui ne déplace pas les lignes.
+**Alternative écartée** : modifier les nœuds du DOM après rendu (fragile face aux mises à jour de Vue) ; modifier
+`Instructions` (fichier upstream).
+**Réversible ?** Oui.
+
+## 2026-10-21 — M5 — Minuteurs : où ils s'affichent, comment ils sonnent
+**Contexte** : la barre des minuteurs doit suivre l'utilisateur et ne jamais masquer le contenu.
+**Choix** :
+- Barre collante en dernier élément de `v-main`, au-dessus de la barre du bas : elle reste visible en défilant et prend
+  sa propre place en bas de page. En mode cuisine (plein écran), elle s'affiche au-dessus des boutons « Précédent /
+  Suivant ». Au-delà de 3 minuteurs, la barre défile.
+- Libellé « Étape 2 · Curry… » (l'étape d'abord, car le nom de la recette est souvent tronqué).
+- Fin : trois bips (Web Audio, aucun fichier son), vibration, répétés toutes les 3 s pendant 60 s au plus ou jusqu'à
+  l'arrêt ou +1 min. Notification système seulement si l'app est en arrière-plan et que la permission est accordée. La
+  permission est demandée **une fois**, au premier minuteur lancé ; un refus ne change rien d'autre.
+- Un minuteur échu pendant que l'app était fermée s'affiche « Terminé ! » au retour, sans sonner (plus d'une minute
+  de retard).
+- Les minuteurs sont propres à l'appareil (`localStorage`), ce qui est cohérent avec SPEC : c'est un état de cuisine,
+  pas une donnée partagée.
+
+**Alternative écartée** : barre flottante fixe (masque le contenu) ; minuteurs partagés entre les deux comptes.
+**Réversible ?** Oui.
+
+## 2026-10-21 — M5 — Fin de cuisine et raccourcis de l'accueil
+**Contexte** : « Terminé » doit créer un `CookLog` qui nourrit « récentes » et « pas faites depuis longtemps ».
+**Choix** : seul « Terminé » mène à « Bon appétit » ; la croix « Quitter le mode cuisine » sort sans rien enregistrer
+(on peut quitter sans avoir cuisiné). « Pas faites depuis longtemps » trie déjà sur `lastcooked` (le `CookLog`), vérifié
+par un parcours. « Récentes » trie sur la dernière **consultation** (M2) : ouvrir la recette pour la cuisiner l'y fait
+déjà figurer ; on ne touche pas au backend.
+**Alternative écartée** : trier « récentes » sur le dernier `CookLog` (changement d'endpoint `kitchen/`, et une recette
+juste consultée disparaîtrait du raccourci).
+**Réversible ?** Oui.
+
+## 2026-10-21 — M5 — Courses hors ligne : file et dernier état sur l'appareil, au plus près de `ShoppingStore`
+**Contexte** : la file de coches de `ShoppingStore` était en mémoire ; l'app fermée hors ligne perdait les coches.
+**Choix** : la logique vit dans `vue3/src/fork/shoppingOffline.ts`. `ShoppingStore` reçoit seulement des points
+d'accroche commentés « fork » :
+- la file est relue au démarrage et enregistrée à chaque passage dans `runSyncQueue` et après chaque envoi ;
+- elle est rejouée à l'événement `online` et au lancement suivant ;
+- les entrées reçues du serveur reprennent l'état des coches encore en attente, pour qu'une synchro ne les défasse pas ;
+- le dernier état connu de la liste est enregistré après chaque chargement ou synchro. Il est affiché si le chargement
+  échoue hors ligne. En pratique, le service worker upstream sert déjà la page et la dernière réponse de l'API quand
+  la liste a été ouverte une fois en ligne ; l'instantané couvre le cas où ce cache n'a plus la réponse (50 entrées).
+
+L'indicateur « N modifications en attente » s'affiche hors ligne ou après un échec d'envoi, pas pendant un envoi
+normal (il clignoterait à chaque coche). Il remplace, dans la page du fork, l'alerte upstream équivalente.
+L'écran allumé est un réglage de l'appareil (`fork_shopping_keep_screen_on`, actif par défaut), dans le menu ⋮ de la
+liste, sans toucher au type `DeviceSettings` upstream.
+**Alternative écartée** : étendre la file d'arrière-plan du service worker à l'endpoint groupé (fichier upstream, et
+deux files concurrentes) ; un nouveau store des courses.
+**Réversible ?** Oui.
+
+## 2026-10-21 — M5 — Carte « Au menu »
+**Contexte** : afficher sur le téléphone le repas prévu aujourd'hui, ou demain après 21 h.
+**Choix** : carte compacte sous la recherche, seulement sur téléphone (le desktop garde le bandeau de la semaine) et
+seulement s'il y a un repas ce jour-là. Jusqu'à 3 repas, triés par l'heure puis l'ordre du type de repas. Un tap ouvre
+la recette **aux portions du plan** ; une entrée sans recette affiche son titre, sans lien. En cas d'erreur de l'API,
+la carte ne s'affiche pas.
+**Alternative écartée** : afficher la carte vide (« Rien de prévu ») ; ouvrir le plan de repas.
+**Réversible ?** Oui.
+
 ## 2026-10-21 — audit kitshn — Nouveau jalon M5, livraison décalée en M6
 **Contexte** : avant la livraison, Alex a demandé d'auditer [kitshn](https://github.com/kitshn-app/kitshn) (client natif
 de Tandoor) et d'en tirer un jalon pour les fonctions utiles. Détail dans `docs/fork/AUDIT-KITSHN.md`.
