@@ -215,7 +215,7 @@ const FLOWS = {
     await page.getByRole('button', { name: 'Une de plus' }).click()
     check(await eventually(async () => (await rows.count()) === 4, 5000), 'one more added')
     await page.getByRole('button', { name: 'Une de plus' }).click()
-    check(await eventually(() => page.getByText("Plus d'autre recette qui corresponde.").isVisible(), 5000), 'says when no other recipe is left (4 in the demo)')
+    check(await eventually(() => page.getByText("Aucune autre recette ne correspond.").isVisible(), 5000), 'says when no other recipe is left (4 in the demo)')
     await shot(page, 'recipe-draw')
 
     await page.reload({ waitUntil: 'networkidle' })
@@ -702,6 +702,141 @@ const FLOWS = {
       for (const e of extra) await api(page, 'DELETE', `/api/shopping-list-entry/${e.id}/`)
     }
     check((await all()).length === before.length, `list restored (${before.length} entries)`)
+  },
+
+  // M7: food prices (queue, food sheet), estimate on the recipe and the shopping list, "shopping done" adjustment
+  async prices(page) {
+    const kfoods = async () => (await api(page, 'GET', '/api/kitchen/foods/')).data
+    const byName = async (name) => (await kfoods()).foods.find((f) => f.name === name)
+    const priceOf = async (name) => (await api(page, 'GET', `/api/kitchen/foods/${(await byName(name)).id}/price/`)).data.price
+    // every food's price, to put back whatever the flow changes (the queue may hold other foods than the demo's)
+    const snapshot = async () => Object.fromEntries((await kfoods()).foods.map((f) => [f.id, f.price ? JSON.stringify(f.price) : null]))
+    const before = await snapshot()
+    let cartBefore = null
+    const restore = async () => {
+      const now = await snapshot()
+      for (const [id, price] of Object.entries(before)) {
+        if (now[id] === price) continue
+        const b = price && JSON.parse(price)
+        if (!b) await api(page, 'PUT', `/api/kitchen/foods/${id}/price/`, { price: null })
+        else if (b.source === 'estimated') await api(page, 'PUT', `/api/kitchen/foods/${id}/price/`, { suggest: true })
+        else await api(page, 'PUT', `/api/kitchen/foods/${id}/price/`, { price: b.price, per: b.per })
+      }
+    }
+    try {
+      // foods page: counter of the queue, prices in the list (≈ = estimated)
+      await page.goto(base + '/foods', { waitUntil: 'networkidle' })
+      const queue = page.locator('.fork-foods__queue', { hasText: 'sans prix' })
+      check(await eventually(() => queue.isVisible()), `queue counter on the foods page (${await queue.innerText().catch(() => '')})`)
+      check(/≈ 25,00\s€ \/ kg/.test(await page.locator('.fork-foods__row', { hasText: 'Parmesan' }).innerText()), 'estimated price shown in the foods list')
+
+      // the queue: the average price in one tap, or a price typed in
+      await queue.click()
+      await eventually(() => page.locator('.fork-noprice__food').isVisible())
+      await shot(page, 'noprice')
+      const first = (await page.locator('.fork-noprice__food').innerText()).trim()
+      const suggestion = page.getByRole('button', { name: /€ \/ (kg|L|pièce)/ })
+      check(await suggestion.isVisible(), `average price proposed for ${first}`)
+      await suggestion.click()
+      check(await eventually(async () => (await page.locator('.fork-noprice__food').innerText()).trim() !== first, 4000), 'one tap: next food')
+      check((await priceOf(first))?.source === 'estimated', 'the average price is stored as estimated')
+      const second = (await page.locator('.fork-noprice__food').innerText()).trim()
+      await page.locator('.fork-price__amount input').fill('12,50')
+      await page.getByRole('button', { name: 'Enregistrer ce prix' }).click()
+      check(await eventually(() => page.getByText('Tous les aliments achetés ont un prix.').isVisible(), 4000), 'queue emptied')
+      const typed = await priceOf(second)
+      check(typed?.price === 12.5 && typed.source === 'confirmed', `typed price stored as confirmed (${second}: ${JSON.stringify(typed)})`)
+
+      // food sheet: price field, the estimate is replaced by a confirmed price
+      await page.goto(base + '/foods', { waitUntil: 'networkidle' })
+      await page.locator('.fork-foods__row', { hasText: 'Parmesan' }).click()
+      const sheet = page.locator('.fork-food-sheet')
+      check(await eventually(() => sheet.getByText('estimé').isVisible(), 4000), 'the sheet tells an estimated price')
+      await sheet.locator('.fork-price__amount input').fill('24')
+      await shot(page, 'food-sheet-price')
+      await sheet.getByRole('button', { name: 'Sauvegarder' }).click()
+      check(await eventually(async () => /^(?!≈)24,00\s€ \/ kg$/.test((await page.locator('.fork-foods__row', { hasText: 'Parmesan' }).locator('.fork-foods__price').innerText()).trim()), 5000),
+        'confirmed price in the list, without ≈')
+
+      // recipe: price at the servings chosen
+      const recipe = (await api(page, 'GET', '/api/recipe/?query=carbonara&page_size=1')).data.results[0]
+      await page.goto(base + `/recipe/${recipe.id}`, { waitUntil: 'networkidle' })
+      const line = page.locator('.fork-recipe__price')
+      check(await eventually(() => line.isVisible(), 5000), 'price shown on the recipe')
+      const t1 = await line.innerText()
+      check(/≈ \d+,\d\d\s€ · \d+,\d\d\s€\/pers\./.test(t1), `total and per serving (${t1.replace(/\s+/g, ' ')})`)
+      await page.getByRole('button', { name: 'Une portion de plus' }).click()
+      check(await eventually(async () => (await line.innerText()) !== t1, 3000), `follows the servings (${(await line.innerText()).replace(/\s+/g, ' ')})`)
+      await shot(page, 'recipe-price')
+
+      // shopping list: total at the top, whole packages, then "shopping done"
+      await page.goto(base + '/shopping', { waitUntil: 'networkidle' })
+      const total = page.locator('.fork-shopping__price')
+      check(await eventually(() => total.isVisible(), 6000), `total at the top of the list (${(await total.innerText().catch(() => '')).replace(/\s+/g, ' ')})`)
+      check(await eventually(() => page.locator('.fork-shopping__row', { hasText: 'Pâtes' }).getByText('1 paquet').isVisible(), 4000), 'pasta counted in whole packages')
+      // a known cart: what was already in it goes back to the list for the time of the flow
+      cartBefore = (await texts(page, '.fork-shopping__row--done .fork-shopping__food')).map((t) => t.trim())
+      for (const name of cartBefore) await page.locator('.fork-shopping__row--done', { hasText: name }).first().click()
+      for (const name of ['Citron', 'Pâtes']) {
+        await page.locator('.fork-shopping__row:not(.fork-shopping__row--done)', { hasText: name }).first().click()
+        await eventually(() => page.locator('.fork-shopping__row--done', { hasText: name }).isVisible(), 3000)
+      }
+      await page.waitForTimeout(1500) // the checks reach the server
+      check(await eventually(async () => /DANS LE PANIER \(2\) · ≈ 2,04\s€/i.test(await page.locator('.fork-shopping__aisle', { hasText: /panier/i }).innerText()), 4000), 'in-cart total')
+      await page.locator('.fork-shopping__row--done').first().scrollIntoViewIfNeeded()
+      await shot(page, 'shopping-cart-price')
+      await page.getByRole('button', { name: 'Options' }).click()
+      await page.getByText('Courses terminées').click()
+      const done = page.locator('.fork-done')
+      await eventually(() => done.isVisible(), 3000)
+      // cart: pasta, one 500 g package at 1.20 € (confirmed), citron 2 x 120 g at 3.50 €/kg (estimated) = 0.84
+      await done.locator('.fork-done__paid input').fill('2,46')
+      await done.getByRole('button', { name: 'Comparer' }).click()
+      const gap = done.locator('.fork-done__gap')
+      check(await eventually(async () => /payé 2,46\s€ · estimé 2,04\s€/.test(await gap.innerText()), 4000), `gap shown before saving (${(await gap.innerText().catch(() => '')).replace(/\s+/g, ' ')})`)
+      check(/\+50 %/.test(await gap.innerText()), 'the gap only moves the estimated part (+50 %)')
+      check((await priceOf('Citron')).price === 3.5, 'nothing changed before "adjust"')
+      await shot(page, 'shopping-done-gap')
+      await done.getByRole('button', { name: 'Ajuster les prix' }).click()
+      check(await eventually(() => done.getByText('1 prix ajusté').isVisible(), 4000), 'one estimated price adjusted')
+      const citronAfter = await priceOf('Citron')
+      check(Math.abs(citronAfter.price - 3.5 * 1.25) < 0.02 && citronAfter.source === 'estimated', `smoothed: half of the gap (${citronAfter.price})`)
+      check((await priceOf('Parmesan')).price === 24, 'the confirmed price did not move')
+      await done.locator('.v-card-actions').getByRole('button', { name: 'Fermer' }).click()
+
+      // one item corrected: its price becomes confirmed, nothing estimated is left to adjust
+      await page.getByRole('button', { name: 'Options' }).click()
+      await page.getByText('Courses terminées').click()
+      await done.locator('.fork-done__paid input').fill('3,50')
+      await done.getByRole('button', { name: 'Comparer' }).click()
+      await eventually(() => done.getByRole('button', { name: 'Corriger le prix de Citron' }).isVisible(), 4000)
+      await done.getByRole('button', { name: 'Corriger le prix de Citron' }).click()
+      await done.getByLabel('Payé pour Citron').fill('0,90')
+      await done.locator('.fork-done__correct').getByRole('button', { name: 'Sauvegarder' }).click()
+      check(await eventually(async () => (await priceOf('Citron'))?.source === 'confirmed', 4000), `one tap correction: confirmed (${JSON.stringify(await priceOf('Citron'))})`)
+      check(Math.abs((await priceOf('Citron')).price - 3.75) < 0.01, '0,90 € for 2 x 120 g: 3,75 € / kg')
+      check(await eventually(() => done.getByText('Aucun prix estimé dans le panier').isVisible(), 4000), 'then nothing estimated is left to adjust')
+      await done.getByRole('button', { name: 'Passer' }).click()
+      check(await eventually(async () => !(await done.isVisible()), 3000), '"skip" closes without changing anything')
+    } finally {
+      // the cart as it was
+      if (cartBefore) {
+        await page.goto(base + '/shopping', { waitUntil: 'networkidle' }).catch(() => {})
+        await eventually(() => page.locator('.fork-shopping__row').first().isVisible(), 6000)
+        for (const name of ['Citron', 'Pâtes']) {
+          const row = page.locator('.fork-shopping__row--done', { hasText: name }).first()
+          if (await row.isVisible().catch(() => false)) await row.click()
+        }
+        for (const name of cartBefore) {
+          const row = page.locator('.fork-shopping__row:not(.fork-shopping__row--done)', { hasText: name }).first()
+          if (await row.isVisible().catch(() => false)) await row.click()
+        }
+        await page.waitForTimeout(1500)
+      }
+      await restore()
+    }
+    const after = await snapshot()
+    check(Object.keys(before).every((id) => after[id] === before[id]), 'every price restored')
   },
 
   async foods(page) {

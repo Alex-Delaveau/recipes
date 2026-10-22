@@ -53,6 +53,8 @@
                 </article>
             </div>
             <p class="text-body-2 text-medium-emphasis mt-2" v-if="exhausted">{{ $t('Fork_Draw_No_More') }}</p>
+            <fork-price-summary v-if="price" class="mt-3" :total="price.total" :missing="price.missing"
+                                :label="$t('Fork_Price_These_Dishes', {n: drawnRecipes.length}, drawnRecipes.length)"></fork-price-summary>
 
             <!-- the drawn week goes to the meal plan (one recipe a day) and/or the shopping list -->
             <div class="fork-draw__use mt-4">
@@ -141,12 +143,14 @@ import {useI18n} from "vue-i18n";
 import {useRoute} from "vue-router";
 import {ApiApi, MealType} from "@/openapi";
 import {ErrorMessageType, useMessageStore} from "@/stores/MessageStore";
-import {DrawnRecipe, drawnRecipes, drawRecipes, drawSize, planDay, planDraw, shopDraw} from "@/fork/recipeDraw";
+import {DrawnRecipe, drawnRecipes, drawRecipes, drawSize, planDay, planDraw, shopDraw, useDrawPrice} from "@/fork/recipeDraw";
 import {forkHomeFilters} from "@/fork/homeFilters";
 import ForkRecipeThumb from "@/fork/components/ForkRecipeThumb.vue";
+import ForkPriceSummary from "@/fork/components/ForkPriceSummary.vue";
 
 const {t, d} = useI18n()
 const route = useRoute()
+const price = useDrawPrice()
 
 const drawing = ref(false)
 const adding = ref(false)

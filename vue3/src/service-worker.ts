@@ -56,7 +56,9 @@ registerRoute(
         cacheName: 'assets',
         plugins: [
             new ExpirationPlugin({
-                maxEntries: 50,
+                // fork: one screen loads 100+ chunks, and the precache misses them (it keys "/assets/…" while pages
+                // load "/static/vue3/assets/…"): with 50 entries the app could not start offline (DECISIONS.md, M7)
+                maxEntries: 400,
                 maxAgeSeconds: 60 * 60 * 24 * 7,
             }),
         ],

@@ -41,6 +41,16 @@
             </v-card-text>
         </v-card>
 
+        <!-- foods without a price (M7) -->
+        <v-card v-if="noPrice > 0" class="fork-foods__queue mb-3" variant="tonal" color="secondary" :to="{name: 'ForkNoPricePage'}">
+            <v-card-text class="d-flex align-center ga-3">
+                <v-icon icon="fa-solid fa-euro-sign"></v-icon>
+                <span class="flex-grow-1 text-body-1">{{ $t('Fork_No_Price_Count', {n: noPrice}, noPrice) }}</span>
+                <span class="font-weight-bold">{{ $t('Fork_Fix') }}</span>
+                <v-icon icon="fa-solid fa-chevron-right" size="16"></v-icon>
+            </v-card-text>
+        </v-card>
+
         <v-text-field v-model="query" :placeholder="$t('Fork_Search_Foods')" :aria-label="$t('Fork_Search_Foods')" prepend-inner-icon="$search"
                       variant="solo-filled" flat rounded="lg" clearable hide-details autocomplete="off" type="search"></v-text-field>
         <div class="d-flex flex-wrap ga-2 mt-2">
@@ -88,6 +98,9 @@
                         <span v-if="food.ignoreShopping"><template v-if="!sameAsFamily(group, food)"> · </template>{{ $t('Fork_Never_In_Shopping') }}</span>
                     </v-list-item-subtitle>
                     <template #append>
+                        <span v-if="food.price" class="fork-foods__price" :class="{'fork-foods__price--estimated': food.price.source == 'estimated'}"
+                              :title="food.price.source == 'estimated' ? $t('Fork_Price_Estimated') : $t('Fork_Price_Confirmed')">{{ priceText(food) }}</span>
+                        <span v-else-if="!food.ignoreShopping && !food.isFamily" class="fork-foods__price fork-foods__price--estimated">{{ $t('Fork_Price_Reason_No_Price') }}</span>
                         <v-btn icon variant="text" size="44" :aria-label="$t('Fork_Move_To_Family')" @click.stop="openMove(food)">
                             <v-icon icon="fa-solid fa-folder-open" size="16"></v-icon>
                         </v-btn>
@@ -119,6 +132,7 @@ import {computed, onMounted, ref} from "vue";
 import {useI18n} from "vue-i18n";
 import {KitchenAisle, KitchenFoodItem, listAisles, listKitchenFoods, moveFoodToFamily} from "@/fork/api";
 import {searchKey} from "@/fork/foods";
+import {euros} from "@/fork/prices";
 import {ErrorMessageType, useMessageStore} from "@/stores/MessageStore";
 import ForkFoodSheet from "@/fork/components/ForkFoodSheet.vue";
 
@@ -129,12 +143,13 @@ interface FoodGroup {
     items: KitchenFoodItem[]
 }
 
-const {t} = useI18n()
+const {t, locale} = useI18n()
 
 const foods = ref<KitchenFoodItem[]>([])
 const aisles = ref<KitchenAisle[]>([])
 const toSort = ref(0)
 const namesToFix = ref(0)
+const noPrice = ref(0)
 const loading = ref(true)
 const error = ref(false)
 const query = ref('')
@@ -167,6 +182,13 @@ const groups = computed<FoodGroup[]>(() => {
 /** members repeat no aisle when they have their family's (confirmed) one: the header shows it */
 function sameAsFamily(group: FoodGroup, food: KitchenFoodItem) {
     return !!group.family && food.aisleConfirmed && food.category?.id != undefined && food.category.id == group.family.category?.id
+}
+
+/** "≈ 2,20 € / kg" for an estimated price, "2,20 € / kg" for a confirmed one */
+function priceText(food: KitchenFoodItem) {
+    const p = food.price!
+    const text = t('Fork_Price_Per_' + p.per, {price: euros(p.price, locale.value)})
+    return p.source == 'estimated' ? `≈ ${text}` : text
 }
 
 function isOpen(group: FoodGroup) {
@@ -208,6 +230,7 @@ function load() {
         foods.value = f.foods.sort((x, y) => x.name.localeCompare(y.name))
         toSort.value = f.toSort
         namesToFix.value = f.namesToFix
+        noPrice.value = f.noPrice
         aisles.value = a.aisles
         if (firstLoad && f.foods.length <= 80) {
             // small collections start unfolded; larger ones start folded to give an overview
@@ -274,6 +297,15 @@ onMounted(() => load())
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 45%;
+}
+
+.fork-foods__price {
+    font-size: var(--fork-text-sm);
+    white-space: nowrap;
+}
+
+.fork-foods__price--estimated {
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .fork-foods__row {

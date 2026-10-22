@@ -5,7 +5,8 @@
             <button type="button" class="fork-week__toggle" :aria-expanded="open" aria-controls="fork-week-body" @click="open = !open">
                 <span class="fork-week__titles">
                     <span class="fork-week__title">{{ $t('Fork_Week') }}</span>
-                    <span class="fork-week__sub">{{ drawnRecipes.length ? $t('Fork_Week_Count', {n: drawnRecipes.length}, drawnRecipes.length) : $t('Fork_Week_Empty_Short') }}</span>
+                    <span class="fork-week__sub">{{ drawnRecipes.length ? $t('Fork_Week_Count', {n: drawnRecipes.length}, drawnRecipes.length) : $t('Fork_Week_Empty_Short') }}<template
+                        v-if="drawnRecipes.length && price"> · ≈ {{ euros(price.total, locale) }}</template></span>
                 </span>
                 <v-icon :icon="open ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" size="16"></v-icon>
             </button>
@@ -37,6 +38,8 @@
                     </v-btn>
                 </div>
                 <p class="fork-week__note" v-if="exhausted">{{ $t('Fork_Draw_No_More') }}</p>
+                <fork-price-summary v-if="price && price.missing.length" class="mt-2" compact :total="price.total" :missing="price.missing"
+                                    :label="$t('Fork_Price_These_Dishes', {n: drawnRecipes.length}, drawnRecipes.length)"></fork-price-summary>
                 <div class="fork-week__use">
                     <v-btn color="primary" variant="flat" size="large" prepend-icon="fa-solid fa-calendar-plus" :disabled="busy"
                            :to="{name: 'ForkRecipeDrawPage', query: {action: 'plan'}}" :aria-label="$t('Fork_Draw_To_Plan')">{{ $t('Fork_Week_To_Plan') }}</v-btn>
@@ -70,10 +73,13 @@
 import {computed, ref} from "vue";
 import {useStorage} from "@vueuse/core";
 import {useI18n} from "vue-i18n";
-import {DrawnRecipe, drawnRecipes, drawRecipes, drawSize} from "@/fork/recipeDraw";
+import {DrawnRecipe, drawnRecipes, drawRecipes, drawSize, useDrawPrice} from "@/fork/recipeDraw";
+import {euros} from "@/fork/prices";
 import ForkRecipeThumb from "@/fork/components/ForkRecipeThumb.vue";
+import ForkPriceSummary from "@/fork/components/ForkPriceSummary.vue";
 
-const {t} = useI18n()
+const {t, locale} = useI18n()
+const price = useDrawPrice()
 
 /** unfolded or folded to one line: a choice of this device */
 const open = useStorage('fork_week_open', true)

@@ -80,6 +80,16 @@ export interface KitchenFoodItem {
     ignoreShopping: boolean
     isFamily: boolean
     aisleConfirmed: boolean
+    /** price per kg / l / piece (M7), null when the food has none */
+    price: FoodPrice | null
+}
+
+export type PricePer = 'kg' | 'l' | 'piece'
+
+export interface FoodPrice {
+    price: number
+    per: PricePer
+    source: 'estimated' | 'confirmed'
 }
 
 export interface KitchenAisle extends KitchenCategory {
@@ -145,14 +155,16 @@ export interface KitchenFoodMatch {
     closest: { id: number, name: string, score: number, reason: string } | null
 }
 
-export async function listKitchenFoods(): Promise<{ foods: KitchenFoodItem[], toSort: number, namesToFix: number }> {
+export async function listKitchenFoods(): Promise<{ foods: KitchenFoodItem[], toSort: number, namesToFix: number, noPrice: number }> {
     const data = await kitchenFetch('foods/')
     return {
         toSort: data.to_sort,
         namesToFix: data.names_to_fix ?? 0,
+        noPrice: data.no_price ?? 0,
         foods: data.foods.map((f: any) => ({
             id: f.id, name: f.name, pluralName: f.plural_name, depth: f.depth, numchild: f.numchild, family: f.family,
             category: f.category, ignoreShopping: f.ignore_shopping, isFamily: f.is_family, aisleConfirmed: f.aisle_confirmed,
+            price: f.price ?? null,
         })),
     }
 }

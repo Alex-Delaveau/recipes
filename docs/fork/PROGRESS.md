@@ -455,3 +455,74 @@ vue-tsc). Docker est disponible dans la session (démon lancé à la main), ains
 - Jalon M7 ajouté à ROADMAP.md : niveau 2 retenu par Alex (prix par aliment dans la propriété Prix upstream, prix au
   paquet, dictionnaire de prix moyens marqués « estimés », écran « Aliments sans prix », prix affiché sur la recette,
   la semaine et la liste de courses), plus l'ajustement après les courses par le total payé. Prochain jalon : M7.
+
+## M7 — plan
+Branche : `claude/zen-ramanujan-cnfub4` (imposée par la session cloud, au lieu de `fork/m7-prix`), partie de
+`origin/main` (PR #14 fusionnée). Environnement : `verify.sh --quick` → `VERIFY: OK` avant tout changement (646 erreurs
+vue-tsc, sous la baseline de 649).
+
+1. [x] Modèle : `KitchenFood` reçoit l'origine du prix (estimé / confirmé), le conditionnement (quantité, unité, prix) et
+   le poids à la pièce (migration `kitchen` 0003). Le prix lui-même reste dans la propriété « Prix » upstream
+   (`PropertyType` catégorie `PRICE`, créé par `ensure_setup`). Vérif : pytest, contrôle Postgres.
+2. [x] Calcul (`kitchen/prices.py`) : quantité d'un article ramenée en g / ml / pièces (unités de base, noms français
+   courants, conversions upstream, poids à la pièce), prix d'un aliment par sa référence upstream, paquets entiers,
+   articles sans prix ou non convertibles. Vérif : pytest du calcul.
+3. [x] Dictionnaire (`kitchen/price_dictionary.py`) : ~150 prix moyens et poids à la pièce, appliqués comme « estimés ».
+   Source et date dans DECISIONS.md. Vérif : pytest (correspondance des noms, application sans écraser).
+4. [x] Endpoints : prix d'un aliment (lecture, saisie), aliments sans prix (+ compteur), application du dictionnaire,
+   estimation d'une recette, d'un lot de recettes, de la liste de courses, et ajustement après les courses (total payé,
+   proportionnel aux seuls prix estimés, lissé ; correction d'un article → confirmé). Vérif : pytest API.
+5. [x] Fiche aliment : champ prix + unité, conditionnement, poids à la pièce, badge estimé / confirmé ; prix dans la
+   liste des aliments. Vérif : parcours cliqué, captures.
+6. [x] Écran « Aliments sans prix » (sur le modèle de « À ranger ») et compteur sur la page Aliments. Vérif : parcours.
+7. [x] Affichage : page recette (« ≈ 6,40 € · 1,60 €/pers. »), carte « Cette semaine » et page du tirage, haut de la
+   liste de courses, toujours avec le nombre d'articles sans prix. Vérif : parcours, captures 360 px.
+8. [x] « Courses terminées » : total payé, écart affiché, ajustement, correction d'un article, « Passer ».
+   Vérif : parcours cliqué de bout en bout (données remises en place).
+9. [x] Chaînes fr/en, routes `strict`, porte `verify.sh --ui m7 --publish`, `reviewer`, `ui-auditor`, critères, PR.
+
+### Avancement M7
+- 1-4 : `KitchenFood` étendu (migration 0003), `kitchen/prices.py` (calcul), `kitchen/price_dictionary.py` (~200 prix),
+  endpoints `/api/kitchen/foods/<id>/price/` et `/api/kitchen/prices/…`. 13 tests pytest (`test_prices.py`) :
+  conversions, paquets entiers, articles sans prix ou non convertibles, référence nutritionnelle conservée,
+  ajustement limité aux prix estimés, borné et lissé, correction d'un article.
+- 5-6 : champs prix dans la fiche aliment (prix + unité, prix moyen en un tap, paquet, poids à la pièce, badge estimé /
+  confirmé), prix dans la liste des aliments (« ≈ » si estimé), écran « Aliments sans prix » (`/foods/no-price`,
+  strict) et compteur sur la page Aliments.
+- 7 : prix sur la recette (suit les portions), la carte « Cette semaine » et la page du tirage (« ces 3 plats ≈ … »),
+  en haut de la liste de courses et dans « Dans le panier », paquets dans les lignes. Le nombre d'articles sans prix
+  est toujours affiché, un tap donne la liste.
+- 8 : « Courses terminées » (menu ⋮ et message de fin) : total payé → écart → ajustement, correction d'un article,
+  « Passer ». Parcours `prices` (25 vérifications, données remises en place). Données de démo : prix du dictionnaire,
+  pâtes en paquets de 500 g, deux aliments sans prix.
+- Constat hors jalon : 4 tests du parseur français (`test_french_parser.py`) échouent quand on les lance seuls,
+  y compris sur `main`. Ils passent dans la suite complète de `verify.sh`, que les deux portes finales confirment.
+- Constat hors jalon : `test_reset_inherit_space_fields` (upstream) échoue au hasard, environ 1 fois sur 16. Sa
+  fabrique de rayons fait un `get_or_create` sur un mot aléatoire, si bien que deux rayons « différents » peuvent être
+  le même. Sans lien avec M7.
+
+## M7 — summary
+- **Prix des aliments** :
+  - stockés dans la propriété « Prix » upstream ; `kitchen` ajoute l'origine (estimé / confirmé), le paquet et le poids
+    à la pièce (migration 0003, contrôle Postgres OK) ;
+  - dictionnaire d'environ 200 prix moyens ;
+  - écran « Aliments sans prix » et compteur sur la page Aliments.
+- **Estimation affichée** :
+  - sur la recette, aux portions choisies ;
+  - sur « Cette semaine » et sur la page du tirage ;
+  - en haut de la liste de courses, et dans le panier ;
+  - les paquets sont entiers, et les articles sans prix sont toujours signalés.
+- **« Courses terminées »** :
+  - on saisit le total payé et on voit l'écart avant d'enregistrer ;
+  - seuls les prix estimés bougent, de façon lissée ;
+  - un article se corrige d'un tap ; « Passer » ne change rien ;
+  - l'ajustement est bloqué tant que le panier contient des articles sans prix.
+- **Relectures** :
+  - `reviewer` : un point bloquant (référence nutritionnelle réécrite) et trois majeurs, corrigés (DECISIONS.md) ;
+  - `ui-auditor` : les points peu coûteux sont corrigés. Le reste est listé dans la PR.
+- **Hors périmètre, nécessaire au jalon** : le cache « assets » du service worker passe de 50 à 400 entrées. Le
+  précache upstream ne sert rien (URL `/assets/…` au lieu de `/static/vue3/assets/…`), et l'appli ne démarrait plus
+  hors ligne une fois sur deux.
+- **Preuves** :
+  - `verify.sh --ui m7 --publish` → `VERIFY: OK` (243 vérifications de parcours) ;
+  - `pg_upgrade_check.sh` → `PG UPGRADE CHECK: OK`.

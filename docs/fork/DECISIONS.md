@@ -3,6 +3,142 @@
 Journal des choix faits en autonomie, à relire par Alex. Le plus récent en haut.
 Format : `## AAAA-MM-JJ — Mx — titre` puis **Contexte**, **Choix**, **Alternative écartée**, **Réversible ?**
 
+## 2026-10-21 — M7 — Cache du service worker (hors périmètre, nécessaire au jalon)
+**Contexte** : avec M7, le parcours hors ligne (M5) échouait une fois sur deux : page blanche après un rechargement
+hors ligne. La cause existait déjà dans le service worker upstream :
+- le précache enregistre les fichiers sous `/assets/…` ;
+- les pages les chargent depuis `/static/vue3/assets/…`. `/assets/…` renvoie une redirection vers la connexion : le
+  précache garde 313 redirections et ne sert jamais rien ;
+- tout passe donc par le cache d'exécution « assets », limité à 50 entrées, alors que la liste de courses charge à
+  elle seule 134 fichiers. Ce qui survit hors ligne dépend du hasard. Les nouveaux composants de M7 l'ont fait basculer.
+
+**Choix** : porter la limite du cache « assets » de 50 à 400 entrées dans `vue3/src/service-worker.ts` (une ligne).
+Le parcours `offline` passe 3 fois sur 3.
+
+**Alternative écartée** : réécrire les URL du précache vers `/static/vue3/`. Le préfixe dépend de `STATIC_URL` et du
+sous-chemin de déploiement, que le service worker ne connaît pas. Une erreur ferait échouer son installation. C'est à
+corriger upstream.
+
+**Réversible ?** Oui (une ligne).
+
+## 2026-10-21 — M7 — Points de la relecture
+**Contexte** : la relecture (`reviewer`) a relevé un point bloquant et trois majeurs.
+
+**Choix** :
+- **Bloquant** : un aliment qui a des valeurs nutritionnelles pour une référence illisible (« 100 portion », sans
+  unité) ne reçoit plus de prix. Avant, sa référence était réécrite et ses valeurs nutritionnelles devenaient fausses.
+  L'écran explique pourquoi, et « Tout appliquer » passe ces aliments.
+- **Ajustement bloqué tant que le panier contient des articles sans prix** : leur coût est dans le ticket mais pas dans
+  l'estimation, et l'écart irait à tort sur les prix estimés. L'écran le dit ; on corrige ces articles (ce qui fixe
+  leur prix) ou on passe. Une entrée sans quantité compte comme non convertible.
+- **Type de propriété** : si un « Prix » d'une autre catégorie existe déjà (nom unique dans un espace), le fork crée
+  « Prix (estimation) ». Une création concurrente est gérée.
+- **Prix modifié ailleurs** : le fork retient la valeur qu'il a écrite (`price_value`, migration 0003). Si l'écran
+  upstream la change, le prix compte comme confirmé et ne bouge plus.
+- **Autres corrections** :
+  - un même panier n'ajuste les prix qu'une fois sur cet appareil ;
+  - nombres refusés : NaN, infini, au-delà de 10 millions ;
+  - un prix refusé n'enregistre rien d'autre de la même saisie ;
+  - les réponses tardives d'une autre recette ou d'un autre aliment sont ignorées ;
+  - le total du tirage s'efface quand la liste change ;
+  - le dictionnaire couvre « bouillon » (un cube pour 500 ml), « fond de veau », « jus de citron » et « beurre de
+    cacahuète », qui prenaient le prix d'un autre aliment ;
+  - le parcours remet en place le prix de tous les aliments.
+
+**Non traité** :
+- les endpoints d'estimation acceptent toute entrée de courses de l'espace, pas seulement celles de l'utilisateur.
+  L'espace correspond au foyer, et seuls les noms et les coûts seraient exposés ;
+- les correspondances approximatives du dictionnaire restent possibles. C'est pour cela que les prix restent
+  « estimés » et corrigeables.
+
+**Réversible ?** Oui.
+
+## 2026-10-21 — M7 — Branche de travail
+**Contexte** : la session cloud impose la branche `claude/zen-ramanujan-cnfub4`.
+**Choix** : M7 est développé sur cette branche, au lieu de `fork/m7-prix`, comme pour M5 et M6.
+**Alternative écartée** : créer `fork/m7-prix`. La session ne peut pas pousser ailleurs.
+**Réversible ?** Oui. Seul le nom de la branche change.
+
+## 2026-10-21 — M7 — Dictionnaire de prix moyens : source et date
+**Contexte** : la feuille de route demande ~150 prix moyens français, marqués « estimés », avec leur source et leur date.
+**Choix** :
+- `kitchen/price_dictionary.py` contient environ 200 aliments courants. Chacun a un prix en €/kg, €/L ou €/pièce et,
+  quand c'est utile, le poids d'une pièce (oignon 150 g, œuf 60 g, citron 120 g).
+- **Source** : des ordres de grandeur de prix en grande surface de milieu de gamme en France métropolitaine,
+  2025-2026, arrondis.
+  - Ils sont écrits de mémoire, d'après les prix moyens à la consommation publiés par l'INSEE et les relevés de
+    FranceAgriMer (RNM).
+  - Ce n'est pas un relevé fait pour ce jalon : la session n'a pas consulté ces sources.
+- **Date** : octobre 2026.
+- Ces prix servent de point de départ. Ils sont ensuite corrigés par l'ajustement après les courses, ou à la main.
+- Ils ne sont **pas** appliqués d'office à la création d'un aliment :
+  - l'écran « Aliments sans prix » les propose un par un, ou tous d'un coup (« Tout appliquer ») ;
+  - la fiche aliment propose le prix moyen quand l'aliment n'a pas de prix ;
+  - les données de démo les reçoivent, sauf « Lardons » et « Lait de coco », gardés sans prix pour montrer l'écran.
+**Alternative écartée** :
+- appliquer le dictionnaire à chaque nouvel aliment : l'écriture se ferait en arrière-plan pendant les imports, et
+  certains tests upstream comptent les propriétés d'un aliment ;
+- télécharger une base de prix : il n'existe pas de source publique et stable.
+**Réversible ?** Oui. Pour appliquer d'office, il suffit d'appeler `apply_suggestion` dans `on_food_created`.
+
+## 2026-10-21 — M7 — Où et comment le prix est stocké
+**Contexte** : upstream exprime toutes les propriétés d'un aliment (nutrition, prix) pour une même référence :
+`properties_food_amount` de `properties_food_unit`, souvent 100 g.
+**Choix** :
+- Le prix est la propriété du type de catégorie `PRICE`. `kitchen.prices.price_type` crée ce type (« Prix », €)
+  quand il n'y en a aucun.
+  Les écrans upstream continuent donc de le lire.
+- Si l'aliment n'a pas encore de référence, ou s'il n'a que le prix comme propriété, la référence devient l'unité du
+  prix. On réutilise une unité existante (`g` → 1000 g, `ml` → 1000 ml, `pièce`), sinon on crée `kg`, `l` ou `pièce`.
+- Si l'aliment a déjà des valeurs nutritionnelles, le prix est converti dans leur référence (2,50 €/kg → 0,25 € pour
+  100 g). Un prix à la pièce n'y est accepté que si l'on connaît le poids d'une pièce. Sinon, l'écran l'explique.
+- `kitchen` ajoute à `KitchenFood` (migration 0003) :
+  - l'origine du prix (estimé / confirmé) ;
+  - son poids dans le lissage ;
+  - le paquet : quantité, nature, prix ;
+  - le poids d'une pièce.
+- Un prix saisi ailleurs (écrans upstream) compte comme confirmé.
+**Alternative écartée** : un champ prix dans `kitchen` seul. Upstream ne le verrait pas, et la feuille de route demande
+la propriété upstream.
+**Réversible ?** Oui. `migrate kitchen 0002` retire les champs ; les propriétés Prix restent des propriétés upstream
+ordinaires.
+
+## 2026-10-21 — M7 — Règles de calcul
+**Contexte** : il faut convertir les quantités des recettes et des courses vers l'unité du prix, sans réglage préalable.
+**Choix** :
+- **Quantités** :
+  - Tout est ramené en grammes, millilitres ou pièces.
+  - D'abord les unités de base upstream et les noms français courants (g, kg, cl, l, c. à soupe = 15 ml, c. à café =
+    5 ml, pincée = 0,5 g, gousse = 5 g). Une ligne sans unité compte des pièces.
+  - Ensuite, les conversions d'unités de l'espace (upstream).
+- **Passages entre unités** :
+  - pièce ↔ poids : par le poids d'une pièce (celui de l'aliment, sinon celui du dictionnaire) ;
+  - poids ↔ volume : densité 1. C'est une estimation : 20 cl de crème font 200 g.
+- **Recette** :
+  - Les aliments « jamais en courses » (sel, eau) et les lignes sans quantité ne comptent pas.
+  - Le prix est proportionnel, pour les portions de la recette. La page le met à l'échelle des portions choisies.
+- **Liste de courses** :
+  - Les entrées sont regroupées par aliment.
+  - Avec un paquet, on compte des paquets entiers : prix du paquet, sinon prix unitaire × taille du paquet.
+  - Un paquet dont le prix est saisi compte comme confirmé.
+- **Ce qui n'entre pas dans le total** : toujours affiché (« 2 articles sans prix »). Un tap donne la liste et la
+  raison (sans prix, ou quantité non convertible).
+- **Ajustement après les courses** :
+  - Les prix confirmés sont tenus pour justes.
+  - Le reste de l'écart porte sur les prix estimés : facteur = (payé − part confirmée) / part estimée.
+  - Ce facteur est borné entre ×0,33 et ×3, pour qu'une faute de frappe ou un oubli ne fasse pas tout dériver.
+  - **Lissage** : chaque prix va vers sa nouvelle valeur de 1 / (n + 1), où n est le nombre d'observations qu'il
+    représente. L'estimation vaut 1 observation, chaque ticket en ajoute 1, avec un plafond de 4. Le premier ticket
+    déplace donc le prix de moitié, puis d'un tiers, d'un quart, d'un cinquième.
+  - L'écart affiché (« +21 % ») est celui du ticket, avant lissage.
+- « Corriger » un article donne au prix de l'aliment ce qui a été payé pour la quantité de la liste, ou au prix du
+  paquet si l'article se compte en paquets. Ce prix devient confirmé.
+- Seuls les articles cochés et visibles sur l'appareil comptent dans « Courses terminées ».
+**Alternative écartée** :
+- appliquer tout l'écart d'un coup : une promo fausserait tous les prix ;
+- répartir aussi l'écart sur les prix confirmés : contraire à la feuille de route.
+**Réversible ?** Oui. Les constantes (`MAX_WEIGHT`, bornes du facteur) sont dans `kitchen/prices.py`.
+
 ## 2026-10-21 — cadrage — M7 « Estimation du prix des courses »
 **Contexte** : Alex veut un estimateur de prix. Trois niveaux ont été proposés :
 1. un prix par aliment saisi à la main ;

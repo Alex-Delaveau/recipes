@@ -19,6 +19,8 @@
                 <v-icon icon="fa-solid fa-ellipsis-vertical"></v-icon>
                 <v-menu activator="parent">
                     <v-list>
+                        <v-list-item prepend-icon="fa-solid fa-receipt" :title="$t('Fork_Shopping_Finished')" min-height="48"
+                                     :disabled="!online || cartEntryIds.length == 0" @click="doneSheet = true"></v-list-item>
                         <v-list-item prepend-icon="fa-solid fa-cart-arrow-down" :title="$t('Fork_Shopping_Clear_Cart')" min-height="48"
                                      :disabled="!online || inCart.length == 0" @click="askClear('cart')"></v-list-item>
                         <v-list-item prepend-icon="fa-solid fa-trash-can" :title="$t('Fork_Shopping_Clear_All')" min-height="48"
@@ -62,6 +64,10 @@
             </v-text-field>
         </v-form>
 
+        <!-- estimated price of the list (M7): what is left to buy and what is in the cart -->
+        <fork-price-summary v-if="price && (toBuy.length || inCart.length)" class="fork-shopping__price mt-3" :total="price.total" :label="$t('Fork_Price_Total_Estimated')"
+                            :missing="price.missing"></fork-price-summary>
+
         <!-- offline in the shop: checks are kept on the device and sent when the network is back -->
         <div v-if="!online || (pendingShoppingChanges > 0 && useShoppingStore().hasFailedItems())" class="fork-shopping__offline mt-3" role="status">
             <v-icon icon="fa-solid fa-cloud-arrow-up" size="18" class="fork-shopping__offline-icon"></v-icon>
@@ -86,7 +92,9 @@
             <!-- done: simple message, no animation -->
             <div class="fork-shopping__done" v-else-if="toBuy.length == 0" role="status">
                 <v-icon icon="fa-solid fa-check" size="24" class="me-3"></v-icon>
-                <span>{{ $t('Fork_Shopping_Done') }}</span>
+                <span class="flex-grow-1">{{ $t('Fork_Shopping_Done') }}</span>
+                <v-btn v-if="cartEntryIds.length && online" color="primary" variant="flat" size="large" class="fork-shopping__finish"
+                       prepend-icon="fa-solid fa-receipt" @click="doneSheet = true">{{ $t('Fork_Shopping_Finished') }}</v-btn>
             </div>
 
             <section v-for="group in toBuy" :key="group.name" class="mt-4">
@@ -98,7 +106,7 @@
                             <span class="fork-shopping__box" aria-hidden="true"></span>
                         </template>
                         <v-list-item-title class="fork-shopping__food">{{ row.label }}</v-list-item-title>
-                        <v-list-item-subtitle class="fork-shopping__amount" v-if="row.amount">{{ row.amount }}</v-list-item-subtitle>
+                        <v-list-item-subtitle class="fork-shopping__amount" v-if="row.amount || packagesOf(row, false)">{{ [row.amount, packagesOf(row, false)].filter(Boolean).join(' · ') }}</v-list-item-subtitle>
                         <template #append>
                             <v-btn icon variant="text" size="44" :aria-label="$t('Edit')" @click.stop="openDetails(row)">
                                 <v-icon icon="fa-solid fa-ellipsis-vertical" size="16"></v-icon>
@@ -109,7 +117,7 @@
             </section>
 
             <section v-if="inCart.length" class="mt-6">
-                <h2 class="fork-shopping__aisle">{{ $t('Fork_In_Cart') }} ({{ inCart.length }})</h2>
+                <h2 class="fork-shopping__aisle">{{ $t('Fork_In_Cart') }} ({{ inCart.length }})<template v-if="price && price.checkedTotal > 0"> · ≈ {{ euros(price.checkedTotal, locale) }}</template></h2>
                 <v-list class="py-0" bg-color="transparent">
                     <v-list-item v-for="row in inCart" :key="row.food.id" min-height="48" class="fork-shopping__row fork-shopping__row--done"
                                  role="checkbox" :aria-checked="true" @click="uncheck(row)">
@@ -117,7 +125,7 @@
                             <span class="fork-shopping__box fork-shopping__box--checked" aria-hidden="true"><v-icon icon="fa-solid fa-check" size="12"></v-icon></span>
                         </template>
                         <v-list-item-title class="fork-shopping__food">{{ row.label }}</v-list-item-title>
-                        <v-list-item-subtitle v-if="row.amount">{{ row.amount }}</v-list-item-subtitle>
+                        <v-list-item-subtitle v-if="row.amount || packagesOf(row, true)">{{ [row.amount, packagesOf(row, true)].filter(Boolean).join(' · ') }}</v-list-item-subtitle>
                     </v-list-item>
                 </v-list>
             </section>
@@ -138,6 +146,8 @@
             </v-card>
         </v-dialog>
 
+        <fork-shopping-done-sheet v-model="doneSheet" :entries="cartEntryIds" @changed="refreshPrice(true)" @clear-cart="askClear('cart')"></fork-shopping-done-sheet>
+
         <shopping-line-item-dialog v-if="detailsFood" v-model="detailsOpen" v-model:shopping-list-food="detailsFood"></shopping-line-item-dialog>
     </v-container>
 
@@ -151,7 +161,7 @@
 
 <script setup lang="ts">
 import {computed, onBeforeUnmount, onMounted, ref, watch} from "vue";
-import {useOnline, useWakeLock} from "@vueuse/core";
+import {useDebounceFn, useOnline, useWakeLock} from "@vueuse/core";
 import {useI18n} from "vue-i18n";
 import {ApiApi, Food, ShoppingListEntry} from "@/openapi";
 import {useShoppingStore} from "@/stores/ShoppingStore";
@@ -165,6 +175,9 @@ import ShoppingListView from "@/components/display/ShoppingListView.vue";
 import {listAisles} from "@/fork/api";
 import {keepShoppingScreenOn, pendingShoppingChanges} from "@/fork/shoppingOffline";
 import ShoppingLineItemDialog from "@/components/dialogs/ShoppingLineItemDialog.vue";
+import ForkPriceSummary from "@/fork/components/ForkPriceSummary.vue";
+import ForkShoppingDoneSheet from "@/fork/components/ForkShoppingDoneSheet.vue";
+import {estimateShopping, euros, ShoppingPrice} from "@/fork/prices";
 
 type ShoppingFood = NonNullable<ShoppingListEntry['food']>
 
@@ -180,7 +193,7 @@ interface AisleGroup {
     rows: ShoppingRow[]
 }
 
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const online = useOnline()
 const wakeLock = useWakeLock()
 
@@ -248,6 +261,37 @@ const toBuy = computed<AisleGroup[]>(() => {
 })
 
 const inCart = computed(() => rowsOf(visibleEntries.value.filter(e => e.checked)))
+
+// ---- price estimate (M7): asked again when entries, amounts or checks change ----
+const price = ref<ShoppingPrice | null>(null)
+const doneSheet = ref(false)
+const cartEntryIds = computed(() => visibleEntries.value.filter(e => e.checked && e.id != undefined).map(e => e.id!))
+const priceKey = computed(() => visibleEntries.value.filter(e => e.id != undefined)
+    .map(e => `${e.id}:${e.amount}:${e.unit?.id ?? ''}:${e.checked ? 1 : 0}`).sort().join(','))
+let priceAsked = ''
+
+const refreshPrice = useDebounceFn((force: boolean = false) => {
+    const key = priceKey.value
+    if (!online.value || (!force && key == priceAsked)) return
+    priceAsked = key
+    const ids = visibleEntries.value.filter(e => e.id != undefined).map(e => e.id!)
+    if (ids.length == 0) {
+        price.value = null
+        return
+    }
+    estimateShopping(ids).then(p => {
+        if (key == priceAsked) price.value = p
+    }).catch(() => {
+        priceAsked = ''
+    })
+}, 400)
+watch(priceKey, () => refreshPrice(), {immediate: true})
+
+/** "2 paquets" when the food is bought in whole packages */
+function packagesOf(row: ShoppingRow, checked: boolean) {
+    const item = price.value?.items.find(i => i.food.id == row.food.id && i.checked == checked)
+    return item?.packages ? t('Fork_Packages', {n: item.packages}, item.packages) : ''
+}
 
 function check(row: ShoppingRow) {
     useShoppingStore().setEntriesCheckedState(row.entries, true, true)
@@ -463,6 +507,12 @@ onBeforeUnmount(() => {
     background: rgba(var(--v-theme-secondary), 0.12);
     font-size: var(--fork-text-md);
     font-weight: 600;
+    flex-wrap: wrap;
+    row-gap: var(--fork-space-3);
+}
+
+.fork-shopping__finish {
+    flex: 1 0 100%;
 }
 
 /* keep the undo bar above the bottom navigation */

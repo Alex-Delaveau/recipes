@@ -1,7 +1,9 @@
+import {ref, watch} from "vue";
 import {useStorage} from "@vueuse/core";
 import {ApiApi, MealPlan, MealType} from "@/openapi";
 import {KitchenRecipe, listKitchenRecipes} from "@/fork/api";
 import {forkHomeFilters} from "@/fork/homeFilters";
+import {estimateRecipes, MissingPrice} from "@/fork/prices";
 
 /** what the draw list keeps of a recipe (enough to show the row without reloading it) */
 export interface DrawnRecipe {
@@ -19,6 +21,29 @@ export interface DrawnRecipe {
  */
 export const drawnRecipes = useStorage<DrawnRecipe[]>('fork_recipe_draw', [])
 export const drawSize = useStorage<number>('fork_recipe_draw_size', 5)
+
+/** estimated price of the drawn recipes, each at its own servings (M7); null while unknown */
+export const drawPrice = ref<{ total: number, missing: MissingPrice[] } | null>(null)
+let drawPriceKey = ''
+
+/** keeps `drawPrice` in step with the list, for the components showing it (one request per list change) */
+export function useDrawPrice() {
+    // prices may have changed on another screen: asked again on each screen that shows it
+    drawPriceKey = ''
+    watch(() => drawnRecipes.value.map(r => r.id).join(','), (key) => {
+        if (key == drawPriceKey) return
+        drawPriceKey = key
+        // the old total never stands for a new list
+        drawPrice.value = null
+        if (!key) return
+        estimateRecipes(drawnRecipes.value.map(r => ({id: r.id}))).then(p => {
+            if (key == drawPriceKey) drawPrice.value = {total: p.total, missing: p.missing}
+        }).catch(() => {
+            if (key == drawPriceKey) drawPriceKey = ''
+        })
+    }, {immediate: true})
+    return drawPrice
+}
 
 function toDrawn(r: KitchenRecipe): DrawnRecipe {
     return {id: r.id!, name: r.name, image: r.image ?? null, totalTime: (r.workingTime ?? 0) + (r.waitingTime ?? 0), servings: r.servings ?? undefined}

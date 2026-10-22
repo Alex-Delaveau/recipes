@@ -147,34 +147,34 @@ upstream existante (`/api/cook-log/`, `/api/meal-plan/`, courses) et par le fron
 - [x] CI GitHub Actions : `verify.sh` complet sur chaque PR vers `main`, la porte reste `VERIFY: OK`.
 - [x] Vérification que les migrations de `kitchen/` s'appliquent sur une base Postgres créée par l'image upstream (service Postgres de la session).
 
-## M7 — Estimation du prix des courses [ ]
+## M7 — Estimation du prix des courses [x]
 Demande d'Alex (2026-10-21) : estimer le prix d'une recette, de la semaine tirée au sort et de la liste de courses, sans
 saisir des centaines de prix, puis corriger simplement après le passage en caisse. Le calcul s'appuie sur la propriété
 « Prix » d'upstream (`PropertyType` de catégorie `PRICE`, propriétés par aliment, conversions d'unités). Ce qu'upstream
 ne sait pas faire va dans `kitchen/` (origine du prix, prix au paquet, poids à la pièce) : aucune migration dans
 `cookbook/`. Une estimation reste une fourchette, jamais un ticket exact : l'écran le dit (« ≈ »).
-- [ ] Prix d'un aliment :
+- [x] Prix d'un aliment :
   - il s'exprime dans l'unité naturelle de l'aliment : « 2,50 € / kg », « 0,40 € / pièce », « 1,10 € / L » ;
   - il est stocké dans la propriété Prix upstream, que les écrans upstream continuent de lire ;
   - on le règle dans la fiche aliment du fork (champ prix et unité), et il s'affiche dans la liste des aliments.
-- [ ] Prix au paquet : en option, un aliment a un conditionnement (« paquet de 500 g = 1,20 € »). La liste de courses
+- [x] Prix au paquet : en option, un aliment a un conditionnement (« paquet de 500 g = 1,20 € »). La liste de courses
       compte alors des paquets entiers (« 2 paquets »), plus proche du ticket réel. Sans conditionnement, le calcul est
       proportionnel.
-- [ ] Dictionnaire de prix moyens (France) :
+- [x] Dictionnaire de prix moyens (France) :
   - ~150 aliments courants, sur le modèle du dictionnaire de rayons de M3 ;
   - chaque prix proposé d'office est marqué **« estimé »**, et l'utilisateur ne corrige que ce qui est faux ;
   - le dictionnaire donne aussi les poids usuels à la pièce (un oignon ≈ 150 g, un œuf ≈ 60 g), pour convertir
     « 3 oignons » quand le prix est au kilo ;
   - les valeurs sont approximatives : leur source et leur date sont notées dans DECISIONS.md.
-- [ ] Écran « Aliments sans prix », sur le modèle de « À ranger » :
+- [x] Écran « Aliments sans prix », sur le modèle de « À ranger » :
   - un aliment à la fois, prix proposé en un tap, ou correction ;
   - accessible depuis la page Aliments, avec un compteur.
-- [ ] Prix estimé affiché là où il sert :
+- [x] Prix estimé affiché là où il sert :
   - page recette, aux portions choisies : « ≈ 6,40 € · 1,60 €/pers. » ;
   - carte « Cette semaine » et page du tirage : « ces 5 plats ≈ 28 € » ;
   - en haut de la liste de courses : « ≈ 34 € » ;
   - partout, le nombre d'articles sans prix ou non convertibles est indiqué (« 3 articles sans prix »), jamais caché.
-- [ ] **Ajuster après les courses** (le plus simple possible) :
+- [x] **Ajuster après les courses** (le plus simple possible) :
   - quand la liste est cochée (ou depuis le menu ⋮ de la liste), « Courses terminées » propose de **saisir le total
     payé** ;
   - l'appli compare au total estimé des articles cochés et ajuste en conséquence les prix **estimés** de ces articles,
@@ -184,9 +184,9 @@ ne sait pas faire va dans `kitchen/` (origine du prix, prix au paquet, poids à 
   - les ajustements successifs se lissent (moyenne pondérée), pour qu'un ticket inhabituel (promo, oubli) ne fausse
     pas tout ;
   - c'est facultatif : « Passer » ne change rien.
-- [ ] Pas de prix d'enseigne en ligne (pas d'API publique, lecture de sites fragile et contraire à leurs conditions) :
+- [x] Pas de prix d'enseigne en ligne (pas d'API publique, lecture de sites fragile et contraire à leurs conditions) :
       exclu du jalon.
-- [ ] Tests :
+- [x] Tests :
   - pytest du calcul : conversions, paquets entiers, articles sans prix, ajustement proportionnel limité aux prix
     estimés, lissage ;
   - parcours cliqués : saisie d'un prix, total de la liste, « Courses terminées » → total payé → prix ajustés ;
